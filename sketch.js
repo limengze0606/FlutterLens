@@ -2,6 +2,9 @@ let currentPagesState = PagesState.START;
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
+  if (typeof initStartButtonLayout === "function") {
+    initStartButtonLayout();
+  }
 }
 
 function draw() {
@@ -27,5 +30,14 @@ function keyPressed() {
     currentPagesState = PagesState.SCANNING;
   } else if (key === '3') {
     currentPagesState = PagesState.RESULT;
+  }
+}
+
+function mousePressed() {
+  if (currentPagesState === PagesState.START) {
+    // 點擊啟動按鈕
+    if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
+      currentPagesState = PagesState.SCANNING;
+    }
   }
 }
