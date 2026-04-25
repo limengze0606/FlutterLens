@@ -37,7 +37,11 @@ function mousePressed() {
   if (currentPagesState === PagesState.START) {
     // 點擊啟動按鈕
     if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-      currentPagesState = PagesState.SCANNING;
+      startCamera();
     }
   }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
