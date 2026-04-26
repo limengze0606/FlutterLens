@@ -4,7 +4,8 @@ function drawScanningPage() {
   if (video) {
     image(video, 0, 0, width, height);
   }
-  drawGyroVisualizer();
+  //drawGyroVisualizer();
+  drawGyroManager();
 }
 
 async function requestGyroPermission() {
