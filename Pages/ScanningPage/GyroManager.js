@@ -23,17 +23,17 @@ function updateNormalizedPitch() {
     // 橫向 (頂端在左)：垂直時，rawY 會在 90 與 -90 之間跳動。
     // 縫合邏輯：正數減 90，負數加 90
     if (rawY > 0) {
-      finalPitch = rawY - 90;
+      finalPitch = -(rawY - 90);
     } else {
-      finalPitch = rawY + 90;
+      finalPitch = -(rawY + 90);
     }
     
   } else if (currentOrientation === -90 || currentOrientation === 270) {
     // 橫向 (頂端在右)：反向縫合，確保仰俯方向與左橫向一致
     if (rawY < 0) {
-      finalPitch = -(rawY + 90);
+      finalPitch = rawY + 90;
     } else {
-      finalPitch = -(rawY - 90);
+      finalPitch = rawY - 90;
     }
     
   } else if (currentOrientation === 180) {
