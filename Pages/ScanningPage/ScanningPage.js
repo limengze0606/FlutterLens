@@ -66,22 +66,10 @@ function drawGyroVisualizer() {
   // === 讀取 p5.js 內建的陀螺儀變數 ===
   // rotationX: 手機前後傾斜 (Pitch)
   // rotationY: 手機左右傾斜 (Roll)
-
-  // 在不少瀏覽器/裝置上 rotationX/Y 會以「弧度」提供，需轉成「度」
-  // 若某些環境已是度數，這個轉換會讓數值變得過大；因此用範圍做保護判斷。
-  const rx = rotationX;
-  const ry = rotationY;
-  const looksLikeRadians =
-    Number.isFinite(rx) &&
-    Number.isFinite(ry) &&
-    Math.max(Math.abs(rx), Math.abs(ry)) <= Math.PI * 2 + 0.5;
-
-  const rotXDeg = looksLikeRadians ? degrees(rx) : rx;
-  const rotYDeg = looksLikeRadians ? degrees(ry) : ry;
-
+  
   // 將角度數值對應到畫面上的像素位移 (限制在儀表板範圍內)
-  let markerX = map(rotYDeg, -90, 90, -maxRadius, maxRadius, true);
-  let markerY = map(rotXDeg, -90, 90, -maxRadius, maxRadius, true);
+  let markerX = map(rotationY, -90, 90, -maxRadius, maxRadius, true);
+  let markerY = map(rotationX, -90, 90, -maxRadius, maxRadius, true);
 
   // 畫出代表手機姿態的「綠色游標」
   fill(0, 255, 0);
@@ -91,6 +79,6 @@ function drawGyroVisualizer() {
   // 顯示原始數據 (除錯用)
   fill(255);
   textSize(12);
-  text(`X: ${Math.round(rotXDeg)}°`, cx, cy + maxRadius + 15);
-  text(`Y: ${Math.round(rotYDeg)}°`, cx, cy + maxRadius + 30);
+  text(`X: ${Math.round(rotationX)}°`, cx, cy + maxRadius + 15);
+  text(`Y: ${Math.round(rotationY)}°`, cx, cy + maxRadius + 30);
 }
