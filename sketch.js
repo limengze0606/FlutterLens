@@ -5,6 +5,7 @@ function setup() {
   if (typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
   }
+  angleMode(DEGREES);
 }
 
 function draw() {
