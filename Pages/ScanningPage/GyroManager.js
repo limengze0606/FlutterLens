@@ -45,16 +45,23 @@ function updateNormalizedPitch() {
   let rawY = rotationY;
   
   if (currentOrientation === 90) {
-    // 橫向 (頂端在左)：垂直時，rawY 會在 90 與 -90 之間跳動。
-    // 以 90° 為基準歸零：水平時 0、仰看為正、俯看為負
-    // 用 wrap 接起 rawY 在 90/-90 的跳點，再 clamp 到 [-90, 90]
-    const delta = wrapToPlusMinus180(rawY - 90);
-    finalPitch = clampToPlusMinus90(-delta);
+    // 橫向左：必須借助 rawX 判斷是否越過垂直線
+    if (Math.abs(rawX) < 90) {
+      finalPitch = 90 - rawY;
+    } else {
+      finalPitch = rawY - 90;
+    }
+    // 套用你的折疊函數，確保萬無一失
+    finalPitch = normalizeToPlusMinus90(finalPitch);
     
   } else if (currentOrientation === -90 || currentOrientation === 270) {
-    // 橫向 (頂端在右)：反向縫合，確保仰俯方向與左橫向一致
-    const delta = wrapToPlusMinus180(rawY - 90);
-    finalPitch = clampToPlusMinus90(delta);
+    // 橫向右
+    if (Math.abs(rawX) < 90) {
+      finalPitch = rawY + 90;
+    } else {
+      finalPitch = -rawY - 90;
+    }
+    finalPitch = normalizeToPlusMinus90(finalPitch);
     
   } else if (currentOrientation === 180) {
     // 直向 (倒拿)：反轉後減 90
