@@ -47,9 +47,9 @@ function updateNormalizedPitch() {
   if (currentOrientation === 90) {
     // 橫向左：必須借助 rawX 判斷是否越過垂直線
     if (Math.abs(rawX) < 90) {
-      finalPitch = 90 - rawY;
-    } else {
       finalPitch = rawY - 90;
+    } else {
+      finalPitch = 90 - rawY;
     }
     // 套用你的折疊函數，確保萬無一失
     finalPitch = normalizeToPlusMinus90(finalPitch);
@@ -57,9 +57,9 @@ function updateNormalizedPitch() {
   } else if (currentOrientation === -90 || currentOrientation === 270) {
     // 橫向右
     if (Math.abs(rawX) < 90) {
-      finalPitch = rawY + 90;
-    } else {
       finalPitch = -rawY - 90;
+    } else {
+      finalPitch = rawY + 90;
     }
     finalPitch = normalizeToPlusMinus90(finalPitch);
     
