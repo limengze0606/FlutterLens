@@ -1,13 +1,23 @@
 let finalPitch = 0; // 客觀平視仰俯角 (手機完全直立時為 0)
 let currentOrientation = 0;
 
+function wrapToPlusMinus180(angleDeg) {
+  let a = angleDeg;
+  while (a > 180) a -= 360;
+  while (a < -180) a += 360;
+  return a;
+}
+
+function clampToPlusMinus90(angleDeg) {
+  return Math.max(-90, Math.min(90, angleDeg));
+}
+
 // 把角度「縫合」成穩定的 -90~90（避免 180/-180 跳點造成顯示爆掉）
 function normalizeToPlusMinus90(angleDeg) {
   let a = angleDeg;
 
   // 先把角度拉回到 [-180, 180]
-  while (a > 180) a -= 360;
-  while (a < -180) a += 360;
+  a = wrapToPlusMinus180(a);
 
   // 再把超出 [-90, 90] 的部分折回來
   if (a > 90) a = 180 - a;
@@ -36,13 +46,15 @@ function updateNormalizedPitch() {
   
   if (currentOrientation === 90) {
     // 橫向 (頂端在左)：垂直時，rawY 會在 90 與 -90 之間跳動。
-    // 用單一連續公式避免 rawY 在 0 附近造成 +90/-90 跳變
-    finalPitch = normalizeToPlusMinus90(90 - rawY);
+    // 以 90° 為基準歸零：水平時 0、仰看為正、俯看為負
+    // 用 wrap 接起 rawY 在 90/-90 的跳點，再 clamp 到 [-90, 90]
+    const delta = wrapToPlusMinus180(rawY - 90);
+    finalPitch = clampToPlusMinus90(-delta);
     
   } else if (currentOrientation === -90 || currentOrientation === 270) {
     // 橫向 (頂端在右)：反向縫合，確保仰俯方向與左橫向一致
-    // 同樣用連續公式，並讓正負方向與左橫向一致
-    finalPitch = normalizeToPlusMinus90(90 + rawY);
+    const delta = wrapToPlusMinus180(rawY - 90);
+    finalPitch = clampToPlusMinus90(delta);
     
   } else if (currentOrientation === 180) {
     // 直向 (倒拿)：反轉後減 90
