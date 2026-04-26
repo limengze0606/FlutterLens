@@ -1,4 +1,4 @@
-let normPitch = 0; // 只保留仰俯角
+let finalPitch = 0; // 客觀平視仰俯角 (手機完全直立時為 0)
 let currentOrientation = 0;
 
 function drawGyroManager() {
@@ -8,28 +8,40 @@ function drawGyroManager() {
 
     textSize(32);
     fill(0, 255, 0); // 綠色大字顯示最終的 Pitch
-    text(`仰俯角 (Pitch): ${nf(normPitch, 1, 1)}°`, width / 2, height / 2);
+    text(`仰俯角 (Pitch): ${nf(finalPitch, 1, 1)}°`, width / 2, height / 2);
 }
 
 // ==========================================
 // 專注處理仰俯角的翻譯官
 // ==========================================
 function updateNormalizedPitch() {
-    currentOrientation = window.orientation || 0;
-    let rawX = rotationX;
-    let rawY = rotationY;
-    
-    if (currentOrientation === 90) {
-      // 橫向 (頂端在左)：原本繞著短邊轉(X)，現在變成繞著長邊轉(Y)
-      normPitch = rawY;
-    } else if (currentOrientation === -90 || currentOrientation === 270) {
-      // 橫向 (頂端在右)：反向的橫向，所以加上負號修正
-      normPitch = -rawY;
-    } else if (currentOrientation === 180) {
-      // 直向 (倒拿)
-      normPitch = -rawX;
+  currentOrientation = window.orientation || 0;
+  let rawX = rotationX;
+  let rawY = rotationY;
+  
+  if (currentOrientation === 90) {
+    // 橫向 (頂端在左)：垂直時，rawY 會在 90 與 -90 之間跳動。
+    // 縫合邏輯：正數減 90，負數加 90
+    if (rawY > 0) {
+      finalPitch = rawY - 90;
     } else {
-      // 直向 (正常)
-      normPitch = rawX;
+      finalPitch = rawY + 90;
     }
+    
+  } else if (currentOrientation === -90 || currentOrientation === 270) {
+    // 橫向 (頂端在右)：反向縫合，確保仰俯方向與左橫向一致
+    if (rawY < 0) {
+      finalPitch = -(rawY + 90);
+    } else {
+      finalPitch = -(rawY - 90);
+    }
+    
+  } else if (currentOrientation === 180) {
+    // 直向 (倒拿)：反轉後減 90
+    finalPitch = (-rawX) - 90;
+    
+  } else {
+    // 直向 (正常)：垂直時 rawX 為 90，直接減 90 歸零
+    finalPitch = rawX - 90;
   }
+}
