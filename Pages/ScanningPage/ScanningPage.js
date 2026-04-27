@@ -26,6 +26,12 @@ function drawScanningPage() {
 
   // 5. 繪製原有的陀螺儀資訊
   drawGyroVisualizer();
+
+  // 6. 更新座標並繪製快門按鈕
+  // 設定在畫面正下方，距離底部 10% 的位置
+  shutterX = width / 2;
+  shutterY = height - (height * 0.1); 
+  drawShutterButton();
 }
 
 async function requestGyroPermission() {
