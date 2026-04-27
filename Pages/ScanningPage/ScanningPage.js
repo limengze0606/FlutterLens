@@ -139,12 +139,11 @@ function drawColorUI() {
   topColors.forEach((c, i) => {
     let currentX = startX + i * (boxW + spacing);
     
-    // 切換到 HSB 模式來畫色塊
+    // 直接使用預先記錄好的「調整後顏色」
     colorMode(HSB, 360, 100, 100);
-    fill(c.h, c.s, c.b);
+    fill(c.h_adj, c.s_adj, c.b_adj); 
     rect(currentX, startY, boxW, boxH, 5);
     
-    // 切回 RGB 模式畫文字，避免影響其他元件
     colorMode(RGB, 255);
     fill(255);
     textSize(12);

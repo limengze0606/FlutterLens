@@ -1,7 +1,13 @@
 // ====== 色彩分桶設定 ======
-const H_BINS = 8;
-const S_BINS = 3;
-const B_BINS = 3;
+const H_BINS = 15;
+const S_BINS = 7;
+const B_BINS = 7;
+
+let lastTopKeys = []; 
+
+// 新增：遲滯閾值 (Hysteresis Threshold)
+// 比如設定為 0.03，代表新顏色必須比舊顏色「多出總像素的 3%」才能篡位
+const THRESHOLD_BONUS = 0.03;
 
 
 function analyzeColors() {
@@ -13,26 +19,19 @@ function analyzeColors() {
 
 function getTopColors(img) {
   img.loadPixels();
-  
   let counts = {};
-  
-  // 取得真實的硬體像素總數 (陣列長度除以 4，因為包含 R,G,B,A)
   let pixelCount = img.pixels.length / 4; 
-  
   if (pixelCount === 0) return [];
 
-  // 動態計算跳躍步數，目標是大約抽樣 1000~1500 個點，確保效能順暢
-  let step = Math.max(1, Math.floor(pixelCount / 1500));
+  let step = Math.max(1, Math.floor(pixelCount / 300));
   let sampledCount = 0;
 
-  // 直接用 1D 陣列跑迴圈，避開高解析度螢幕 2D 座標計算的坑
   for (let i = 0; i < img.pixels.length; i += 4 * step) {
     let r = img.pixels[i];
     let g = img.pixels[i + 1];
     let b = img.pixels[i + 2];
-    let a = img.pixels[i + 3]; // 抓取 Alpha 頻道
+    let a = img.pixels[i + 3]; 
 
-    // 【關鍵防呆】如果完全透明 (a=0)，代表是系統產生的無效像素，直接跳過，不當作黑色！
     if (a === 0) continue; 
 
     let hsb = rgbToHsb(r, g, b);
@@ -47,6 +46,7 @@ function getTopColors(img) {
     let key = `${hIdx}-${sIdx}-${vIdx}`;
     if (!counts[key]) {
       counts[key] = {
+        key: key, // 把 key 存進物件裡方便後續使用
         h: hIdx * (360 / H_BINS) + (180 / H_BINS),
         s: sIdx * (100 / S_BINS) + (50 / S_BINS),
         b: vIdx * (100 / B_BINS) + (50 / B_BINS),
@@ -54,18 +54,51 @@ function getTopColors(img) {
       };
     }
     counts[key].count++;
-    sampledCount++; // 確實記錄了幾個「有效像素」
+    sampledCount++;
   }
 
-  let sortedBins = Object.values(counts).sort((a, b) => b.count - a.count);
+  // ==== 遲滯邏輯核心：計算「排序用分數 (sortScore)」 ====
+  let bonusAmount = sampledCount * THRESHOLD_BONUS; // 換算成具體的像素數量加成
 
-  // 計算比例時，分母改用實際「有效採樣數 (sampledCount)」
-  return sortedBins.slice(0, 3).map(bin => ({
-    h: bin.h,
-    s: bin.s,
-    b: bin.b,
-    percent: ((bin.count / sampledCount) * 100).toFixed(1) 
-  }));
+  Object.values(counts).forEach(bin => {
+    // 如果這個顏色是上一輪的前三名 (衛冕者)，給它加上優勢分數
+    if (lastTopKeys.includes(bin.key)) {
+      bin.sortScore = bin.count + bonusAmount;
+    } else {
+      // 挑戰者只有真實的數量
+      bin.sortScore = bin.count; 
+    }
+  });
+
+  // 用「加成過的分數 (sortScore)」來決定排名，而不是真實數量
+  let sortedBins = Object.values(counts).sort((a, b) => b.sortScore - a.sortScore);
+
+  // 取出前三名
+  let top3 = sortedBins.slice(0, 3);
+  
+  // 更新記憶：把這回合前三名的 Key 存起來，留給下一回合用
+  lastTopKeys = top3.map(bin => bin.key);
+
+  // 回傳時，依然使用「真實的 count」來計算顯示在 UI 上的百分比
+  return top3.map(bin => {
+    // 在這裡先計算好調整後的數值
+    let displayS = Math.min(100, bin.s * 1.3); 
+    let displayB = Math.min(100, bin.b * 1.1);
+
+    return {
+      // 原始資料 (供邏輯運算使用)
+      h: bin.h,
+      s: bin.s,
+      b: bin.b,
+      
+      // 調整後資料 (供視覺呈現與結果生成使用)
+      h_adj: bin.h,
+      s_adj: displayS,
+      b_adj: displayB,
+      
+      percent: ((bin.count / sampledCount) * 100).toFixed(1) 
+    };
+  });
 }
 
 // 效能優化用的輕量級轉換函式，避免大量呼叫 p5 的 color()
