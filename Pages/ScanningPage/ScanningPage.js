@@ -1,9 +1,30 @@
 let video;
+let topColors = [];
 
 function drawScanningPage() {
   if (video) {
     image(video, 0, 0, width, height);
   }
+  
+  // 1. 更新九宮格區域數值
+  initScanArea();
+  
+  // 2. 降低分析頻率 (利用 frameCount)
+  if (video && video.width > 0) {
+    // 預設 60 FPS 的情況下，每 20 幀執行一次，等於每秒只更新 3 次
+    // 你可以修改這個數字：數字越大更新越慢，畫面越穩定
+    if (frameCount % 20 === 0) { 
+      analyzeColors();
+    }
+  }
+  
+  // 3. 分析完之後，再來繪製九宮格線條與外框
+  drawGrid();
+
+  // 4. 繪製擷取到的顏色 UI
+  drawColorUI();
+
+  // 5. 繪製原有的陀螺儀資訊
   drawGyroVisualizer();
 }
 
@@ -75,5 +96,62 @@ function drawGyroVisualizer() {
   textSize(18);
   text(`仰俯: ${nf(finalPitch, 1, 1)}°`, cx, cy + 15);
   
+  pop();
+}
+
+function drawGrid() {
+  stroke(255, 150); // 半透明白線
+  strokeWeight(1);
+  
+  // 垂直線
+  line(width / 3, 0, width / 3, height);
+  line((width / 3) * 2, 0, (width / 3) * 2, height);
+  // 水平線
+  line(0, height / 3, width, height / 3);
+  line(0, (height / 3) * 2, width, (height / 3) * 2);
+
+  // 黃色框線強調中央偵測區域
+  push();
+  rectMode(CORNER); // <--- 強制設定為以左上角為起點
+  noFill();
+  stroke(255, 255, 0); 
+  strokeWeight(2);
+  rect(scanArea.x, scanArea.y, scanArea.w, scanArea.h);
+  pop();
+}
+
+function drawColorUI() {
+  if (topColors.length === 0) return;
+
+  let boxW = 60;
+  let boxH = 40;
+  let spacing = 10;
+  
+  // 讓三個色塊在九宮格下方置中
+  let totalW = (boxW * 3) + (spacing * 2);
+  let startX = scanArea.x + (scanArea.w - totalW) / 2;
+  let startY = scanArea.y + scanArea.h + 20;
+
+  push();
+  textAlign(CENTER, TOP);
+  noStroke();
+  
+  topColors.forEach((c, i) => {
+    let currentX = startX + i * (boxW + spacing);
+    
+    // 切換到 HSB 模式來畫色塊
+    colorMode(HSB, 360, 100, 100);
+    fill(c.h, c.s, c.b);
+    rect(currentX, startY, boxW, boxH, 5);
+    
+    // 切回 RGB 模式畫文字，避免影響其他元件
+    colorMode(RGB, 255);
+    fill(255);
+    textSize(12);
+    text(`${c.percent}%`, currentX + boxW / 2, startY + boxH + 5);
+    
+    textSize(10);
+    text(`Top ${i+1}`, currentX + boxW / 2, startY - 15);
+  });
   pop();
 }
