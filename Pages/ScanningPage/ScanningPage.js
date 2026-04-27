@@ -123,34 +123,53 @@ function drawGrid() {
 function drawColorUI() {
   if (topColors.length === 0) return;
 
-  let boxW = 60;
-  let boxH = 40;
+  // 稍微把色塊縮小一點點，讓左下角的 UI 面板看起來更精緻不笨重
+  let boxW = 50; 
+  let boxH = 30;
   let spacing = 10;
-  
-  // 讓三個色塊在九宮格下方置中
   let totalW = (boxW * 3) + (spacing * 2);
-  let startX = scanArea.x + (scanArea.w - totalW) / 2;
-  let startY = scanArea.y + scanArea.h + 20;
+
+  // 1. 設定面板位置 (對稱於右下角的陀螺儀)
+  let cx = 110;          // 面板中心 X (距離左邊緣留點空隙)
+  let cy = height - 90;  // 面板中心 Y (與陀螺儀 cy = height - 90 完美對齊)
 
   push();
-  textAlign(CENTER, TOP);
-  noStroke();
   
+  // 2. 畫一個半透明黑底圓角矩形 (比照陀螺儀的視覺風格)
+  rectMode(CENTER);
+  fill(0, 150);
+  noStroke();
+  // 面板寬高稍微比色塊總寬度大一點，留出 padding
+  rect(cx, cy, totalW + 30, boxH + 45, 10);
+
+  // 3. 繪製色塊與文字
+  rectMode(CORNER); // 切換回 CORNER 方便畫內部的色塊
+  textAlign(CENTER, TOP);
+  
+  // 計算最左邊第一個色塊的起點座標
+  let startX = cx - (totalW / 2);
+  let startY = cy - (boxH / 2); 
+
   topColors.forEach((c, i) => {
     let currentX = startX + i * (boxW + spacing);
     
-    // 直接使用預先記錄好的「調整後顏色」
+    // 畫色塊 (使用預先算好的調整後顏色)
     colorMode(HSB, 360, 100, 100);
     fill(c.h_adj, c.s_adj, c.b_adj); 
     rect(currentX, startY, boxW, boxH, 5);
     
+    // 畫文字
     colorMode(RGB, 255);
     fill(255);
-    textSize(12);
-    text(`${c.percent}%`, currentX + boxW / 2, startY + boxH + 5);
     
+    // 百分比顯示在色塊下方
+    textSize(12);
+    text(`${c.percent}%`, currentX + boxW / 2, startY + boxH + 4);
+    
+    // 名次顯示在色塊上方
     textSize(10);
-    text(`Top ${i+1}`, currentX + boxW / 2, startY - 15);
+    text(`Top ${i+1}`, currentX + boxW / 2, startY - 14);
   });
+  
   pop();
 }
