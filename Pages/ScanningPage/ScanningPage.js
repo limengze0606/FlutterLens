@@ -28,9 +28,7 @@ function drawScanningPage() {
   drawGyroVisualizer();
 
   // 6. 更新座標並繪製快門按鈕
-  // 設定在畫面正下方，距離底部 10% 的位置
-  shutterX = width / 2;
-  shutterY = height - (height * 0.1); 
+  updateShutterPosition();
   drawShutterButton();
 }
 
