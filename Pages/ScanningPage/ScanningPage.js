@@ -47,38 +47,33 @@ function startCamera() {
 }
 
 function drawGyroVisualizer() {
-  // 設定儀表板的位置與大小
-  let cx = width - 70;
-  let cy = height - 90;
-  let maxRadius = 40;
+  // 1. 確保每一幀都呼叫翻譯官，更新最新的 finalPitch
+  updateNormalizedPitch();
 
-  // 畫儀表板底框 (半透明黑底)
+  // 2. 設定位置 (與原本的右下角位置相同)
+  let cx = width - 80; // 稍微往左移一點點，避免文字貼齊螢幕邊緣
+  let cy = height - 90;
+
+  push(); // 隔離樣式，避免污染到主畫布其他元素
+  
+  // 畫一個半透明黑底圓角矩形，確保文字在相機畫面上不會糊掉
+  rectMode(CENTER);
   fill(0, 150);
   noStroke();
-  circle(cx, cy, maxRadius * 2);
+  rect(cx, cy, 120, 70, 10);
+
+  // 設定文字對齊與樣式
+  textAlign(CENTER, CENTER);
   
-  // 畫十字準星 (代表絕對水平/靜止中心)
-  stroke(255, 100);
-  strokeWeight(1);
-  line(cx - maxRadius, cy, cx + maxRadius, cy);
-  line(cx, cy - maxRadius, cx, cy + maxRadius);
-
-  // === 讀取 p5.js 內建的陀螺儀變數 ===
-  // rotationX: 手機前後傾斜 (Pitch)
-  // rotationY: 手機左右傾斜 (Roll)
-  
-  // 將角度數值對應到畫面上的像素位移 (限制在儀表板範圍內)
-  let markerX = map(rotationY, -90, 90, -maxRadius, maxRadius, true);
-  let markerY = map(rotationX, -90, 90, -maxRadius, maxRadius, true);
-
-  // 畫出代表手機姿態的「綠色游標」
-  fill(0, 255, 0);
-  noStroke();
-  circle(cx + markerX, cy + markerY, 15);
-
-  // 顯示原始數據 (除錯用)
+  // 顯示螢幕目前的硬體方向 (除錯用，白色小字)
   fill(255);
-  textSize(12);
-  text(`X: ${Math.round(rotationX)}°`, cx, cy + maxRadius + 15);
-  text(`Y: ${Math.round(rotationY)}°`, cx, cy + maxRadius + 30);
+  textSize(14);
+  text(`方向: ${currentOrientation}°`, cx, cy - 15);
+  
+  // 顯示最重要的「客觀平視仰俯角」 (綠色大字)
+  fill(0, 255, 0);
+  textSize(18);
+  text(`仰俯: ${nf(finalPitch, 1, 1)}°`, cx, cy + 15);
+  
+  pop();
 }
