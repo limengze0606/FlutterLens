@@ -46,16 +46,23 @@ function mousePressed() {
     case PagesState.SCANNING:
       // 檢查是否點擊到快門按鈕
       if (checkShutterClicked(mouseX, mouseY)) {
-        isShutterPressed = true; // 給予視覺回饋
-        console.log("快門被點擊了！");
-        
-        // 【雛形測試】擷取影像
-        if (typeof video !== 'undefined' && video !== null) {
-          capturedImage = video.get(); 
-          console.log("成功擷取影像：", capturedImage);
+        isShutterPressed = true;  
+
+        // 1. 截圖
+          capturedImage = video.get();
           
+          // 2. 計算隨機座標 (Safe Zone)
+          // 假設 Safe Zone 是 螢幕寬度 20%~80%, 高度 20%~70%
+          spawnPosition = {
+          x: random(capturedImage.width * 0.2, capturedImage.width * 0.8),
+          y: random(capturedImage.height * 0.2, capturedImage.height * 0.7)
+      };
+          
+          // 3. 預先生成好要儲存的影像
+          setupResultCanvas();
+          
+          // 4. 切換頁面
           currentPagesState = PagesState.RESULT;
-        }
       }
       break;
       
@@ -63,6 +70,7 @@ function mousePressed() {
       if (checkBackButtonClicked(mouseX, mouseY)) {
         // 清空暫存並回到掃描頁面
         capturedImage = null;
+        resetResultData();
         currentPagesState = PagesState.SCANNING;
       }
       break;
