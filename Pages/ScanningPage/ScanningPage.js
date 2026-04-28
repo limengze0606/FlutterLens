@@ -26,6 +26,10 @@ function drawScanningPage() {
 
   // 5. 繪製原有的陀螺儀資訊
   drawGyroVisualizer();
+
+  // 6. 更新座標並繪製快門按鈕
+  updateShutterPosition();
+  drawShutterButton();
 }
 
 async function requestGyroPermission() {
