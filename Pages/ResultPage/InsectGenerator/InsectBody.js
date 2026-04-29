@@ -34,22 +34,24 @@ function drawInsectBody(g, bodyType, seedValue) {
  * 實作第一種身體：蝴蝶 (Butterfly Body)
  */
 function drawButterflyBody(g) {
+  let u = insectBaseUnit; // 為了程式碼簡潔，用 u 代替
+
   let bodyColor = g.color(30, 30, 32);      
   let highlightColor = g.color(80, 80, 85, 150); 
   let segmentColor = g.color(50, 50, 55);   
 
-  let thoraxW = 18;
-  let thoraxH = 35;
+  let thoraxW = 1.8 * u;
+  let thoraxH = 3.5 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
-  let headSize = 14;
+  let headSize = 1.4 * u;
   let headY = -thoraxH * 0.6;
   drawPart(g, 0, headY, headSize, headSize * 1.1, bodyColor, highlightColor);
 
   drawAntennae(g, 0, headY - 5);
 
-  let abdomenW = 14;
-  let abdomenH = 80;
+  let abdomenW = 1.4 * u;
+  let abdomenH = 8 * u;
   let abdomenY = thoraxH * 0.4 + abdomenH * 0.5;
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 
@@ -60,25 +62,27 @@ function drawButterflyBody(g) {
  * 實作第二種身體：蜻蜓 (Dragonfly Body)
  */
 function drawDragonflyBody(g) {
+  let u = insectBaseUnit; // 為了程式碼簡潔，用 u 代替
+
   // 設定蜻蜓的顏色 (通常可以帶一點金屬感或更深的色調)
   let bodyColor = g.color(20, 25, 30);      
   let highlightColor = g.color(70, 90, 100, 160); 
   let segmentColor = g.color(40, 50, 60);   
 
   // 1. 繪製胸部 (Thorax) - 蜻蜓的胸部比較厚實且略呈卵形
-  let thoraxW = 20;
-  let thoraxH = 30;
+  let thoraxW = 2.0 * u;
+  let thoraxH = 3.0 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
   // 2. 繪製頭部 (Head) - 蜻蜓頭部特徵是寬度大於長度 (大複眼)
-  let headW = 25;
-  let headH = 16;
+  let headW = 2.5 * u;
+  let headH = 1.6 * u;
   let headY = -thoraxH * 0.6;
   drawPart(g, 0, headY, headW, headH, bodyColor, highlightColor);
 
   // 3. 繪製腹部 (Abdomen) - 蜻蜓的腹部非常細長
-  let abdomenW = 10;
-  let abdomenH = 140; // 長度顯著增加
+  let abdomenW = 1.0 * u;
+  let abdomenH = 14.0 * u; // 長度顯著增加
   let abdomenY = thoraxH * 0.05 + abdomenH * 0.5;
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 
@@ -95,27 +99,29 @@ function drawDragonflyBody(g) {
  * 實作第三種身體：蛾 (Moth Body)
  */
 function drawMothBody(g) {
+  let u = insectBaseUnit; // 為了程式碼簡潔，用 u 代替
+
   // 蛾的顏色通常比較偏向大地色系、棕灰色，這裡調暖一點點
   let bodyColor = g.color(45, 40, 38);      
   let highlightColor = g.color(90, 85, 80, 150); 
   let segmentColor = g.color(30, 25, 25);   
 
   // 1. 繪製胸部 (Thorax) - 蛾的胸部非常寬大且毛茸茸
-  let thoraxW = 26;
-  let thoraxH = 36;
+  let thoraxW = 2.6 * u;
+  let thoraxH = 3.6 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
   // 2. 繪製頭部 (Head) - 頭部相對較小，常被胸部的毛遮住一半
-  let headSize = 12;
+  let headSize = 1.2 * u;
   let headY = -thoraxH * 0.55;
   drawPart(g, 0, headY, headSize, headSize, bodyColor, highlightColor);
 
   // 3. 繪製觸角 - 蛾的專屬羽狀觸角
-  drawMothAntennae(g, 0, headY - 4, 22, 35);
+  drawMothAntennae(g, 0, headY - 4, 2.2 * u, 3.5 * u);
 
   // 4. 繪製腹部 (Abdomen) - 蛾的腹部短而粗胖
-  let abdomenW = 22;
-  let abdomenH = 45;
+  let abdomenW = 1.4 * u;
+  let abdomenH = 4.5 * u;
   let abdomenY = thoraxH * 0.4 + abdomenH * 0.5;
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 

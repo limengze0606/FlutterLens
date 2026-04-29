@@ -61,9 +61,9 @@ function drawWing(g, seedValue, color1, color2, fillType, wingColorLineType, win
     g.noiseSeed(seedValue);
   }
 
-  let wLength = g.random(g.width * 0.25, g.width * 0.5);
-  let wWidth = g.random(g.width * 0.13, g.height * 0.5);
-  let tipYOffset = g.random(-g.width * 0.13, g.height * 0.15);
+  let wLength = g.random(10 * insectBaseUnit, 20 * insectBaseUnit); 
+  let wWidth = g.random(5 * insectBaseUnit, 12 * insectBaseUnit);
+  let tipYOffset = g.random(-5 * insectBaseUnit, 5 * insectBaseUnit);
   let noiseStrength = g.random(2, 10);
 
   let outline = generateWingOutline(wLength, wWidth, tipYOffset, noiseStrength, wingStyle);

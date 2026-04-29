@@ -1,3 +1,5 @@
+let insectBaseUnit = 1;
+
 /**
  * 繪製生成的昆蟲
  * @param {p5.Graphics} insectLayer - 用於繪製昆蟲的圖層
@@ -13,6 +15,9 @@ function drawInsect(insectLayer, x, y) {
     
     // 移動到指定的生成座標，這樣你畫蟲的時候就可以把 (0,0) 當作蟲的中心點
     insectLayer.translate(x, y); 
+
+    updateInsectBaseUnit();
+    bodyHalfWidth = 0.9 * insectBaseUnit;
     
     // --- 以下為昆蟲繪製邏輯 (雛形範例) ---
     currentSeed = floor(random(100000));
@@ -48,4 +53,14 @@ function drawInsect(insectLayer, x, y) {
     }
     
     insectLayer.pop();
+}
+
+function updateInsectBaseUnit() {
+  // 假設我們希望「基準單位」是螢幕短邊的 1%
+  let minDimension = min(width, height); 
+  insectBaseUnit = minDimension * 0.01; 
+  
+  // 假設原本寫死 thoraxW = 18。
+  // 在 1000px 寬度的螢幕下，insectBaseUnit = 10。
+  // 我們稍後會把 thoraxW 變成 1.8 * insectBaseUnit = 18，比例就完美對應了。
 }
