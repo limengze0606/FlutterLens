@@ -32,45 +32,6 @@ function drawScanningPage() {
   drawShutterButton();
 }
 
-async function requestGyroPermission() {
-  // iOS 13+ 需要在使用者手勢內呼叫 requestPermission()
-  if (
-    typeof DeviceOrientationEvent !== "undefined" &&
-    typeof DeviceOrientationEvent.requestPermission === "function"
-  ) {
-    try {
-      const permissionState = await DeviceOrientationEvent.requestPermission();
-      if (permissionState !== "granted") {
-        alert("必須允許動作感測器權限，才能進行環境探索喔！");
-        return false;
-      }
-    } catch (error) {
-      console.error("陀螺儀權限請求錯誤:", error);
-      return false;
-    }
-  }
-
-  // 非 iOS（或不需要顯式 permission 的環境）視為可用
-  return true;
-}
-
-function startCamera() {
-  let constraints = {
-    video: {
-      facingMode: "environment" // 關鍵字：強制要求使用後置(環境)鏡頭
-    },
-    audio: false // 確保不要求麥克風權限
-  };
-
-  // 啟動 p5.js 相機，並傳入我們設定的條件
-  video = createCapture(constraints, function() {
-    currentPagesState = PagesState.SCANNING;
-  });
-  
-  // 隱藏原始的 HTML <video> 標籤
-  video.hide(); 
-}
-
 function drawGyroVisualizer() {
   // 1. 確保每一幀都呼叫翻譯官，更新最新的 finalPitch
   updateNormalizedPitch();

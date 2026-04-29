@@ -88,9 +88,49 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
-async function requestAccess(){
-  const gyroOk = await requestGyroPermission();
-  if (!gyroOk) return;
+// 修改後的版本
+function requestAccess() {
+  // 1. 同步觸發相機請求 (必須第一時間立刻呼叫，不能等 await！)
+  // 我們先偷偷把相機打開，但不要馬上切換頁面
+  let constraints = {
+    video: {
+      facingMode: "environment" 
+    },
+    audio: false 
+  };
+  
+  // 開始請求相機
+  video = createCapture(constraints, function() {
+    video.hide();
+    // 注意：我們把「切換頁面」的動作移出去了，等確認陀螺儀也 OK 後再切換
+  });
 
-  startCamera();
+
+  // 2. 觸發陀螺儀權限請求
+  // 雖然這是非同步的，但相機已經在上一行開始請求了，所以不會被 Safari 擋住
+  if (
+    typeof DeviceOrientationEvent !== "undefined" &&
+    typeof DeviceOrientationEvent.requestPermission === "function"
+  ) {
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === "granted") {
+          // 3. 確保相機和陀螺儀都沒問題後，才切換到掃描頁面
+          currentPagesState = PagesState.SCANNING;
+        } else {
+          alert("必須允許動作感測器權限，才能進行環境探索喔！");
+          // 如果拒絕了，你可以考慮把剛才開啟的 video 給停掉
+          if (video && video.elt && video.elt.srcObject) {
+            video.elt.srcObject.getTracks().forEach(track => track.stop());
+          }
+        }
+      })
+      .catch(error => {
+        console.error("陀螺儀權限請求錯誤:", error);
+      });
+  } else {
+    // 針對非 iOS 或不需權限的裝置 (例如 Android)
+    // 直接切換頁面
+    currentPagesState = PagesState.SCANNING;
+  }
 }
