@@ -22,13 +22,13 @@ function drawInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wi
 function drawButterflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 0;
   drawWingPair(g, seedValue + 1, 10, flapAngle + PI/6, 0.65, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
-  drawWingPair(g, seedValue, 0, flapAngle - PI/12, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, 5, flapAngle - PI/12, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawDragonflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 1;
-  drawWingPair(g, seedValue + 1, -5, (flapAngle * 0.2) - PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
-  drawWingPair(g, seedValue, 5, (flapAngle * 0.2) + PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue + 1, 5, (flapAngle * 0.2) - PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, 0, (flapAngle * 0.2) + PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawMothWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
@@ -61,9 +61,22 @@ function drawWing(g, seedValue, color1, color2, fillType, wingColorLineType, win
     g.noiseSeed(seedValue);
   }
 
-  let wLength = g.random(10 * insectBaseUnit, 20 * insectBaseUnit); 
-  let wWidth = g.random(5 * insectBaseUnit, 12 * insectBaseUnit);
-  let tipYOffset = g.random(-5 * insectBaseUnit, 5 * insectBaseUnit);
+  // 【修改點】：讓翅膀的基礎長度不再只依賴短邊，而是混合長邊的影響
+  // 這樣直向時翅膀能伸展得更長
+  let screenMax = max(width, height);
+  let screenMin = min(width, height);
+  
+  // 計算一個綜合的基準長度 (偏重長邊，讓翅膀有舒展的空間)
+  let wingBaseLen = (screenMax * 0.3 + screenMin * 0.4) * 0.01;
+
+  // 使用新的 wingBaseLen 來計算翅膀長寬
+  // 隨機範圍放大，確保直向時也能生成足夠大的翅膀
+  let wLength = g.random(15 * wingBaseLen, 35 * wingBaseLen); 
+  
+  // 寬度依然可以參考整體的 insectBaseUnit，避免翅膀過度肥大
+  let wWidth = g.random(8 * insectBaseUnit, 18 * insectBaseUnit);
+  
+  let tipYOffset = g.random(-8 * insectBaseUnit, 8 * insectBaseUnit);
   let noiseStrength = g.random(2, 10);
 
   let outline = generateWingOutline(wLength, wWidth, tipYOffset, noiseStrength, wingStyle);
@@ -327,7 +340,7 @@ function getNMMColor(g, p, nmmColorSet) {
   }  else {
     baseColor = g.color("#222423"); midColor = g.color("#6D6F6E"); highlightColor = g.color("#C7C7C7");
   }
-  
+
   let noiseVal = g.noise(p * 20); 
   let shineFactor = g.pow(noiseVal, 2);
   let finalC;
