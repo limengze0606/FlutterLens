@@ -1,15 +1,16 @@
 // 負責把照片跟標記點「焊」在一起
 function setupResultCanvas() {
-    // 1. 根據截圖大小創建畫布
     resultCanvas = createGraphics(capturedImage.width, capturedImage.height);
-    
-    // 2. 畫上照片
     resultCanvas.image(capturedImage, 0, 0);
-    
-    // 3. 畫上生成結果
+
+    let insectLayer = createGraphics(capturedImage.width, capturedImage.height);
     if (spawnPosition) {
-        drawInsect(resultCanvas, spawnPosition.x, spawnPosition.y);
+        drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
     }
+
+    // 將昆蟲圖層的內容合成到結果畫布上
+    resultCanvas.image(insectLayer, 0, 0);
+    insectLayer.remove(); // 釋放昆蟲圖層的記憶體
 }
 
 function drawResultPage() {

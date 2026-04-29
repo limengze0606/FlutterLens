@@ -1,6 +1,6 @@
 function drawInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   g.push();
-  resultCanvas.colorMode(HSB, 360, 100, 100);
+  g.colorMode(HSB, 360, 100, 100);
   switch (insectType) {
     case 0:
       drawButterflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
@@ -353,4 +353,23 @@ function applyNMMVoronoiStyle(g, progress, colorSet, fillCol) {
   let strokeCol = getNMMColor(g, progress, colorSet);
   strokeCol.setAlpha(200); 
   g.stroke(strokeCol); g.fill(fillCol);
+}
+
+function applyNoise(targetPg, noiseStrength) {
+  targetPg.loadPixels();
+  
+  let d = targetPg.pixelDensity(); 
+  let fullSize = 4 * (targetPg.width * d) * (targetPg.height * d);
+  
+  for (let i = 0; i < fullSize; i += 4) {
+    // 【關鍵修改】：檢查 Alpha 通道 (pixels[i + 3])，只有大於 0 (有畫東西的地方) 才加上雜訊
+    if (targetPg.pixels[i + 3] > 0) {
+      let noiseValue = random(-noiseStrength * 255, noiseStrength * 255);
+      
+      targetPg.pixels[i] = constrain(targetPg.pixels[i] + noiseValue, 0, 255);     
+      targetPg.pixels[i + 1] = constrain(targetPg.pixels[i + 1] + noiseValue, 0, 255); 
+      targetPg.pixels[i + 2] = constrain(targetPg.pixels[i + 2] + noiseValue, 0, 255); 
+    }
+  }
+  targetPg.updatePixels();
 }
