@@ -1,18 +1,28 @@
-function drawResultPage() {
-  // 1. 繪製擷取到的乾淨照片
-  if (capturedImage) {
-    image(capturedImage, 0, 0, width, height);
-  } else {
-    // 防呆：萬一沒抓到照片
-    background(0);
-    fill(255);
-    textAlign(CENTER, CENTER);
-    textSize(24);
-    text("尚未擷取影像", width / 2, height / 2);
-  }
+// 負責把照片跟標記點「焊」在一起
+function setupResultCanvas() {
+    resultCanvas = createGraphics(capturedImage.width, capturedImage.height);
+    resultCanvas.image(capturedImage, 0, 0);
 
-  // 2. 繪製「返回」按鈕
-  drawBackButton();
+    let insectLayer = createGraphics(capturedImage.width, capturedImage.height);
+    if (spawnPosition) {
+        drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
+    }
+
+    // 將昆蟲圖層的內容合成到結果畫布上
+    resultCanvas.image(insectLayer, 0, 0);
+    insectLayer.remove(); // 釋放昆蟲圖層的記憶體
+}
+
+function drawResultPage() {
+    background(0);
+    
+    if (resultCanvas) {
+        push(); // 儲存目前的繪圖狀態 
+        image(resultCanvas, 0, 0, width, height); 
+        pop();  // 恢復原本的繪圖狀態
+    }
+    
+    drawBackButton(); 
 }
 
 function drawBackButton() {
@@ -48,4 +58,12 @@ function checkBackButtonClicked(mx, my) {
     return true;
   }
   return false;
+}
+
+function resetResultData() {
+    spawnPosition = null;
+    if (resultCanvas) {
+        resultCanvas.remove(); // 釋放記憶體
+        resultCanvas = null;
+    }
 }

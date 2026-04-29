@@ -1,0 +1,10 @@
+let spawnPosition = null;   // 儲存 {x: 0, y: 0}
+let resultCanvas = null;    // 儲存 p5.Graphics 物件
+let currentSeed = 0;             // 儲存當前的隨機種子值
+let insectType = 0;              // 儲存當前的昆蟲類型 (0~2)
+let bodyHalfWidth = 5;    // 儲存昆蟲身體半寬度 (用於翅膀定位)
+let flapAngle = 0;              // 儲存翅膀的擺動角度
+let wingStyle = 0;             // 儲存翅膀樣式 (0 或 1/ 圓端或尖端)
+let wingColorFillType = 0;        // 儲存翅膀填充顏色類型 (0~2)
+let wingColorLineType = 0;
+let wingLineColorSet = 0;     // 儲存翅膀線條顏色類型 (0~1)
