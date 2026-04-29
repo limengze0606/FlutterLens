@@ -3,8 +3,8 @@ function drawStartPage() {
   let isPortrait = height > width;
 
   // 1. 響應式字級計算 (稍微調低一點下限，以應付極端橫向)
-  let titleSize = constrain(isPortrait ? width * 0.1 : height * 0.12, 24, 42); 
-  let bodySize = constrain(isPortrait ? width * 0.05 : height * 0.06, 12, 18); 
+  let titleSize = constrain(isPortrait ? width * 0.1 : height * 0.12, 26, 48); 
+  let bodySize = constrain(isPortrait ? width * 0.05 : height * 0.06, 15, 22); 
   let leading = bodySize * 1.6;
 
   // 2. 確保按鈕已經初始化
@@ -51,7 +51,7 @@ function drawStartPage() {
 
   // [第三塊：權限提示]
   fill(150);
-  textSize(12);
+  textSize(16);
   text("( 進入時需允許相機與動作感測器權限 )", cx, currentY);
   currentY += 12 + gap; // Y 座標繼續往下推
 
