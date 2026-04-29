@@ -1,11 +1,18 @@
 let currentPagesState = PagesState.START;
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  // 將 canvas 存起來
+  let canvas = createCanvas(windowWidth, windowHeight);
+  
   if (typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
   }
   angleMode(DEGREES);
+
+  // 【核心修改】繞過 p5.js，直接在畫布上掛載原生點擊事件
+  // 使用 touchend 和 click 確保在所有裝置上都能抓到最純粹的點擊
+  canvas.elt.addEventListener('touchend', handleStartButtonNative, false);
+  canvas.elt.addEventListener('click', handleStartButtonNative, false);
 }
 
 function draw() {
@@ -29,7 +36,7 @@ function handleInteraction() {
   switch (currentPagesState) {
     case PagesState.START:
       if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-        requestAccess();
+        //requestAccess();
       }
       break;
       
@@ -124,4 +131,51 @@ function requestAccess() {
     // 直接切換頁面
     currentPagesState = PagesState.SCANNING;
   }
+}
+
+// 這是專門用來應付 iOS 權限的原生事件處理器
+function handleStartButtonNative(e) {
+  // 只在起始畫面生效
+  if (currentPagesState === PagesState.START) {
+    
+    // 檢查點擊位置是否在 StartButton 範圍內
+    if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
+      
+      // 先處理音效權限 (如果有用到的話)
+      if (getAudioContext().state !== 'running') {
+        getAudioContext().resume();
+      }
+
+      // 【直接請求陀螺儀】因為是原生事件，Safari 絕對會乖乖彈出視窗
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              // 陀螺儀允許後，才安全地去開相機
+              startCameraSafe();
+            } else {
+              alert("必須允許動作感測器，才能進入專案喔！");
+            }
+          })
+          .catch(err => console.error("陀螺儀錯誤:", err));
+      } else {
+        // Android 系統直接開相機
+        startCameraSafe();
+      }
+    }
+  }
+}
+
+// 獨立的相機啟動函數
+function startCameraSafe() {
+  let constraints = {
+    video: { facingMode: "environment" },
+    audio: false
+  };
+
+  video = createCapture(constraints, function() {
+    video.hide();
+    // 相機確實啟動後，才切換到 ScanningPage
+    currentPagesState = PagesState.SCANNING;
+  });
 }
