@@ -17,16 +17,27 @@ function drawInsect(insectLayer, x, y) {
     // --- 以下為昆蟲繪製邏輯 (雛形範例) ---
     currentSeed = floor(random(100000));
     insectType = floor(random(3)); // 0, 1, 或 2
-    flapAngle =random(-PI / 4, PI / 4);
+    //flapAngle =random(-PI / 4, PI / 4);
+    flapAngle = 0;
     wingColorFillType = floor(random(3)); // 0, 1, 或 2
     wingColorLineType = floor(random(2)); // 0 或 1
+    wingLineColorSet = floor(random(2)); // 0 或 1
 
-    let color1 = topColors[0];
-    let color2 = topColors[1];
-    drawInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
-    applyNoise(insectLayer, 0.1);
+    if (insectType === 2) {
+        drawInsectBody(insectLayer, insectType, currentSeed);
+        let color1 = topColors[0];
+        let color2 = topColors[1];
+        drawInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet);
+        applyNoise(insectLayer, 0.1);
+    }
+    else {
+        let color1 = topColors[0];
+        let color2 = topColors[1];
+        drawInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet);
+        applyNoise(insectLayer, 0.1);
 
-    drawInsectBody(insectLayer, insectType, currentSeed);
+        drawInsectBody(insectLayer, insectType, currentSeed);
+    }
     
     insectLayer.pop();
 }

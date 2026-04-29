@@ -1,6 +1,6 @@
 function drawInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   g.push();
-  g.colorMode(HSB, 360, 100, 100);
+  g.colorMode(HSB, 360, 100, 100, 255);
   switch (insectType) {
     case 0:
       drawButterflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
@@ -21,19 +21,19 @@ function drawInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wi
 
 function drawButterflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 0;
-  drawWingPair(g, seedValue + 1, 10, flapAngle + PI/8, 0.65, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
-  drawWingPair(g, seedValue, 0, flapAngle, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue + 1, 10, flapAngle + PI/6, 0.65, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, 0, flapAngle - PI/12, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawDragonflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 1;
-  drawWingPair(g, seedValue + 1, -5, flapAngle * 0.6 + PI/12, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
-  drawWingPair(g, seedValue, 5, flapAngle * 0.6 - PI/12, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue + 1, -5, (flapAngle * 0.2) - PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, 5, (flapAngle * 0.2) + PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawMothWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 0;
-  drawWingPair(g, seedValue, 5, flapAngle * 0.8 + PI/10, 0.75, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, -5, flapAngle + PI/3, 0.75, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawWingPair(g, seedValue, yOff, rot, s, color1, color2, wingColorFillType, wingColorLineType, wingStyle ) {
@@ -71,7 +71,7 @@ function drawWing(g, seedValue, color1, color2, fillType, wingColorLineType, win
   g.push(); 
 
   // 1. 主畫布設定裁切 (限制花紋不要畫出翅膀外)
-  g.fill(250, 250, 250, 200); 
+  g.fill(0, 0, 98, 200);
   g.noStroke();
   g.beginShape();
   for (let p of outline) g.vertex(p.x, p.y);
@@ -84,7 +84,7 @@ function drawWing(g, seedValue, color1, color2, fillType, wingColorLineType, win
   g.pop(); 
 
   // 3. 補上最外層的輪廓
-  drawGradualStroke(g, outline, wingColorLineType);
+  drawGradualStroke(g, outline, wingColorLineType, wingLineColorSet);
 }
 
 // 繪製 Voronoi 網格
@@ -112,11 +112,12 @@ function drawVoronoiPattern(g, wLength, wWidth, tipYOffset, color1, color2, fill
         // 取得動態混色
         let fillCol = getVoronoiFillColor(g, progress, fillType, cellX, cellY, color1, color2);
 
-        // 網格的框線統一使用半透明的白色，視覺上最百搭
-        g.stroke(255, 180); 
-        g.strokeWeight(1);
-        g.fill(fillCol);
+        switch (wingColorLineType) {
+          case 0: applySimpleVoronoiStyle(g, progress, fillCol); break;
+          case 1: applyNMMVoronoiStyle(g, progress, wingLineColorSet, fillCol); break;
+        }
 
+        g.strokeWeight(1); 
         g.beginShape();
         for (let pt of polygon) g.vertex(pt[0], pt[1]); 
         g.endShape(g.CLOSE);
@@ -157,7 +158,7 @@ function getVoronoiFillColor(g, progress, fillType, cellX, cellY, color1, color2
   return c;
 }
 
-function drawGradualStroke(g, outline, LineColorType) {
+function drawGradualStroke(g, outline, LineColorType, wingLineColorSet) {
   let firstPoint = outline[0];
   let lastPoint = outline[outline.length - 1];
   let firstColor, lastColor, firstSW, lastSW;
@@ -169,7 +170,7 @@ function drawGradualStroke(g, outline, LineColorType) {
     let strokeCol;
 
     if (LineColorType === 0) strokeCol = getSimpleLerpColor(g, rawProgress, "#281E50", "#cae9f9");
-    else strokeCol = getNMMColor(g, rawProgress, LineColorType);
+    else strokeCol = getNMMColor(g, rawProgress, wingLineColorSet);
 
     let weightPivot = 0.95;
     let wProgress = (rawProgress < weightPivot) ? g.map(rawProgress, 0, weightPivot, 0, 1) : g.map(rawProgress, weightPivot, 1, 1, 0);
@@ -349,8 +350,8 @@ function applySimpleVoronoiStyle(g, progress, fillCol) {
   g.stroke(strokeCol); g.fill(fillCol);
 }
 
-function applyNMMVoronoiStyle(g, progress, colorSet, fillCol) {
-  let strokeCol = getNMMColor(g, progress, colorSet);
+function applyNMMVoronoiStyle(g, progress, LineColorType, fillCol) {
+  let strokeCol = getNMMColor(g, progress, LineColorType);
   strokeCol.setAlpha(200); 
   g.stroke(strokeCol); g.fill(fillCol);
 }

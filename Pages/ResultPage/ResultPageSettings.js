@@ -7,3 +7,4 @@ let flapAngle = 0;              // 儲存翅膀的擺動角度
 let wingStyle = 0;             // 儲存翅膀樣式 (0 或 1/ 圓端或尖端)
 let wingColorFillType = 0;        // 儲存翅膀填充顏色類型 (0~2)
 let wingColorLineType = 0;
+let wingLineColorSet = 0;     // 儲存翅膀線條顏色類型 (0~1)
