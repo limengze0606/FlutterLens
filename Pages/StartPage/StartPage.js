@@ -51,7 +51,7 @@ function drawStartPage() {
 
   // [第三塊：權限提示]
   fill(150);
-  textSize(16);
+  textSize(20);
   text("( 進入時需允許相機與動作感測器權限 )", cx, currentY);
   currentY += 12 + gap; // Y 座標繼續往下推
 
