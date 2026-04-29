@@ -15,9 +15,9 @@ function drawScanningPage() {
   
   // 2. 降低分析頻率 (利用 frameCount)
   if (video && video.width > 0) {
-    // 預設 60 FPS 的情況下，每 20 幀執行一次，等於每秒只更新 3 次
+    // 預設 60 FPS 的情況下，每 30 幀執行一次，等於每秒只更新 2 次
     // 你可以修改這個數字：數字越大更新越慢，畫面越穩定
-    if (frameCount % 20 === 0) { 
+    if (frameCount % 30 === 0) { 
       analyzeColors();
     }
   }

@@ -6,8 +6,8 @@ const B_BINS = 7;
 let lastTopKeys = []; 
 
 // 新增：遲滯閾值 (Hysteresis Threshold)
-// 比如設定為 0.03，代表新顏色必須比舊顏色「多出總像素的 3%」才能篡位
-const THRESHOLD_BONUS = 0.03;
+// 比如設定為 0.08，代表新顏色必須比舊顏色「多出總像素的 8%」才能篡位
+const THRESHOLD_BONUS = 0.08;
 
 
 function analyzeColors() {
