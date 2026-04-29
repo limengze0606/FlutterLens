@@ -41,17 +41,25 @@ function handleInteraction() {
       break;
       
     case PagesState.SCANNING:
-      if (checkShutterClicked(mouseX, mouseY)) {
-        isShutterPressed = true;  
-        capturedImage = video.get();
-        spawnPosition = {
-          x: random(capturedImage.width * 0.2, capturedImage.width * 0.8),
-          y: random(capturedImage.height * 0.2, capturedImage.height * 0.7)
-        };
-        setupResultCanvas();
-        currentPagesState = PagesState.RESULT;
-      }
-      break;
+  if (checkShutterClicked(mouseX, mouseY)) {
+    isShutterPressed = true;  
+    capturedImage = video.get();
+    
+    // 【修改點：方案 B】
+    // 1. 先在使用者「看得到」的螢幕畫面上隨機決定生成範圍 (例如螢幕中間 60% 區域)
+    let screenSpawnX = random(width * 0.2, width * 0.8);
+    let screenSpawnY = random(height * 0.2, height * 0.8);
+
+    // 2. 進行座標轉換：(螢幕座標 - 影像偏移量) / 縮放比例 = 原始照片座標
+    spawnPosition = {
+      x: (screenSpawnX - camLayout.x) / camLayout.scale,
+      y: (screenSpawnY - camLayout.y) / camLayout.scale
+    };
+
+    setupResultCanvas();
+    currentPagesState = PagesState.RESULT;
+  }
+  break;
       
     case PagesState.RESULT:
       if (checkBackButtonClicked(mouseX, mouseY)) {

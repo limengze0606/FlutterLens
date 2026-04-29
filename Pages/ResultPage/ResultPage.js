@@ -14,12 +14,11 @@ function setupResultCanvas() {
 }
 
 function drawResultPage() {
-    background(0);
-    
     if (resultCanvas) {
-        push(); // 儲存目前的繪圖狀態 
-        image(resultCanvas, 0, 0, width, height); 
-        pop();  // 恢復原本的繪圖狀態
+        push(); 
+        // 【修改點】使用跟 ScanningPage 一模一樣的參數來繪製，確保所見即所得
+        image(resultCanvas, camLayout.x, camLayout.y, camLayout.w, camLayout.h); 
+        pop();  
     }
     
     drawBackButton(); 

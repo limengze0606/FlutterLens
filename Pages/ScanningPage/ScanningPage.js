@@ -2,8 +2,12 @@ let video;
 let topColors = [];
 
 function drawScanningPage() {
-  if (video) {
-    image(video, 0, 0, width, height);
+  if (video && video.width > 0) {
+    // 每次繪製前更新佈局 (計算量極小，放這可避免因裝置轉向而破版)
+    updateCameraLayout(); 
+    
+    // 【修改點】不再強制拉伸[cite: 2]，而是使用計算後的 cover 參數
+    image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
   }
   
   // 1. 更新九宮格區域數值
@@ -137,4 +141,29 @@ function drawColorUI() {
   });
   
   pop();
+}
+
+// 計算相機影像置中覆蓋 (Center-Crop) 的渲染參數
+function updateCameraLayout() {
+  // 確保相機影像已經準備好
+  if (!video || video.width === 0) return;
+
+  let videoAspect = video.width / video.height;
+  let canvasAspect = width / height;
+
+  if (canvasAspect > videoAspect) {
+    // 畫布比影像「寬」：以畫布寬度為基準縮放，裁掉上下多餘部分
+    camLayout.w = width;
+    camLayout.h = width / videoAspect;
+    camLayout.scale = width / video.width;
+  } else {
+    // 畫布比影像「窄」或相等：以畫布高度為基準縮放，裁掉左右多餘部分
+    camLayout.h = height;
+    camLayout.w = height * videoAspect;
+    camLayout.scale = height / video.height;
+  }
+
+  // 計算置中偏移量 (如果是裁掉邊緣，這兩個值可能會是負數)
+  camLayout.x = (width - camLayout.w) / 2;
+  camLayout.y = (height - camLayout.h) / 2;
 }
