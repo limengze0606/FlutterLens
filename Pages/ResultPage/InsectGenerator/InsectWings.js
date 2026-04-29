@@ -21,19 +21,19 @@ function drawInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wi
 
 function drawButterflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 0;
-  drawWingPair(g, seedValue + 1, 10, flapAngle + PI/6, 0.65, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
-  drawWingPair(g, seedValue, 5, flapAngle - PI/12, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue + 1, 1.0 * insectBaseUnit, flapAngle + PI/6, 0.65, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, 0.5 * insectBaseUnit, flapAngle - PI/12, 1.0, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawDragonflyWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 1;
-  drawWingPair(g, seedValue + 1, 5, (flapAngle * 0.2) - PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue + 1, 0.5 * insectBaseUnit, (flapAngle * 0.2) - PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
   drawWingPair(g, seedValue, 0, (flapAngle * 0.2) + PI/16, 0.7, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawMothWings(g, seedValue, flapAngle, color1, color2, wingColorFillType, wingColorLineType) {
   wingStyle = 0;
-  drawWingPair(g, seedValue, -5, flapAngle + PI/3, 0.75, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
+  drawWingPair(g, seedValue, -0.5 * insectBaseUnit, flapAngle + PI/3, 0.75, color1, color2, wingColorFillType, wingColorLineType, wingStyle);
 }
 
 function drawWingPair(g, seedValue, yOff, rot, s, color1, color2, wingColorFillType, wingColorLineType, wingStyle ) {

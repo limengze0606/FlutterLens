@@ -40,18 +40,18 @@ function drawButterflyBody(g) {
   let highlightColor = g.color(80, 80, 85, 150); 
   let segmentColor = g.color(50, 50, 55);   
 
-  let thoraxW = 1.8 * u;
-  let thoraxH = 3.5 * u;
+  let thoraxW = 1.4 * u;
+  let thoraxH = 3.0 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
-  let headSize = 1.4 * u;
+  let headSize = 1.0 * u;
   let headY = -thoraxH * 0.6;
   drawPart(g, 0, headY, headSize, headSize * 1.1, bodyColor, highlightColor);
 
   drawAntennae(g, 0, headY - (0.5 * u), 1.5 * u, 3.0 * u);
 
-  let abdomenW = 1.4 * u;
-  let abdomenH = 8 * u;
+  let abdomenW = 1.1 * u;
+  let abdomenH = 6 * u;
   let abdomenY = thoraxH * 0.4 + abdomenH * 0.5;
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 
@@ -68,18 +68,18 @@ function drawDragonflyBody(g) {
   let highlightColor = g.color(70, 90, 100, 160); 
   let segmentColor = g.color(40, 50, 60);   
 
-  let thoraxW = 2.0 * u;
-  let thoraxH = 3.0 * u;
+  let thoraxW = 1.7 * u;
+  let thoraxH = 2.6 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
-  let headW = 2.5 * u;
-  let headH = 1.6 * u;
+  let headW = 2.0 * u;
+  let headH = 1.3 * u;
   // 讓頭的 Y 座標等於胸部高度的一半再往上移一點點，確保接合
   let headY = -(thoraxH / 2) - (headH / 4); 
   drawPart(g, 0, headY, headW, headH, bodyColor, highlightColor);
 
-  let abdomenW = 1.0 * u;
-  let abdomenH = 14.0 * u;
+  let abdomenW = 0.8 * u;
+  let abdomenH = 12.0 * u;
   // 讓腹部的中心點 Y 座標等於：胸部下邊緣 + 腹部高度的一半
   let abdomenY = (thoraxH / 2) + (abdomenH / 2) - (0.5 * u); // 扣掉 0.5*u 是為了讓它們互相重疊一點點，避免斷開
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
@@ -99,12 +99,12 @@ function drawMothBody(g) {
   let segmentColor = g.color(30, 25, 25);   
 
   // 1. 繪製胸部 (Thorax) - 蛾的胸部非常寬大且毛茸茸
-  let thoraxW = 2.6 * u;
-  let thoraxH = 3.6 * u;
+  let thoraxW = 2.2 * u;
+  let thoraxH = 3.2 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
   // 2. 繪製頭部 (Head) - 頭部相對較小，常被胸部的毛遮住一半
-  let headSize = 1.2 * u;
+  let headSize = 0.9 * u;
   let headY = -thoraxH * 0.55;
   drawPart(g, 0, headY, headSize, headSize, bodyColor, highlightColor);
 
@@ -112,8 +112,8 @@ function drawMothBody(g) {
   drawMothAntennae(g, 0, headY - (0.5 * u), 2.2 * u, 3.5 * u);
 
   // 4. 繪製腹部 (Abdomen) - 蛾的腹部短而粗胖
-  let abdomenW = 1.4 * u;
-  let abdomenH = 4.5 * u;
+  let abdomenW = 1.1 * u;
+  let abdomenH = 4.1 * u;
   let abdomenY = thoraxH * 0.4 + abdomenH * 0.5;
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 
