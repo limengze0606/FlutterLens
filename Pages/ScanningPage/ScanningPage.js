@@ -41,29 +41,27 @@ function drawGyroVisualizer() {
   updateNormalizedPitch();
 
   // 2. 設定位置 (與原本的右下角位置相同)
-  let cx = width - 80; // 稍微往左移一點點，避免文字貼齊螢幕邊緣
+  let cx = width - 80; 
   let cy = height - 90;
 
   push(); // 隔離樣式，避免污染到主畫布其他元素
-  
-  // 畫一個半透明黑底圓角矩形，確保文字在相機畫面上不會糊掉
-  rectMode(CENTER);
-  fill(0, 150);
-  noStroke();
-  rect(cx, cy, 120, 70, 10);
 
-  // 設定文字對齊與樣式
-  textAlign(CENTER, CENTER);
-  
-  // 顯示螢幕目前的硬體方向 (除錯用，白色小字)
-  fill(255);
-  textSize(14);
-  text(`方向: ${currentOrientation}°`, cx, cy - 15);
-  
-  // 顯示最重要的「客觀平視仰俯角」 (綠色大字)
-  fill(0, 255, 0);
-  textSize(18);
-  text(`仰俯: ${nf(finalPitch, 1, 1)}°`, cx, cy + 15);
+  // 3. 根據 finalPitch 的條件判斷要顯示哪一張圖片
+  let iconToShow;
+  if (finalPitch < -50) {
+    iconToShow = iconLookDown;      // 俯視 (finalPitch < -50)
+  } else if (finalPitch >= -50 && finalPitch < 20) {
+    iconToShow = iconLookStraight;  // 平視 (finalPitch >= -50 且 < 20)
+  } else {
+    iconToShow = iconLookUp;        // 仰視 (其餘狀況，即 finalPitch >= 20)
+  }
+
+  // 4. 繪製對應的圖片
+  if (iconToShow) {
+    imageMode(CENTER);
+    // 假設圖示畫成 50x50 大小，你可以根據實際圖檔的精緻度自行放大或縮小
+    image(iconToShow, cx, cy, 150, 150);
+  }
   
   pop();
 }
@@ -90,56 +88,39 @@ function drawGrid() {
 }
 
 function drawColorUI() {
-  if (topColors.length === 0) return;
-
-  // 稍微把色塊縮小一點點，讓左下角的 UI 面板看起來更精緻不笨重
-  let boxW = 50; 
-  let boxH = 30;
-  let spacing = 10;
-  let totalW = (boxW * 3) + (spacing * 2);
+  // 確保至少有抓到兩個顏色才繪製
+  if (topColors.length < 2) return;
 
   // 1. 設定面板位置 (對稱於右下角的陀螺儀)
-  let cx = 110;          // 面板中心 X (距離左邊緣留點空隙)
-  let cy = height - 90;  // 面板中心 Y (與陀螺儀 cy = height - 90 完美對齊)
+  let cx = 110;          
+  let cy = height - 90;  
 
   push();
   
-  // 2. 畫一個半透明黑底圓角矩形 (比照陀螺儀的視覺風格)
+  // 2. 畫一個半透明黑底「膠囊」 (高度縮小，寬度包覆兩顆圓形)
   rectMode(CENTER);
   fill(0, 150);
   noStroke();
-  // 面板寬高稍微比色塊總寬度大一點，留出 padding
-  rect(cx, cy, totalW + 30, boxH + 45, 10);
+  // 寬度 120，高度 70，圓角 25 (高度的一半即為完美膠囊形狀)
+  rect(cx, cy, 120, 70, 25); 
 
-  // 3. 繪製色塊與文字
-  rectMode(CORNER); // 切換回 CORNER 方便畫內部的色塊
-  textAlign(CENTER, TOP);
-  
-  // 計算最左邊第一個色塊的起點座標
-  let startX = cx - (totalW / 2);
-  let startY = cy - (boxH / 2); 
+  // 3. 繪製圓形色票
+  let circleSize = 45; // 色票大小
+  let offset = 28;     // 左右偏移量
 
-  topColors.forEach((c, i) => {
-    let currentX = startX + i * (boxW + spacing);
-    
-    // 畫色塊 (使用預先算好的調整後顏色)
-    colorMode(HSB, 360, 100, 100);
-    fill(c.h_adj, c.s_adj, c.b_adj); 
-    rect(currentX, startY, boxW, boxH, 5);
-    
-    // 畫文字
-    colorMode(RGB, 255);
-    fill(255);
-    
-    // 百分比顯示在色塊下方
-    textSize(12);
-    text(`${c.percent}%`, currentX + boxW / 2, startY + boxH + 4);
-    
-    // 名次顯示在色塊上方
-    textSize(10);
-    text(`Top ${i+1}`, currentX + boxW / 2, startY - 14);
-  });
-  
+  // 為了讓色票在黑底上更突出，加上淡淡的白邊
+  strokeWeight(2);
+  stroke(255, 150); 
+
+  // 繪製第一主色 (左)
+  colorMode(HSB, 360, 100, 100);
+  fill(topColors[0].h_adj, topColors[0].s_adj, topColors[0].b_adj); 
+  ellipse(cx - offset, cy, circleSize, circleSize);
+
+  // 繪製第二主色 (右)
+  fill(topColors[1].h_adj, topColors[1].s_adj, topColors[1].b_adj); 
+  ellipse(cx + offset, cy, circleSize, circleSize);
+
   pop();
 }
 
