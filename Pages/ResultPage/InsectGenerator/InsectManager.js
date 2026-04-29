@@ -17,6 +17,13 @@ function drawInsect(targetCanvas, x, y) {
     // --- 以下為昆蟲繪製邏輯 (雛形範例) ---
     currentSeed = floor(random(100000));
     insectType = floor(random(3)); // 0, 1, 或 2
+    flapAngle =random(-PI / 4, PI / 4);
+    wingColorFillType = floor(random(3)); // 0, 1, 或 2
+    wingColorLineType = floor(random(2)); // 0 或 1
+
+    let color1 = topColors[0];
+    let color2 = topColors[1];
+    drawInsectWings(targetCanvas, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
 
     drawInsectBody(targetCanvas, insectType, currentSeed);
     
