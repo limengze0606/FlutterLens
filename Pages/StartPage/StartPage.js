@@ -2,9 +2,13 @@ function drawStartPage() {
   let cx = width / 2;
   let isPortrait = height > width;
 
-  // 1. 響應式字級計算 (稍微調低一點下限，以應付極端橫向)
-  let titleSize = constrain(isPortrait ? width * 0.1 : height * 0.12, 24, 42); 
-  let bodySize = constrain(isPortrait ? width * 0.05 : height * 0.06, 12, 18); 
+  // 1. 響應式字級計算 (調高比例並放寬上下限)
+  // 將直式的標題比例調高至 0.12，上限放寬至 56
+  let titleSize = constrain(isPortrait ? width * 0.12 : height * 0.12, 28, 56); 
+  
+  // 將直式的內文比例調高至 0.06 (甚至可以試試 0.07)，下限提高至 16，上限放寬至 28
+  let bodySize = constrain(isPortrait ? width * 0.06 : height * 0.06, 16, 28); 
+  
   let leading = bodySize * 1.6;
 
   // 2. 確保按鈕已經初始化
