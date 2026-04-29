@@ -322,13 +322,12 @@ function getNMMColor(g, p, nmmColorSet) {
   let baseColor, midColor, highlightColor; 
   let peakHighlight = g.color("#FFFFFF"); 
 
-  switch (nmmColorSet){
-    case 0:
-      baseColor = g.color("#222423"); midColor = g.color("#6D6F6E"); highlightColor = g.color("#C7C7C7"); break;
-    case 1:
-      baseColor = g.color("#6c5626"); midColor = g.color("#bd9b50"); highlightColor = g.color("#F2DFBA"); break;
+  if (nmmColorSet === 0) {  
+    baseColor = g.color("#6c5626"); midColor = g.color("#bd9b50"); highlightColor = g.color("#F2DFBA");
+  }  else {
+    baseColor = g.color("#222423"); midColor = g.color("#6D6F6E"); highlightColor = g.color("#C7C7C7");
   }
-
+  
   let noiseVal = g.noise(p * 20); 
   let shineFactor = g.pow(noiseVal, 2);
   let finalC;

@@ -16,8 +16,13 @@ function drawInsect(insectLayer, x, y) {
     // 移動到指定的生成座標，這樣你畫蟲的時候就可以把 (0,0) 當作蟲的中心點
     insectLayer.translate(x, y); 
 
+    // 賦予隨機旋轉角度
+    // TWO_PI 等於 360 度，這樣昆蟲生成的方向就會是 360 度全隨機
+    let randomRot = random(-PI/4, PI/4); 
+    insectLayer.rotate(randomRot);
+
     updateInsectBaseUnit();
-    bodyHalfWidth = 0.9 * insectBaseUnit;
+    bodyHalfWidth = 0.6 * insectBaseUnit;
     
     // --- 以下為昆蟲繪製邏輯 (雛形範例) ---
     currentSeed = floor(random(100000));
@@ -34,7 +39,7 @@ function drawInsect(insectLayer, x, y) {
     flapAngle = 0;
     wingColorFillType = floor(random(3)); // 0, 1, 或 2
     wingColorLineType = floor(random(2)); // 0 或 1
-    wingLineColorSet = floor(random(2)); // 0 或 1
+    wingLineColorSet = floor(random(20)); // 調整稀有度
 
     if (insectType === 2) {
         drawInsectBody(insectLayer, insectType, currentSeed);

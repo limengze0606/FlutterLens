@@ -174,7 +174,7 @@ function drawAntennae(g, x, y, spread = 15, len = 30) {
   // === 左觸角 (左右對稱，只要把 X 相關的加號變減號) ===
   g.bezier(x, y, x - ctrl1X, y - ctrl1Y, x - ctrl2X, y - ctrl2Y, x - spread, y - len);
   g.fill(30, 30, 32);
-  g.ellipse(x - spread, y - len - 1, 3, 3);
+  g.ellipse(x - spread, y - len - (knobSize/3), knobSize, knobSize);
   g.noFill();
 }
 
