@@ -1,16 +1,40 @@
 function drawStartPage() {
-  // 動態取得畫面中心點
   let cx = width / 2;
-  let cy = height / 2;
+  let isPortrait = height > width;
 
-  // 1. 繪製主標題
+  // 1. 響應式字級計算 (稍微調低一點下限，以應付極端橫向)
+  let titleSize = constrain(isPortrait ? width * 0.1 : height * 0.12, 24, 42); 
+  let bodySize = constrain(isPortrait ? width * 0.05 : height * 0.06, 12, 18); 
+  let leading = bodySize * 1.6;
+
+  // 2. 確保按鈕已經初始化
+  if (!StartButton && typeof initStartButtonLayout === "function") {
+    initStartButtonLayout();
+  }
+  if (!StartButton) return;
+
+  // 3. 【核心修正】計算所有元素的總高度
+  let introLines = 7; // 我們的說明文字包含空白行總共有 7 行
+  let textBlockHeight = introLines * leading;
+  let gap = isPortrait ? 25 : 15; // 元素之間的間距 (直向寬鬆、橫向緊湊)
+  
+  // 總高度 = 標題 + 間距 + 說明文字 + 間距 + 提示文字 + 間距 + 按鈕高度
+  let totalHeight = titleSize + gap + textBlockHeight + gap + 12 + gap + StartButton.ButtonHeight;
+
+  // 4. 計算起始 Y 座標 (讓整組內容完美置中)
+  // 如果螢幕真的扁到裝不下，至少確保從距離頂部 20px 開始畫，不要被裁掉頭
+  let currentY = max((height - totalHeight) / 2, 20);
+
+  // --- 開始由上而下依序繪製，絕對不可能重疊 ---
+
+  // [第一塊：標題]
   fill(255);
-  textSize(34); 
-  textAlign(CENTER, CENTER);
-  // 將標題往上推一點，留空間給多行說明文字
-  text("匿跡蟲蹤調查員", cx, cy - 130);
-    
-  // 2. 繪製情境導引文字 (使用文字區塊來自動換行與置中)
+  textAlign(CENTER, TOP); // 改用 TOP 對齊，方便向下推算座標
+  textSize(titleSize);
+  text("匿跡蟲蹤調查員", cx, currentY);
+  currentY += titleSize + gap; // 畫完後，Y 座標往下推
+
+  // [第二塊：說明文字]
   let introText = 
     "大自然裡，許多未知昆蟲正以保護色隱身於周遭。\n" +
     "請透過鏡頭捕捉環境的色彩，揭開牠們的偽裝。\n\n" +
@@ -19,35 +43,29 @@ function drawStartPage() {
     "無論是低頭探尋、平視周圍，抑或仰望天際，\n" +
     "都可能遇見截然不同的驚喜。";
 
-  fill(210); // 柔和的淺灰色
-  // 為了讓文字在各種尺寸的手機上都不會太擁擠，可以設定稍小的字級搭配適當行距
-  textLeading(24); // 設定行距
-  textSize(15);
-  text(introText, cx, cy - 15);
+  fill(210);
+  textLeading(leading); 
+  textSize(bodySize);
+  text(introText, cx, currentY);
+  currentY += textBlockHeight + gap; // Y 座標繼續往下推
 
-  // 3. 權限小提示
+  // [第三塊：權限提示]
   fill(150);
   textSize(12);
-  text("( 進入時需允許相機與動作感測器權限 )", cx, cy + 90);
+  text("( 進入時需允許相機與動作感測器權限 )", cx, currentY);
+  currentY += 12 + gap; // Y 座標繼續往下推
 
-  // 4. 確保按鈕已經初始化
-  if (!StartButton && typeof initStartButtonLayout === "function") {
-    initStartButtonLayout();
-  }
-  if (!StartButton) return;
-
-  // 5. 動態更新按鈕的碰撞座標 (放在更下方的位置)
+  // [第四塊：按鈕]
+  // 因為原本設定按鈕是 CENTER 模式，所以要把中心點往下加一半的高度
   StartButton.ButtonX = cx;
-  StartButton.ButtonY = cy + 150;
+  StartButton.ButtonY = currentY + (StartButton.ButtonHeight / 2);
 
-  // 6. 繪製按鈕背景
   fill(StartButton.ButtonColor);
   rectMode(StartButton.ButtonRectMode);
   rect(StartButton.ButtonX, StartButton.ButtonY, StartButton.ButtonWidth, StartButton.ButtonHeight, StartButton.ButtonBorderRadius);
   
-  // 7. 繪製按鈕文字
   fill(StartButton.TextColor);
-  textSize(StartButton.TextSize);
-  textAlign(CENTER, CENTER);
+  textSize(bodySize);
+  textAlign(CENTER, CENTER); // 按鈕裡的文字維持置中對齊
   text(StartButton.Text, StartButton.ButtonX, StartButton.ButtonY);
 }
