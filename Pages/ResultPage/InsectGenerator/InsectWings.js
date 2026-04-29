@@ -67,14 +67,14 @@ function drawWing(g, seedValue, color1, color2, fillType, wingColorLineType, win
   let screenMin = min(width, height);
   
   // 計算一個綜合的基準長度 (偏重長邊，讓翅膀有舒展的空間)
-  let wingBaseLen = (screenMax * 0.3 + screenMin * 0.4) * 0.01;
+  let wingBaseLen = (screenMax * 0.15 + screenMin * 0.4) * 0.01;
 
   // 使用新的 wingBaseLen 來計算翅膀長寬
   // 隨機範圍放大，確保直向時也能生成足夠大的翅膀
-  let wLength = g.random(15 * wingBaseLen, 35 * wingBaseLen); 
+  let wLength = g.random(15 * wingBaseLen, 30 * wingBaseLen); 
   
   // 寬度依然可以參考整體的 insectBaseUnit，避免翅膀過度肥大
-  let wWidth = g.random(8 * insectBaseUnit, 18 * insectBaseUnit);
+  let wWidth = g.random(8 * insectBaseUnit, 22 * insectBaseUnit);
   
   let tipYOffset = g.random(-8 * insectBaseUnit, 8 * insectBaseUnit);
   let noiseStrength = g.random(2, 10);
