@@ -48,7 +48,7 @@ function drawButterflyBody(g) {
   let headY = -thoraxH * 0.6;
   drawPart(g, 0, headY, headSize, headSize * 1.1, bodyColor, highlightColor);
 
-  drawAntennae(g, 0, headY - 5);
+  drawAntennae(g, 0, headY - (0.5 * u), 1.5 * u, 3.0 * u);
 
   let abdomenW = 1.4 * u;
   let abdomenH = 8 * u;
@@ -62,37 +62,29 @@ function drawButterflyBody(g) {
  * 實作第二種身體：蜻蜓 (Dragonfly Body)
  */
 function drawDragonflyBody(g) {
-  let u = insectBaseUnit; // 為了程式碼簡潔，用 u 代替
+  let u = insectBaseUnit;
 
-  // 設定蜻蜓的顏色 (通常可以帶一點金屬感或更深的色調)
   let bodyColor = g.color(20, 25, 30);      
   let highlightColor = g.color(70, 90, 100, 160); 
   let segmentColor = g.color(40, 50, 60);   
 
-  // 1. 繪製胸部 (Thorax) - 蜻蜓的胸部比較厚實且略呈卵形
   let thoraxW = 2.0 * u;
   let thoraxH = 3.0 * u;
   drawPart(g, 0, 0, thoraxW, thoraxH, bodyColor, highlightColor);
 
-  // 2. 繪製頭部 (Head) - 蜻蜓頭部特徵是寬度大於長度 (大複眼)
   let headW = 2.5 * u;
   let headH = 1.6 * u;
-  let headY = -thoraxH * 0.6;
+  // 讓頭的 Y 座標等於胸部高度的一半再往上移一點點，確保接合
+  let headY = -(thoraxH / 2) - (headH / 4); 
   drawPart(g, 0, headY, headW, headH, bodyColor, highlightColor);
 
-  // 3. 繪製腹部 (Abdomen) - 蜻蜓的腹部非常細長
   let abdomenW = 1.0 * u;
-  let abdomenH = 14.0 * u; // 長度顯著增加
-  let abdomenY = thoraxH * 0.05 + abdomenH * 0.5;
+  let abdomenH = 14.0 * u;
+  // 讓腹部的中心點 Y 座標等於：胸部下邊緣 + 腹部高度的一半
+  let abdomenY = (thoraxH / 2) + (abdomenH / 2) - (0.5 * u); // 扣掉 0.5*u 是為了讓它們互相重疊一點點，避免斷開
   drawPart(g, 0, abdomenY, abdomenW, abdomenH, bodyColor, highlightColor);
 
-  // 4. 繪製腹部節理 - 蜻蜓腹部節理非常明顯且細密
-  // 增加 count 到 10，讓它看起來更像蜻蜓的長尾巴
   drawSegments(g, 0, abdomenY, abdomenW, abdomenH, 10, segmentColor);
-  
-  // 蜻蜓的觸角通常極短且不明顯，所以這裡不呼叫 drawAntennae，
-  // 或者你可以呼叫一個極小參數的版本：
-  // drawAntennae(g, maskPg, 0, headY - 4, 5, 10); 
 }
 
 /**
@@ -117,7 +109,7 @@ function drawMothBody(g) {
   drawPart(g, 0, headY, headSize, headSize, bodyColor, highlightColor);
 
   // 3. 繪製觸角 - 蛾的專屬羽狀觸角
-  drawMothAntennae(g, 0, headY - 4, 2.2 * u, 3.5 * u);
+  drawMothAntennae(g, 0, headY - (0.5 * u), 2.2 * u, 3.5 * u);
 
   // 4. 繪製腹部 (Abdomen) - 蛾的腹部短而粗胖
   let abdomenW = 1.4 * u;
@@ -175,7 +167,8 @@ function drawAntennae(g, x, y, spread = 15, len = 30) {
   // === 右觸角 ===
   g.bezier(x, y, x + ctrl1X, y - ctrl1Y, x + ctrl2X, y - ctrl2Y, x + spread, y - len);
   g.fill(30, 30, 32); // 小球填滿顏色
-  g.ellipse(x + spread, y - len - 1, 3, 3); // 觸角末端小球
+  let knobSize = len * 0.1;
+  g.ellipse(x + spread, y - len - (knobSize/3), knobSize, knobSize); // 觸角末端小球
   g.noFill(); // 畫完小球記得取消填滿，以免影響其他線條
   
   // === 左觸角 (左右對稱，只要把 X 相關的加號變減號) ===
@@ -187,6 +180,9 @@ function drawAntennae(g, x, y, spread = 15, len = 30) {
 
 /**
  * 繪製羽毛狀觸角 (專屬於蛾)
+ */
+/**
+ * 繪製羽毛狀觸角 (蛾專屬 - 雙向羽狀)
  */
 function drawMothAntennae(g, x, y, spread = 22, len = 35) {
   g.stroke(45, 40, 38);
@@ -205,23 +201,35 @@ function drawMothAntennae(g, x, y, spread = 22, len = 35) {
   // 左觸角主幹
   g.bezier(x, y, x - ctrl1X, y - ctrl1Y, x - ctrl2X, y - ctrl2Y, x - spread, y - len);
 
-  // === 畫羽毛分支 (櫛齒) ===
-  let steps = 7; // 決定羽毛分支的密集度
+  // === 畫羽毛分支 (雙向櫛齒) ===
+  // 建議稍微增加 steps (例如從 7 改為 10)，雙向羽毛密集一點會更像蛾
+  let steps = 10; 
   g.strokeWeight(1);
+
+  // 讓分支長度跟隨 spread 動態縮放 (響應式修改)
+  let branchLen = spread * 0.25; 
 
   for (let i = 1; i <= steps; i++) {
     let t = i / (steps + 1); // 取得貝茲曲線上的進度 (0~1)
     
-    // 利用 bezierPoint 取得曲線上特定點的座標
+    // 取得右觸角當下的中心點座標
     let pxR = g.bezierPoint(x, x + ctrl1X, x + ctrl2X, x + spread, t);
     let pyR = g.bezierPoint(y, y - ctrl1Y, y - ctrl2Y, y - len, t);
     
+    // 取得左觸角當下的中心點座標
     let pxL = g.bezierPoint(x, x - ctrl1X, x - ctrl2X, x - spread, t);
     let pyL = g.bezierPoint(y, y - ctrl1Y, y - ctrl2Y, y - len, t);
 
-    // 畫出向外生長的小分支
-    let branchLen = 6;
+    // --- 右觸角的雙向分支 ---
+    // 1. 向外側長 (往右下)
     g.line(pxR, pyR, pxR + branchLen, pyR + branchLen * 0.3);
+    // 2. 向內側長 (往左下) -> 只要把 X 軸的方向加上負號
+    g.line(pxR, pyR, pxR - branchLen, pyR + branchLen * 0.3);
+
+    // --- 左觸角的雙向分支 ---
+    // 1. 向外側長 (往左下)
     g.line(pxL, pyL, pxL - branchLen, pyL + branchLen * 0.3);
+    // 2. 向內側長 (往右下) -> 同理，方向反轉
+    g.line(pxL, pyL, pxL + branchLen, pyL + branchLen * 0.3);
   }
 }
