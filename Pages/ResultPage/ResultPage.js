@@ -6,29 +6,9 @@ function setupResultCanvas() {
     // 2. 畫上照片
     resultCanvas.image(capturedImage, 0, 0);
     
-    // 3. 畫上標記點
+    // 3. 畫上生成結果
     if (spawnPosition) {
-        // 在 ResultPage.js 的 setupResultCanvas 中：
-        if (typeof topColors !== 'undefined' && topColors.length > 0) {
-            let tc = topColors[0]; // 取得陣列的第一個物件
-            
-            // 1. 切換畫布為 HSB 模式 (對應你的 360, 100, 100)
-            resultCanvas.colorMode(HSB, 360, 100, 100);
-            
-            // 2. 填入你精心調整過的 _adj 數值
-            resultCanvas.fill(tc.h_adj, tc.s_adj, tc.b_adj);
-        } else {
-            // 防呆機制：如果抓不到顏色就用白色
-            resultCanvas.fill(255); 
-        }
-
-        // 畫出圓形
-        resultCanvas.stroke(0, 0, 100); // HSB 的白色
-        resultCanvas.strokeWeight(4);
-        resultCanvas.ellipse(spawnPosition.x, spawnPosition.y, 30, 30);
-
-        // 3. 畫完記得切回 RGB 模式，避免影響其他元件
-        resultCanvas.colorMode(RGB, 255);
+        drawInsect(resultCanvas, spawnPosition.x, spawnPosition.y);
     }
 }
 
