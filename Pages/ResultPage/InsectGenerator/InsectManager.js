@@ -61,11 +61,7 @@ function drawInsect(insectLayer, x, y) {
 }
 
 function updateInsectBaseUnit() {
-  // 假設我們希望「基準單位」是螢幕短邊的 1%
+  // 假設我們希望「基準單位」是螢幕短邊的幾%
   let minDimension = min(width, height); 
-  insectBaseUnit = minDimension * 0.01; 
-  
-  // 假設原本寫死 thoraxW = 18。
-  // 在 1000px 寬度的螢幕下，insectBaseUnit = 10。
-  // 我們稍後會把 thoraxW 變成 1.8 * insectBaseUnit = 18，比例就完美對應了。
+  insectBaseUnit = minDimension * 0.022; // 你可以調整這個比例來讓昆蟲變大或變小
 }
