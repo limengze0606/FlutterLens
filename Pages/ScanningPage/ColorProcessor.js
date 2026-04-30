@@ -12,7 +12,14 @@ const THRESHOLD_BONUS = 0.08;
 
 function analyzeColors() {
   // 直接從畫布擷取中央區域 (最符合肉眼看到的範圍)
-  let img = get(scanArea.x, scanArea.y, scanArea.w, scanArea.h);
+  let vW = Math.floor(video.width / 3);
+  let vH = Math.floor(video.height / 3);
+  let vX = vW; // 中間那一格的 X 起點
+  let vY = vH; // 中間那一格的 Y 起點
+  
+  // 改用 video.get()！直接從相機源頭拿資料，速度快非常多
+  let img = video.get(vX, vY, vW, vH);
+  
   // 呼叫 ColorProcessor.js 中的函式
   topColors = getTopColors(img);
 }
