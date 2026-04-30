@@ -41,29 +41,29 @@ function handleInteraction() {
       break;
       
     case PagesState.SCANNING:
-  if (checkShutterClicked(mouseX, mouseY)) {
-    isShutterPressed = true;  
-    capturedImage = video.get();
-    
-    // 【修改點：方案 B】
-    // 1. 先在使用者「看得到」的螢幕畫面上隨機決定生成範圍 (例如螢幕中間 60% 區域)
-    let screenSpawnX = random(width * 0.2, width * 0.8);
-    let screenSpawnY = random(height * 0.2, height * 0.8);
+      if (checkShutterClicked(mouseX, mouseY)) {
+        isShutterPressed = true;  
+        
+        // 1. 【刪除這行】：不再抓取錯誤比例的原始像素
+        // capturedImage = video.get(); 
+        
+        // 2. 直接在螢幕畫面上隨機決定生成範圍
+        let screenSpawnX = random(width * 0.2, width * 0.8);
+        let screenSpawnY = random(height * 0.2, height * 0.8);
 
-    // 2. 進行座標轉換：(螢幕座標 - 影像偏移量) / 縮放比例 = 原始照片座標
-    spawnPosition = {
-      x: (screenSpawnX - camLayout.x) / camLayout.scale,
-      y: (screenSpawnY - camLayout.y) / camLayout.scale
-    };
+        // 3. 【修改點】：直接使用螢幕座標！完全不需要除以 camLayout.scale 換算了
+        spawnPosition = {
+          x: screenSpawnX,
+          y: screenSpawnY
+        };
 
-    setupResultCanvas();
-    currentPagesState = PagesState.RESULT;
-  }
-  break;
+        setupResultCanvas();
+        currentPagesState = PagesState.RESULT;
+      }
+      break;
       
     case PagesState.RESULT:
       if (checkBackButtonClicked(mouseX, mouseY)) {
-        capturedImage = null;
         resetResultData();
         currentPagesState = PagesState.SCANNING;
       }

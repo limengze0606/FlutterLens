@@ -1,14 +1,20 @@
 // 負責把照片跟標記點「焊」在一起
 function setupResultCanvas() {
-    resultCanvas = createGraphics(capturedImage.width, capturedImage.height);
-    resultCanvas.image(capturedImage, 0, 0);
+    // 1. 建立一個跟「當前螢幕」一模一樣大小的畫布
+    resultCanvas = createGraphics(width, height);
 
-    let insectLayer = createGraphics(capturedImage.width, capturedImage.height);
+    // 2. 直接把相機畫面用我們算好的無變形參數畫上去 (捕捉完美瞬間)
+    if (video) {
+        resultCanvas.image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
+    }
+
+    // 3. 建立一樣大的昆蟲圖層
+    let insectLayer = createGraphics(width, height);
     if (spawnPosition) {
         drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
     }
 
-    // 將昆蟲圖層的內容合成到結果畫布上
+    // 4. 將昆蟲圖層的內容合成到結果畫布上
     resultCanvas.image(insectLayer, 0, 0);
     insectLayer.remove(); // 釋放昆蟲圖層的記憶體
 }
@@ -16,8 +22,9 @@ function setupResultCanvas() {
 function drawResultPage() {
     if (resultCanvas) {
         push(); 
-        // 【修改點】使用跟 ScanningPage 一模一樣的參數來繪製，確保所見即所得
-        image(resultCanvas, camLayout.x, camLayout.y, camLayout.w, camLayout.h); 
+        // 【修改點】：因為 resultCanvas 已經是螢幕大小了
+        // 我們直接畫在 (0, 0) 並且填滿 width, height，完美覆蓋！
+        image(resultCanvas, 0, 0, width, height); 
         pop();  
     }
     
