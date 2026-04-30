@@ -125,26 +125,46 @@ function drawColorUI() {
 }
 
 // 計算相機影像置中覆蓋 (Center-Crop) 的渲染參數
+// 計算相機影像置中覆蓋 (Center-Crop) 的渲染參數
 function updateCameraLayout() {
   // 確保相機影像已經準備好
   if (!video || video.width === 0) return;
 
-  let videoAspect = video.width / video.height;
+  // 1. 取得影像原本的長寬
+  let vWidth = video.width;
+  let vHeight = video.height;
+
+  // 2. 智慧翻轉偵測
+  // 判斷當前螢幕是橫向還是直向
+  let isCanvasLandscape = width > height;
+  // 判斷影像資料是橫向還是直向
+  let isVideoLandscape = vWidth > vHeight;
+
+  // 如果「螢幕方向」與「影像資料方向」不一致，代表發生了旋轉但 video 沒更新
+  // 此時我們手動將影像的長寬對調，讓計算比例恢復正常
+  if (isCanvasLandscape !== isVideoLandscape) {
+    vWidth = video.height;
+    vHeight = video.width;
+  }
+
+  // 3. 使用修正後的長寬來計算比例
+  let videoAspect = vWidth / vHeight;
   let canvasAspect = width / height;
 
   if (canvasAspect > videoAspect) {
     // 畫布比影像「寬」：以畫布寬度為基準縮放，裁掉上下多餘部分
     camLayout.w = width;
     camLayout.h = width / videoAspect;
-    camLayout.scale = width / video.width;
+    // scale 用來給後續擷取截圖時逆向換算用
+    camLayout.scale = width / vWidth; 
   } else {
     // 畫布比影像「窄」或相等：以畫布高度為基準縮放，裁掉左右多餘部分
     camLayout.h = height;
     camLayout.w = height * videoAspect;
-    camLayout.scale = height / video.height;
+    camLayout.scale = height / vHeight;
   }
 
-  // 計算置中偏移量 (如果是裁掉邊緣，這兩個值可能會是負數)
+  // 計算置中偏移量
   camLayout.x = (width - camLayout.w) / 2;
   camLayout.y = (height - camLayout.h) / 2;
 }
