@@ -11,7 +11,8 @@ function setupResultCanvas() {
     // 3. 建立一樣大的昆蟲圖層
     let insectLayer = createGraphics(width, height);
     if (spawnPosition) {
-        drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
+        // drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
+        drawRoughInsect(insectLayer, spawnPosition.x, spawnPosition.y);
     }
 
     // 4. 將昆蟲圖層的內容合成到結果畫布上
