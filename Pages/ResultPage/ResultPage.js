@@ -45,10 +45,12 @@ function drawBackButton() {
   rect(btnX, btnY, 140, 50, 25); 
 
   // 文字
-  fill(0);
-  textAlign(CENTER, CENTER);
-  textSize(18);
-  text("返回", btnX, btnY);
+  drawScreenText("返回", btnX, btnY, {
+    fill: 0,
+    size: 18,
+    alignX: CENTER,
+    alignY: CENTER
+  });
   pop();
 }
 

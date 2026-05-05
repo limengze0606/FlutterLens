@@ -22,7 +22,7 @@ function initScanArea(){
       };
 }
 
-function preload() {
+function preloadScanningPage() {
   iconLookDown = loadImage('assets/look_down.png');
   iconLookStraight = loadImage('assets/look_straight.png');
   iconLookUp = loadImage('assets/look_up.png');
