@@ -7,10 +7,6 @@ const PagesState = Object.freeze({
     RESULT: 'RESULT',
 });
 
-function preload() {
-  preloadScanningPage();
-}
-
 function ensureScreenTextLayer() {
   if (!screenTextLayer || screenTextLayer.width !== width || screenTextLayer.height !== height) {
     if (screenTextLayer) screenTextLayer.remove();
@@ -22,6 +18,15 @@ function ensureScreenTextLayer() {
 
 function clearScreenTextLayer() {
   ensureScreenTextLayer().clear();
+}
+
+function drawInScreenSpace(drawFn) {
+  push();
+  resetMatrix();
+  imageMode(CORNER);
+  translate(-width / 2, -height / 2);
+  drawFn();
+  pop();
 }
 
 function drawScreenText(content, x, y, options = {}) {
@@ -38,6 +43,15 @@ function drawScreenText(content, x, y, options = {}) {
   }
   g.noStroke();
   g.text(content, x, y);
+  g.pop();
+}
+
+function drawScreenImage(img, x, y, w, h, options = {}) {
+  if (!img) return;
+  const g = ensureScreenTextLayer();
+  g.push();
+  g.imageMode(options.mode || CORNER);
+  g.image(img, x, y, w, h);
   g.pop();
 }
 

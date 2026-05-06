@@ -82,7 +82,7 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
   // for (let p of baseOutline) g.vertex(p.x, p.y);
   // g.endShape(g.CLOSE);
   
-  g.drawingContext.clip();
+  //g.drawingContext.clip();
 
   // (這裡未來會放你的 Voronoi 繪製邏輯)
 
@@ -105,57 +105,70 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
 }
 
 /**
- * 輔助函式：用極度平滑的方式畫出一組點，並根據「第幾次下筆」決定甩筆長度
+ * 輔助函式：使用 p5.brush 畫出一組點，並帶有甩筆長度與材質
  */
-// 【修改點】：新增 strokeIndex 參數
 function drawEdgeWithOvershoot(g, points, col, wt, strokeIndex = 0) {
   if (!points || points.length < 5) return;
 
-  g.noFill();
-  g.stroke(col);
-  g.strokeWeight(wt);
-
-  // 【新增邏輯】：根據筆劃決定延伸倍率的上下限
+  // 1. 算出甩筆的延伸倍率與座標 (保留原本的邏輯)
   let minMultiplier, maxMultiplier;
-  
   if (strokeIndex === 0) {
-    // 第一筆 (主線)：比較收斂、準確
     minMultiplier = -0.2;
     maxMultiplier = 0.2;
   } else {
-    // 第二筆 (輔助線/速寫線)：比較放鬆、甩得比較長
     minMultiplier = 0.1;
     maxMultiplier = 0.3; 
   }
   
-  // 算出起點的延伸方向 (往前甩出)
   let p0 = points[0];
   let p1 = points[3]; 
   let startOvershootX = p0.x + (p0.x - p1.x) * random(minMultiplier, maxMultiplier);
   let startOvershootY = p0.y + (p0.y - p1.y) * random(minMultiplier, maxMultiplier);
 
-  // 算出終點的延伸方向 (往後甩出)
   let pLast = points[points.length - 1];
   let pPrev = points[points.length - 4];
   let endOvershootX = pLast.x + (pLast.x - pPrev.x) * random(minMultiplier, maxMultiplier);
   let endOvershootY = pLast.y + (pLast.y - pPrev.y) * random(minMultiplier, maxMultiplier);
 
-  g.beginShape();
+  // ==========================================
+  // 2. 以下為 p5.brush 替換區塊
+  // ==========================================
+  
+  // (重要) 告訴 p5.brush 要畫在傳進來的離線圖層 'g' 上
+  // 注意：視 p5.brush 版本而定，若無此 API 可改為全域繪製後再 copy 到圖層
+  if (typeof brush.canvas === 'function') {
+      brush.canvas(g); 
+  }
+
+  // 設定顏色與粗細 (p5.brush 通常吃 Hex 字串)
+  // 如果 col 是 p5.Color 物件，將其轉為 Hex
+  let hexColor = col.toString('#rrggbb'); 
+  brush.stroke(hexColor);
+  brush.strokeWeight(wt);
+  brush.noFill();
+
+  // 根據不同下筆次數 (strokeIndex) 選擇不同筆刷質感
+  if (strokeIndex === 0) {
+    brush.pick('marker');   // 第一筆：主線比較實，使用麥克筆質感
+  } else {
+    brush.pick('charcoal'); // 第二筆：輔助速寫線，使用炭筆增加毛邊與粗糙感
+  }
+
+  // 3. 繪製手繪曲線路徑
+  brush.beginShape();
   
   // 起點延伸
-  g.curveVertex(startOvershootX, startOvershootY);
-  g.curveVertex(startOvershootX, startOvershootY);
+  brush.vertex(startOvershootX, startOvershootY);
   
-  // 畫出主體
+  // 畫出主體點位
   for (let i = 0; i < points.length; i++) {
-    g.curveVertex(points[i].x, points[i].y);
+    brush.vertex(points[i].x, points[i].y);
   }
   
   // 終點延伸
-  g.curveVertex(endOvershootX, endOvershootY);
-  g.curveVertex(endOvershootX, endOvershootY);
+  brush.vertex(endOvershootX, endOvershootY);
   
-  g.endShape();
+  brush.endShape();
 }
 
 /**

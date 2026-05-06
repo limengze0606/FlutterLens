@@ -22,8 +22,19 @@ function initScanArea(){
       };
 }
 
-function preloadScanningPage() {
-  iconLookDown = loadImage('assets/look_down.png');
-  iconLookStraight = loadImage('assets/look_straight.png');
-  iconLookUp = loadImage('assets/look_up.png');
+async function loadScanningIcon(path, label) {
+  try {
+    return await loadImage(path);
+  } catch (error) {
+    console.error(`${label} icon failed to load:`, error);
+    return null;
+  }
+}
+
+async function preloadScanningPage() {
+  [iconLookDown, iconLookStraight, iconLookUp] = await Promise.all([
+    loadScanningIcon('assets/look_down.png', 'Down'),
+    loadScanningIcon('assets/look_straight.png', 'Straight'),
+    loadScanningIcon('assets/look_up.png', 'Up')
+  ]);
 }

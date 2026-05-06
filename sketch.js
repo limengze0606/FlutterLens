@@ -1,8 +1,9 @@
 let currentPagesState = PagesState.START;
 
-function setup() {
+async function setup() {
   // 將 canvas 存起來
   let canvas = createCanvas(windowWidth, windowHeight, WEBGL);
+  await preloadScanningPage();
   
   if (typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
@@ -19,17 +20,19 @@ function draw() {
   background(0);
   clearScreenTextLayer();
 
-  switch (currentPagesState) {
-    case PagesState.START:
-      drawStartPage();
-      break;
-    case PagesState.SCANNING:
-      drawScanningPage();
-      break;
-    case PagesState.RESULT:
-      drawResultPage();
-      break;
-  }
+  drawInScreenSpace(() => {
+    switch (currentPagesState) {
+      case PagesState.START:
+        drawStartPage();
+        break;
+      case PagesState.SCANNING:
+        drawScanningPage();
+        break;
+      case PagesState.RESULT:
+        drawResultPage();
+        break;
+    }
+  });
 
   drawScreenTextLayer();
 }

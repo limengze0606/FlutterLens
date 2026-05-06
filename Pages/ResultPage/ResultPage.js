@@ -9,7 +9,7 @@ function setupResultCanvas() {
     }
 
     // 3. 建立一樣大的昆蟲圖層
-    let insectLayer = createGraphics(width, height);
+    let insectLayer = createGraphics(width, height, WEBGL);
     if (spawnPosition) {
         // drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
         drawRoughInsect(insectLayer, spawnPosition.x, spawnPosition.y);
