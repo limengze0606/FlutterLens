@@ -84,18 +84,9 @@ function renderResultArtwork() {
 }
 
 function drawResultInsect() {
-    let captureW = resultCaptureLayout.w || width;
-    let captureH = resultCaptureLayout.h || height;
-    let scaleX = resultPhotoLayout.w / captureW;
-    let scaleY = resultPhotoLayout.h / captureH;
-    let localX = spawnPositionRatio ? spawnPositionRatio.x * captureW : spawnPosition.x - resultCaptureLayout.x;
-    let localY = spawnPositionRatio ? spawnPositionRatio.y * captureH : spawnPosition.y - resultCaptureLayout.y;
-
-    push();
-    translate(resultPhotoLayout.x, resultPhotoLayout.y);
-    scale(scaleX, scaleY);
-    drawRoughInsect(window, localX, localY);
-    pop();
+    let x = constrain(spawnPosition.x, width * 0.08, width * 0.92);
+    let y = constrain(spawnPosition.y, height * 0.08, height * 0.92);
+    drawRoughInsect(window, x, y);
 }
 
 function renderResultUi() {
@@ -107,8 +98,8 @@ function updateSpawnPositionForViewport() {
     if (!spawnPositionRatio) return;
 
     spawnPosition = {
-        x: resultPhotoLayout.x + spawnPositionRatio.x * resultPhotoLayout.w,
-        y: resultPhotoLayout.y + spawnPositionRatio.y * resultPhotoLayout.h
+        x: constrain(resultPhotoLayout.x + spawnPositionRatio.x * resultPhotoLayout.w, width * 0.08, width * 0.92),
+        y: constrain(resultPhotoLayout.y + spawnPositionRatio.y * resultPhotoLayout.h, height * 0.08, height * 0.92)
     };
 }
 

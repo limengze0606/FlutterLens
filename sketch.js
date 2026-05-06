@@ -92,7 +92,9 @@ function draw() {
     }
   });
 
-  drawScreenTextLayer();
+  if (!(currentPagesState === PagesState.RESULT && resultExportPending)) {
+    drawScreenTextLayer();
+  }
 
   if (currentPagesState === PagesState.RESULT && typeof completeResultExportIfReady === "function") {
     completeResultExportIfReady();
