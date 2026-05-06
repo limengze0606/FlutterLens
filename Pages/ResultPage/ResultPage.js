@@ -7,6 +7,12 @@ let resultExportReady = false;
 
 function setupResultPhoto() {
     resultPhoto = video ? video.get() : null;
+    resultCaptureLayout = {
+        x: camLayout.x,
+        y: camLayout.y,
+        w: camLayout.w,
+        h: camLayout.h
+    };
     updateResultPhotoLayout();
     resultSceneFinalized = false;
     resultCaptureScheduled = false;
@@ -16,17 +22,9 @@ function setupResultPhoto() {
 function updateResultPhotoLayout() {
     if (!resultPhoto || resultPhoto.width === 0 || resultPhoto.height === 0) return;
 
-    let photoWidth = resultPhoto.width;
-    let photoHeight = resultPhoto.height;
-    let isCanvasLandscape = width > height;
-    let isPhotoLandscape = photoWidth > photoHeight;
-
-    if (isCanvasLandscape !== isPhotoLandscape) {
-        photoWidth = resultPhoto.height;
-        photoHeight = resultPhoto.width;
-    }
-
-    let photoAspect = photoWidth / photoHeight;
+    let photoAspect = resultCaptureLayout.w && resultCaptureLayout.h
+        ? resultCaptureLayout.w / resultCaptureLayout.h
+        : resultPhoto.width / resultPhoto.height;
     let canvasAspect = width / height;
 
     if (canvasAspect > photoAspect) {
@@ -42,6 +40,7 @@ function updateResultPhotoLayout() {
 }
 
 function drawResultPage() {
+    updateResultPhotoLayout();
     updateSpawnPositionForViewport();
 
     if (resultExportPending) {
@@ -78,10 +77,25 @@ function renderResultArtwork() {
             if (typeof setRoughSeed === "function" && resultRenderSeed !== null) {
                 setRoughSeed(window, resultRenderSeed);
             }
-            drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
+            drawResultInsect();
         }
     }
 
+}
+
+function drawResultInsect() {
+    let captureW = resultCaptureLayout.w || width;
+    let captureH = resultCaptureLayout.h || height;
+    let scaleX = resultPhotoLayout.w / captureW;
+    let scaleY = resultPhotoLayout.h / captureH;
+    let localX = spawnPositionRatio ? spawnPositionRatio.x * captureW : spawnPosition.x - resultCaptureLayout.x;
+    let localY = spawnPositionRatio ? spawnPositionRatio.y * captureH : spawnPosition.y - resultCaptureLayout.y;
+
+    push();
+    translate(resultPhotoLayout.x, resultPhotoLayout.y);
+    scale(scaleX, scaleY);
+    drawRoughInsect(window, localX, localY);
+    pop();
 }
 
 function renderResultUi() {
@@ -93,22 +107,18 @@ function updateSpawnPositionForViewport() {
     if (!spawnPositionRatio) return;
 
     spawnPosition = {
-        x: constrain(spawnPositionRatio.x * width, width * 0.2, width * 0.8),
-        y: constrain(spawnPositionRatio.y * height, height * 0.2, height * 0.8)
+        x: resultPhotoLayout.x + spawnPositionRatio.x * resultPhotoLayout.w,
+        y: resultPhotoLayout.y + spawnPositionRatio.y * resultPhotoLayout.h
     };
 }
 
 function drawBackButton() {
-  push();
   // 畫在畫面正下方，或是你想放左上角也可以
   let btnX = width / 2;
   let btnY = height - 80;
   
   // 半透明白底圓角矩形
-  fill(255, 255, 255, 200);
-  noStroke();
-  rectMode(CENTER);
-  rect(btnX, btnY, 140, 50, 25); 
+  drawScreenRect(btnX, btnY, 140, 50, 25, { fill: [255, 255, 255, 200] });
 
   // 文字
   drawScreenText("返回", btnX, btnY, {
@@ -117,18 +127,13 @@ function drawBackButton() {
     alignX: CENTER,
     alignY: CENTER
   });
-  pop();
 }
 
 function drawSaveButton() {
-  push();
   let btnX = width / 2;
   let btnY = height - 145;
 
-  fill(255, 255, 255, 220);
-  noStroke();
-  rectMode(CENTER);
-  rect(btnX, btnY, 140, 50, 25);
+  drawScreenRect(btnX, btnY, 140, 50, 25, { fill: [255, 255, 255, 220] });
 
   drawScreenText("\u5132\u5b58", btnX, btnY, {
     fill: 0,
@@ -136,7 +141,6 @@ function drawSaveButton() {
     alignX: CENTER,
     alignY: CENTER
   });
-  pop();
 }
 
 // 檢查是否點擊到「返回」按鈕的範圍
@@ -180,7 +184,6 @@ function exportResultImage() {
 function completeResultExportIfReady() {
     if (!resultExportReady) return;
 
-    resultExportPending = false;
     resultExportReady = false;
 
     setTimeout(() => {
@@ -189,6 +192,7 @@ function completeResultExportIfReady() {
         }
 
         saveCanvas("FlutterLens-result", "png");
+        resultExportPending = false;
         clearScreenTextLayer();
         resultSceneFinalized = false;
         loop();
@@ -205,4 +209,5 @@ function resetResultData() {
     resultExportReady = false;
     resultPhoto = null;
     resultPhotoLayout = { x: 0, y: 0, w: 0, h: 0 };
+    resultCaptureLayout = { x: 0, y: 0, w: 0, h: 0 };
 }

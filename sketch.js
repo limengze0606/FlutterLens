@@ -125,8 +125,8 @@ function handleInteraction() {
           y: screenSpawnY
         };
         spawnPositionRatio = {
-          x: screenSpawnX / width,
-          y: screenSpawnY / height
+          x: (screenSpawnX - camLayout.x) / camLayout.w,
+          y: (screenSpawnY - camLayout.y) / camLayout.h
         };
 
         setupResultPhoto();

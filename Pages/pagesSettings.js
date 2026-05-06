@@ -55,6 +55,32 @@ function drawScreenImage(img, x, y, w, h, options = {}) {
   g.pop();
 }
 
+function drawScreenRect(x, y, w, h, radius = 0, options = {}) {
+  const g = ensureScreenTextLayer();
+  g.push();
+  g.rectMode(options.mode || CENTER);
+  if (options.fill !== undefined) {
+    if (Array.isArray(options.fill)) {
+      g.fill(...options.fill);
+    } else {
+      g.fill(options.fill);
+    }
+  } else {
+    g.fill(255);
+  }
+  if (options.stroke !== undefined) {
+    if (Array.isArray(options.stroke)) {
+      g.stroke(...options.stroke);
+    } else {
+      g.stroke(options.stroke);
+    }
+  } else {
+    g.noStroke();
+  }
+  g.rect(x, y, w, h, radius);
+  g.pop();
+}
+
 function drawScreenTextLayer() {
   if (!screenTextLayer) return;
   push();
