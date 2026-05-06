@@ -8,15 +8,31 @@ function setupResultCanvas() {
         resultCanvas.image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
     }
 
-    // 3. 建立一樣大的昆蟲圖層
-    let insectLayer = createGraphics(width, height, WEBGL);
+    // 3. p5.brush 只能穩定畫到目前 WebGL 目標或 p5.Framebuffer。
+    let insectLayer = createFramebuffer({
+        width,
+        height,
+        density: pixelDensity(),
+        depth: false
+    });
     if (spawnPosition) {
-        // drawInsect(insectLayer, spawnPosition.x, spawnPosition.y);
-        drawRoughInsect(insectLayer, spawnPosition.x, spawnPosition.y);
+        insectLayer.begin();
+        try {
+            clear();
+            if (typeof brush !== "undefined" && typeof brush.load === "function") {
+                brush.load(insectLayer);
+            }
+            drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
+        } finally {
+            if (typeof brush !== "undefined" && typeof brush.load === "function") {
+                brush.load();
+            }
+            insectLayer.end();
+        }
     }
 
     // 4. 將昆蟲圖層的內容合成到結果畫布上
-    resultCanvas.image(insectLayer, 0, 0);
+    resultCanvas.image(insectLayer.get(), 0, 0, width, height);
     insectLayer.remove(); // 釋放昆蟲圖層的記憶體
 }
 

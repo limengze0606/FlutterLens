@@ -73,7 +73,7 @@ function drawRoughInsect(insectLayer, x, y) {
     insectLayer.colorMode(HSB, 360, 100, 100);
     
     // 移動到指定的生成座標，這樣你畫蟲的時候就可以把 (0,0) 當作蟲的中心點
-    insectLayer.translate(x, y); 
+    // insectLayer.translate(x, y); 
 
     // 賦予隨機旋轉角度
     // TWO_PI 等於 360 度，這樣昆蟲生成的方向就會是 360 度全隨機

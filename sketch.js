@@ -14,6 +14,26 @@ async function setup() {
   // 使用 touchend 和 click 確保在所有裝置上都能抓到最純粹的點擊
   canvas.elt.addEventListener('touchend', handleStartButtonNative, false);
   canvas.elt.addEventListener('click', handleStartButtonNative, false);
+
+  if (typeof brush !== "undefined" && typeof brush.load === "function") {
+    brush.load();
+  }
+  brush.scaleBrushes(3.5);
+
+  brush.add("watercolor", {
+        type:    "custom",
+        weight:  10,
+        scatter: 1.05,
+        opacity: 9,
+        spacing: 0.3,
+        pressure: [0.8, 1.3],
+        rotate:  "natural",
+        tip: (_m) => {
+            _m.fill(0, 200)
+            _m.rect(-20, -20, 50, 50)
+            _m.rect(25, 25, 20, 20)
+        },
+    });
 }
 
 function draw() {

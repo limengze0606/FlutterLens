@@ -1,3 +1,32 @@
+function setRoughSeed(g, seedValue) {
+  if (seedValue === undefined) return;
+
+  if (typeof brush !== "undefined") {
+    if (typeof brush.seed === "function") brush.seed(seedValue);
+    if (typeof brush.noiseSeed === "function") brush.noiseSeed(seedValue);
+  }
+
+  let isGlobalTarget = g === window || g === globalThis;
+
+  if (!isGlobalTarget && g && typeof g.randomSeed === "function") {
+    g.randomSeed(seedValue);
+  } else if (g) {
+    g.randomSeed = seedValue;
+  }
+
+  if (!isGlobalTarget && g && typeof g.noiseSeed === "function") {
+    g.noiseSeed(seedValue);
+  } else if (g) {
+    g.noiseSeed = seedValue;
+  }
+}
+
+function roughRandom(g, minValue, maxValue) {
+  return g && typeof g.random === "function"
+    ? g.random(minValue, maxValue)
+    : random(minValue, maxValue);
+}
+
 function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2) {
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
@@ -15,10 +44,7 @@ function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color
  */
 function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle) {
   // 1. 先用原本的 seedValue 設定隨機種子，確保每次生成的「整體尺寸」固定不變
-  if (seedValue !== undefined) {
-    g.randomSeed = seedValue;
-    g.noiseSeed = seedValue;
-  }
+  setRoughSeed(g, seedValue);
 
   // 2. 在這裡統一把「大輪廓的基礎參數」算好
   let screenMax = max(width, height);
@@ -27,10 +53,10 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
   
   // 建立一個參數包，保證左右翅膀的基底長得一模一樣
   let wingParams = {
-    length: random(15 * wingBaseLen, 30 * wingBaseLen),
-    width: random(8 * insectBaseUnit, 22 * insectBaseUnit),
-    tipY: random(-8 * insectBaseUnit, 8 * insectBaseUnit),
-    noiseStrength: random(2, 10)
+    length: roughRandom(g, 15 * wingBaseLen, 30 * wingBaseLen),
+    width: roughRandom(g, 8 * insectBaseUnit, 22 * insectBaseUnit),
+    tipY: roughRandom(g, -8 * insectBaseUnit, 8 * insectBaseUnit),
+    noiseStrength: roughRandom(g, 2, 10)
   };
 
   // 3. 畫右翅膀 (使用原始種子)
@@ -57,10 +83,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
 // 【修改點】：新增 wingParams 參數
 function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
   // 這裡設定的種子，只會影響接下來「手繪線條」的偏移跟彎曲
-  if (strokeSeed !== undefined) {
-    g.randomSeed = strokeSeed;
-    g.noiseSeed = strokeSeed;
-  }
+  setRoughSeed(g, strokeSeed);
 
   // 直接取出左右共通的大輪廓參數，不重新 randomize
   let wLength = params.length;
@@ -122,23 +145,13 @@ function drawEdgeWithOvershoot(g, points, col, wt, strokeIndex = 0) {
   
   let p0 = points[0];
   let p1 = points[3]; 
-  let startOvershootX = p0.x + (p0.x - p1.x) * random(minMultiplier, maxMultiplier);
-  let startOvershootY = p0.y + (p0.y - p1.y) * random(minMultiplier, maxMultiplier);
+  let startOvershootX = p0.x + (p0.x - p1.x) * roughRandom(g, minMultiplier, maxMultiplier);
+  let startOvershootY = p0.y + (p0.y - p1.y) * roughRandom(g, minMultiplier, maxMultiplier);
 
   let pLast = points[points.length - 1];
   let pPrev = points[points.length - 4];
-  let endOvershootX = pLast.x + (pLast.x - pPrev.x) * random(minMultiplier, maxMultiplier);
-  let endOvershootY = pLast.y + (pLast.y - pPrev.y) * random(minMultiplier, maxMultiplier);
-
-  // ==========================================
-  // 2. 以下為 p5.brush 替換區塊
-  // ==========================================
-  
-  // (重要) 告訴 p5.brush 要畫在傳進來的離線圖層 'g' 上
-  // 注意：視 p5.brush 版本而定，若無此 API 可改為全域繪製後再 copy 到圖層
-  if (typeof brush.canvas === 'function') {
-      brush.canvas(g); 
-  }
+  let endOvershootX = pLast.x + (pLast.x - pPrev.x) * roughRandom(g, minMultiplier, maxMultiplier);
+  let endOvershootY = pLast.y + (pLast.y - pPrev.y) * roughRandom(g, minMultiplier, maxMultiplier);
 
   // 設定顏色與粗細 (p5.brush 通常吃 Hex 字串)
   // 如果 col 是 p5.Color 物件，將其轉為 Hex
@@ -209,25 +222,25 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   // 【核心修正 1：端點偏移 (Anchor Offset)】
   // 讓每次下筆的「起點」和「終點」都不一樣，徹底打破釘死的交會點！
   let anchorOffset = len * 0.04; 
-  l_x1 += random(-anchorOffset, anchorOffset);
-  l_y1 += random(-anchorOffset, anchorOffset);
-  l_x2 += random(-anchorOffset, anchorOffset);
-  l_y2 += random(-anchorOffset, anchorOffset);
-  t_x1 += random(-anchorOffset, anchorOffset);
-  t_y1 += random(-anchorOffset, anchorOffset);
-  t_x2 += random(-anchorOffset, anchorOffset);
-  t_y2 += random(-anchorOffset, anchorOffset);
+  l_x1 += roughRandom(g, -anchorOffset, anchorOffset);
+  l_y1 += roughRandom(g, -anchorOffset, anchorOffset);
+  l_x2 += roughRandom(g, -anchorOffset, anchorOffset);
+  l_y2 += roughRandom(g, -anchorOffset, anchorOffset);
+  t_x1 += roughRandom(g, -anchorOffset, anchorOffset);
+  t_y1 += roughRandom(g, -anchorOffset, anchorOffset);
+  t_x2 += roughRandom(g, -anchorOffset, anchorOffset);
+  t_y2 += roughRandom(g, -anchorOffset, anchorOffset);
 
   // 【維持：全局控制點偏移 (Global Bowing)】
   let bowLevel = len * 0.08; 
-  l_cx1 += random(-bowLevel, bowLevel);
-  l_cy1 += random(-bowLevel, bowLevel);
-  l_cx2 += random(-bowLevel, bowLevel);
-  l_cy2 += random(-bowLevel, bowLevel);
-  t_cx1 += random(-bowLevel, bowLevel);
-  t_cy1 += random(-bowLevel, bowLevel);
-  t_cx2 += random(-bowLevel, bowLevel);
-  t_cy2 += random(-bowLevel, bowLevel);
+  l_cx1 += roughRandom(g, -bowLevel, bowLevel);
+  l_cy1 += roughRandom(g, -bowLevel, bowLevel);
+  l_cx2 += roughRandom(g, -bowLevel, bowLevel);
+  l_cy2 += roughRandom(g, -bowLevel, bowLevel);
+  t_cx1 += roughRandom(g, -bowLevel, bowLevel);
+  t_cy1 += roughRandom(g, -bowLevel, bowLevel);
+  t_cx2 += roughRandom(g, -bowLevel, bowLevel);
+  t_cy2 += roughRandom(g, -bowLevel, bowLevel);
 
   // 2. 計算點位
   for (let i = 0; i <= resolution; i++) {
@@ -250,16 +263,16 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   function applyLocalBends(pts, numBends) {
     for (let b = 0; b < numBends; b++) {
       // 隨機在線段「中間區域」(10% ~ 90%) 挑選一個中心點，避免破壞翅膀頭尾連接處
-      let centerIdx = floor(random(pts.length * 0.1, pts.length * 0.9));
+      let centerIdx = floor(roughRandom(g, pts.length * 0.1, pts.length * 0.9));
 
       // 決定這個彎曲的「方向」和「力度」
-      let maxDist = random(len * 0.02, len * 0.05); // 最大偏移像素
-      let angle = random(g.TWO_PI); 
+      let maxDist = roughRandom(g, len * 0.02, len * 0.05); // 最大偏移像素
+      let angle = roughRandom(g, g.TWO_PI); 
       let dx = g.cos(angle) * maxDist;
       let dy = g.sin(angle) * maxDist;
 
       // 決定彎曲的「影響範圍」(Radius)
-      let affectRadius = random(10, 25); 
+      let affectRadius = roughRandom(g, 10, 25); 
 
       // 遍歷所有點，依據距離施加偏移
       for (let i = 0; i < pts.length; i++) {
@@ -277,8 +290,8 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   }
 
   // 4. 對上緣和下緣分別施加 1 到 3 次的局部彎曲
-  applyLocalBends(topPoints, floor(random(1, 4)));
-  applyLocalBends(bottomPoints, floor(random(1, 4)));
+  applyLocalBends(topPoints, floor(roughRandom(g, 1, 4)));
+  applyLocalBends(bottomPoints, floor(roughRandom(g, 1, 4)));
 
   // 【核心修正 2：不合併陣列，拆開回傳】
   // 我們將上下緣作為物件的兩個屬性回傳，方便後續畫出獨立的交叉點
