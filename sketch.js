@@ -15,9 +15,7 @@ async function setup() {
   canvas.elt.addEventListener('touchend', handleStartButtonNative, false);
   canvas.elt.addEventListener('click', handleStartButtonNative, false);
 
-  if (typeof brush !== "undefined" && typeof brush.load === "function") {
-    brush.load();
-  }
+  syncBrushToCanvas();
   brush.add("default", {
     type:    "default",
     weight:  0.9,
@@ -169,6 +167,8 @@ function touchEnded() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  syncBrushToCanvas();
+
   if (screenTextLayer) {
     screenTextLayer.remove();
     screenTextLayer = null;
@@ -180,6 +180,16 @@ function windowResized() {
     }
     resultSceneFinalized = false;
     loop();
+  }
+}
+
+function syncBrushToCanvas() {
+  if (typeof brush !== "undefined" && typeof brush.load === "function") {
+    try {
+      brush.load();
+    } catch (error) {
+      console.warn("brush failed to sync with canvas:", error);
+    }
   }
 }
 

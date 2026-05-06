@@ -6,6 +6,10 @@ let resultExportPending = false;
 let resultExportReady = false;
 
 function setupResultPhoto() {
+    if (typeof syncBrushToCanvas === "function") {
+        syncBrushToCanvas();
+    }
+
     resultPhoto = video ? video.get() : null;
     resultCaptureLayout = {
         x: camLayout.x,
