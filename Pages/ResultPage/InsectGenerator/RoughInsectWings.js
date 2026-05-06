@@ -8,15 +8,19 @@ function setRoughSeed(g, seedValue) {
 
   let isGlobalTarget = g === window || g === globalThis;
 
-  if (!isGlobalTarget && g && typeof g.randomSeed === "function") {
+  if (isGlobalTarget && typeof randomSeed === "function") {
+    randomSeed(seedValue);
+  } else if (!isGlobalTarget && g && typeof g.randomSeed === "function") {
     g.randomSeed(seedValue);
-  } else if (g) {
+  } else if (g && !isGlobalTarget) {
     g.randomSeed = seedValue;
   }
 
-  if (!isGlobalTarget && g && typeof g.noiseSeed === "function") {
+  if (isGlobalTarget && typeof noiseSeed === "function") {
+    noiseSeed(seedValue);
+  } else if (!isGlobalTarget && g && typeof g.noiseSeed === "function") {
     g.noiseSeed(seedValue);
-  } else if (g) {
+  } else if (g && !isGlobalTarget) {
     g.noiseSeed = seedValue;
   }
 }
@@ -115,22 +119,21 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
   // 2. 生成並繪製【手繪彎曲輪廓】 (Multi-stroke)
   // ==========================================
   let strokeCount = 2; // 畫兩次
-  let inkColor = g.color(0, 0, 255, 255); // 假設你用藍黑色
 
   for (let s = 0; s < strokeCount; s++) {
     // 因為左翅膀跟右翅膀的 strokeSeed 已經不同了，這裡算出來的彎曲與錯位會完全不一樣！
     let bowedEdges = generateBowedWingOutline(g, wLength, wWidth, tipYOffset, noiseStrength, wingStyle);
     
     // 將上緣和下緣完全分開畫，並帶有不同的延伸倍率
-    drawEdgeWithOvershoot(g, bowedEdges.top, inkColor, 2.5, s);
-    drawEdgeWithOvershoot(g, bowedEdges.bottom, inkColor, 2.5, s);
+    drawEdgeWithOvershoot(g, bowedEdges.top, s);
+    drawEdgeWithOvershoot(g, bowedEdges.bottom, s);
   }
 }
 
 /**
  * 輔助函式：使用 p5.brush 畫出一組點，並帶有甩筆長度與材質
  */
-function drawEdgeWithOvershoot(g, points, col, wt, strokeIndex = 0) {
+function drawEdgeWithOvershoot(g, points, strokeIndex = 0) {
   if (!points || points.length < 5) return;
 
   // 1. 算出甩筆的延伸倍率與座標 (保留原本的邏輯)
@@ -154,13 +157,7 @@ function drawEdgeWithOvershoot(g, points, col, wt, strokeIndex = 0) {
   let endOvershootY = pLast.y + (pLast.y - pPrev.y) * roughRandom(g, minMultiplier, maxMultiplier);
 
   // 設定顏色與粗細 (p5.brush 通常吃 Hex 字串)
-  // 如果 col 是 p5.Color 物件，將其轉為 Hex
-  let hexColor = col.toString('#rrggbb'); 
-  brush.stroke(hexColor);
-  brush.strokeWeight(wt);
-  brush.noFill();
-
-  brush.set("markerBrush");
+  brush.set("pencil1", "#FFFFFF");
 
   // 3. 繪製手繪曲線路徑
   brush.beginShape();
@@ -227,7 +224,7 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   t_y2 += roughRandom(g, -anchorOffset, anchorOffset);
 
   // 【維持：全局控制點偏移 (Global Bowing)】
-  let bowLevel = len * 0.08; 
+  let bowLevel = len * 0.03; 
   l_cx1 += roughRandom(g, -bowLevel, bowLevel);
   l_cy1 += roughRandom(g, -bowLevel, bowLevel);
   l_cx2 += roughRandom(g, -bowLevel, bowLevel);

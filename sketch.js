@@ -34,16 +34,33 @@ async function setup() {
   });
 
   brush.add("markerBrush", {
-  type:    "marker",
-  weight:  6,
-  scatter: 0.35,
-  opacity: 1,
-  spacing: 0.09,
-  noise:   1,
-  pressure: [1.2, 0.86],
-  rotate:  "none",
-  markerTip: true,
-});
+    type:    "marker",
+    weight:  6,
+    scatter: 0.35,
+    opacity: 1,
+    spacing: 0.09,
+    noise:   1,
+    pressure: [1.2, 0.86],
+    rotate:  "none",
+    markerTip: true,
+  });
+
+  await brush.add("pencil1", {
+    type:    "image",
+    weight:  2.5,
+    scatter: 0.4,
+    opacity: 150,
+    spacing: 1.1,
+    noise:   1,
+    pressure: {
+      mode: "gaussian",
+      curve: [0, 0.09],
+      min_max: [0.6, 1.14],
+    },
+    rotate:  "random",
+    markerTip: true,
+    image: {src: "assets/brushTips/pencil1.jpg"},
+  });
 }
 
 function draw() {
