@@ -1,6 +1,15 @@
+@font-face {
+  font-family: "TaipeiSansTCBeta";
+  src: url("assets/fonts/TaipeiSansTCBeta-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 html, body {
   margin: 0;
   padding: 0;
+  font-family: "TaipeiSansTCBeta", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
 canvas {

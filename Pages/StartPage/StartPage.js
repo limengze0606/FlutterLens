@@ -28,10 +28,12 @@ function drawStartPage() {
   // --- 開始由上而下依序繪製，絕對不可能重疊 ---
 
   // [第一塊：標題]
-  fill(255);
-  textAlign(CENTER, TOP); // 改用 TOP 對齊，方便向下推算座標
-  textSize(titleSize);
-  text("匿跡蟲蹤調查員", cx, currentY);
+  drawScreenText("匿跡蟲蹤調查員", cx, currentY, {
+    fill: 255,
+    size: titleSize,
+    alignX: CENTER,
+    alignY: TOP
+  });
   currentY += titleSize + gap; // 畫完後，Y 座標往下推
 
   // [第二塊：說明文字]
@@ -43,16 +45,22 @@ function drawStartPage() {
     "無論是低頭探尋、平視周圍，抑或仰望天際，\n" +
     "都可能遇見截然不同的驚喜。";
 
-  fill(210);
-  textLeading(leading); 
-  textSize(bodySize);
-  text(introText, cx, currentY);
+  drawScreenText(introText, cx, currentY, {
+    fill: 210,
+    size: bodySize,
+    leading: leading,
+    alignX: CENTER,
+    alignY: TOP
+  });
   currentY += textBlockHeight + gap; // Y 座標繼續往下推
 
   // [第三塊：權限提示]
-  fill(150);
-  textSize(20);
-  text("( 進入時需允許相機與動作感測器權限 )", cx, currentY);
+  drawScreenText("( 進入時需允許相機與動作感測器權限 )", cx, currentY, {
+    fill: 150,
+    size: 20,
+    alignX: CENTER,
+    alignY: TOP
+  });
   currentY += 12 + gap; // Y 座標繼續往下推
 
   // [第四塊：按鈕]
@@ -64,8 +72,10 @@ function drawStartPage() {
   rectMode(StartButton.ButtonRectMode);
   rect(StartButton.ButtonX, StartButton.ButtonY, StartButton.ButtonWidth, StartButton.ButtonHeight, StartButton.ButtonBorderRadius);
   
-  fill(StartButton.TextColor);
-  textSize(bodySize);
-  textAlign(CENTER, CENTER); // 按鈕裡的文字維持置中對齊
-  text(StartButton.Text, StartButton.ButtonX, StartButton.ButtonY);
+  drawScreenText(StartButton.Text, StartButton.ButtonX, StartButton.ButtonY, {
+    fill: StartButton.TextColor,
+    size: bodySize,
+    alignX: CENTER,
+    alignY: CENTER
+  });
 }

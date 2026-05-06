@@ -1,8 +1,9 @@
 let currentPagesState = PagesState.START;
 
-function setup() {
+async function setup() {
   // 將 canvas 存起來
-  let canvas = createCanvas(windowWidth, windowHeight);
+  let canvas = createCanvas(windowWidth, windowHeight, WEBGL);
+  await preloadScanningPage();
   
   if (typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
@@ -13,22 +14,57 @@ function setup() {
   // 使用 touchend 和 click 確保在所有裝置上都能抓到最純粹的點擊
   canvas.elt.addEventListener('touchend', handleStartButtonNative, false);
   canvas.elt.addEventListener('click', handleStartButtonNative, false);
+
+  if (typeof brush !== "undefined" && typeof brush.load === "function") {
+    brush.load();
+  }
+  brush.scaleBrushes(3.5);
+
+  brush.add("default", {
+    type:    "default",
+    weight:  0.9,
+    scatter: 1.8,
+    sharpness: 0.3,
+    grain:     0.9,
+    opacity: 170,
+    spacing: 0.3,
+    noise:   0.5,
+    pressure: [1.1, 0.9],
+    rotate:  "natural",
+  });
+
+  brush.add("markerBrush", {
+  type:    "marker",
+  weight:  6,
+  scatter: 0.35,
+  opacity: 1,
+  spacing: 0.09,
+  noise:   1,
+  pressure: [1.2, 0.86],
+  rotate:  "none",
+  markerTip: true,
+});
 }
 
 function draw() {
   background(0);
+  clearScreenTextLayer();
 
-  switch (currentPagesState) {
-    case PagesState.START:
-      drawStartPage();
-      break;
-    case PagesState.SCANNING:
-      drawScanningPage();
-      break;
-    case PagesState.RESULT:
-      drawResultPage();
-      break;
-  }
+  drawInScreenSpace(() => {
+    switch (currentPagesState) {
+      case PagesState.START:
+        drawStartPage();
+        break;
+      case PagesState.SCANNING:
+        drawScanningPage();
+        break;
+      case PagesState.RESULT:
+        drawResultPage();
+        break;
+    }
+  });
+
+  drawScreenTextLayer();
 }
 
 // 建立一個共用的互動處理函數
@@ -92,6 +128,10 @@ function touchEnded() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  if (screenTextLayer) {
+    screenTextLayer.remove();
+    screenTextLayer = null;
+  }
 }
 
 // 修改後的版本
@@ -149,11 +189,6 @@ function handleStartButtonNative(e) {
     // 檢查點擊位置是否在 StartButton 範圍內
     if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
       
-      // 先處理音效權限 (如果有用到的話)
-      if (getAudioContext().state !== 'running') {
-        getAudioContext().resume();
-      }
-
       // 【直接請求陀螺儀】因為是原生事件，Safari 絕對會乖乖彈出視窗
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission()

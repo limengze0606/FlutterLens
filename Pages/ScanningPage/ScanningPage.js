@@ -58,9 +58,8 @@ function drawGyroVisualizer() {
 
   // 4. 繪製對應的圖片
   if (iconToShow) {
-    imageMode(CENTER);
     // 假設圖示畫成 50x50 大小，你可以根據實際圖檔的精緻度自行放大或縮小
-    image(iconToShow, cx, cy, 150, 150);
+    drawScreenImage(iconToShow, cx, cy, 150, 150, { mode: CENTER });
   }
   
   pop();
