@@ -31,22 +31,22 @@ function roughRandom(g, minValue, maxValue) {
     : random(minValue, maxValue);
 }
 
-function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2) {
+function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType = 0, wingColorLineType = 0) {
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
   
   // 這裡可以根據 insectType 呼叫對應的 drawRoughButterflyWings 等等...
   // 為了示範，我們先直接寫核心的 WingPair 邏輯
   let wingStyle = (insectType === 1) ? 1 : 0; 
-  drawRoughWingPair(g, seedValue, 0.5 * insectBaseUnit, flapAngle, 1.0, color1, color2, wingStyle);
+  drawRoughWingPair(g, seedValue, 0.5 * insectBaseUnit, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType);
 
-  g.pop();
+  g.pop(); 
 }
 
 /**
  * 繪製一對手繪翅膀 (確保大結構對稱，但筆觸獨立)
  */
-function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle) {
+function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle, fillType, wingColorLineType) {
   // 1. 先用原本的 seedValue 設定隨機種子，確保每次生成的「整體尺寸」固定不變
   setRoughSeed(g, seedValue);
 
@@ -62,13 +62,15 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
     tipY: roughRandom(g, -8 * insectBaseUnit, 8 * insectBaseUnit),
     noiseStrength: roughRandom(g, 2, 10)
   };
+  let baseOutline = generateWingOutline(wingParams.length, wingParams.width, wingParams.tipY, wingParams.noiseStrength, wingStyle);
+  let roughPattern = createRoughVoronoiPattern(g, wingParams.length, wingParams.width, wingParams.tipY, baseOutline);
 
   // 3. 畫右翅膀 (使用原始種子)
   g.push();
   g.translate(bodyHalfWidth, yOff); 
   g.rotate(rot); 
   g.scale(s);
-  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams);
+  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern);
   g.pop();
 
   // 4. 畫左翅膀 (給予一個截然不同的種子，打破筆觸的鏡像對稱！)
@@ -77,7 +79,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
   g.rotate(-rot); 
   g.scale(-s, s);
   // 【關鍵】：把 seedValue 加上一個大數字，讓它的隨機軌跡完全改變
-  drawRoughWing(g, seedValue + 9999, color1, color2, wingStyle, wingParams);
+  drawRoughWing(g, seedValue + 9999, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern);
   g.pop();
 }
 
@@ -85,7 +87,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
  * 全新的單邊手繪翅膀 (接收預先算好的輪廓參數)
  */
 // 【修改點】：新增 wingParams 參數
-function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
+function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillType, wingColorLineType, baseOutline, roughPattern) {
   // 這裡設定的種子，只會影響接下來「手繪線條」的偏移跟彎曲
   setRoughSeed(g, strokeSeed);
 
@@ -98,18 +100,20 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params) {
   // ==========================================
   // 1. 生成【基礎輪廓】：用來限制 Voronoi 網格不要畫出界
   // ==========================================
-  let baseOutline = generateWingOutline(wLength, wWidth, tipYOffset, noiseStrength, wingStyle);
-
   g.push(); 
-  g.fill(0, 0, 98, 200);
+  g.fill(0, 0, 98, 110);
   g.noStroke();
   
   // (如果你想把底色畫出來，可以解除這段註解，但改成用 baseOutline 畫)
-  // g.beginShape();
-  // for (let p of baseOutline) g.vertex(p.x, p.y);
-  // g.endShape(g.CLOSE);
+  g.beginShape();
+  for (let p of baseOutline) g.vertex(p.x, p.y);
+  g.endShape(g.CLOSE);
   
-  //g.drawingContext.clip();
+  if (g.drawingContext && typeof g.drawingContext.clip === "function") {
+    g.drawingContext.clip();
+  }
+  drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, baseOutline);
+  drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, baseOutline);
 
   // (這裡未來會放你的 Voronoi 繪製邏輯)
 
@@ -157,7 +161,8 @@ function drawEdgeWithOvershoot(g, points, strokeIndex = 0) {
   let endOvershootY = pLast.y + (pLast.y - pPrev.y) * roughRandom(g, minMultiplier, maxMultiplier);
 
   // 設定顏色與粗細 (p5.brush 通常吃 Hex 字串)
-  brush.set("pencil1", "#FFFFFF");
+  brush.set("pencil1", "#181817");
+  brush.strokeWeight(strokeIndex === 0 ? 1.1 : 0.6);
 
   // 3. 繪製手繪曲線路徑
   brush.beginShape();
@@ -174,6 +179,347 @@ function drawEdgeWithOvershoot(g, points, strokeIndex = 0) {
   brush.vertex(endOvershootX, endOvershootY);
   
   brush.endShape();
+}
+
+function drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, outline) {
+  if (typeof brush === "undefined" || !outline || outline.length < 3) return;
+
+  resetRoughBrushFillState();
+
+  let basePaint = colorToBrushPaint(g.color(54, 16, 96, 90), 90);
+  brush.noStroke();
+  brush.fillBleed(0.14, "in");
+  brush.fillTexture(0.78, 0.22, true);
+  brush.fill(basePaint.color, basePaint.alpha);
+  drawBrushPolygon(outlineToBrushPoints(outline));
+
+  let palette = getRoughWatercolorPalette(g, color1, color2);
+  let washCount = floor(roughRandom(g, 16, 24));
+
+  brush.fillBleed(0.22, "out");
+  brush.fillTexture(0.92, 0.24, true);
+
+  for (let i = 0; i < washCount; i++) {
+    let center = pickPointInOutline(g, wLength, wWidth, tipYOffset, outline);
+    if (!center) continue;
+
+    let blob = makeWatercolorBlob(g, center.x, center.y, roughRandom(g, wLength * 0.07, wLength * 0.17), roughRandom(g, 9, 15));
+    let visibleBlob = constrainBlobToOutline(blob, center, outline);
+    if (!visibleBlob || visibleBlob.length < 3) continue;
+
+    let paint = palette[floor(roughRandom(g, 0, palette.length))];
+    brush.noStroke();
+    brush.fill(paint.color, paint.alpha);
+    drawBrushPolygon(visibleBlob);
+  }
+
+  brush.noFill();
+  if (typeof brush.noWash === "function") brush.noWash();
+}
+
+function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
+  let seedPoints = [];
+  let strategyType = floor(roughRandom(g, 0, 3));
+
+  switch (strategyType) {
+    case 0: seedPoints = scatterUniform(g, wLength, wWidth, tipYOffset, outline); break;
+    case 1: seedPoints = scatterSineDensity(g, wLength, wWidth, tipYOffset, outline); break;
+    case 2: seedPoints = scatterJitteredGrid(g, wLength, wWidth, tipYOffset, outline); break;
+  }
+
+  if (seedPoints.length <= 0) return [];
+
+  const delaunay = d3.Delaunay.from(seedPoints);
+  const voronoi = delaunay.voronoi([0, -wWidth * 2, wLength + 50, wWidth * 2]);
+  let cells = [];
+
+  for (let i = 0; i < seedPoints.length; i++) {
+    let polygon = voronoi.cellPolygon(i);
+    if (!polygon || polygon.length < 3) continue;
+    let center = { x: seedPoints[i][0], y: seedPoints[i][1] };
+    let clippedPolygon = clipPolygonToOutline(polygon, outline);
+    let visiblePolygon = clippedPolygon && clippedPolygon.length >= 3
+      ? clippedPolygon
+      : constrainPolygonToOutline(polygon, center, outline);
+    if (!visiblePolygon || visiblePolygon.length < 3) continue;
+    visiblePolygon = insetPolygonTowardsPoint(
+      constrainPolygonToOutline(visiblePolygon, center, outline),
+      center,
+      insectBaseUnit * 0.16
+    );
+    if (!visiblePolygon || visiblePolygon.length < 3) continue;
+    cells.push({
+      polygon: visiblePolygon,
+      center,
+      progress: g.constrain(seedPoints[i][0] / wLength, 0, 1)
+    });
+  }
+
+  return cells;
+}
+
+function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, outline) {
+  if (typeof brush === "undefined" || !roughPattern || roughPattern.length <= 0) return;
+
+  brush.set("pencil1", "#090907", 0.95);
+  brush.stroke("#090907");
+  brush.noFill();
+  if (typeof brush.noHatch === "function") brush.noHatch();
+
+  for (let cell of roughPattern) {
+    let strokeCol = getRoughVoronoiStrokeColor(g, cell.progress, wingColorLineType);
+    let strokePaint = colorToBrushPaint(strokeCol, 190);
+
+    brush.set("pencil1", strokePaint.color, roughRandom(g, 0.85, 1.08));
+    brush.stroke(strokePaint.color);
+    brush.strokeWeight(roughRandom(g, 0.82, 1.05));
+    brush.noFill();
+
+    brush.beginShape(0.08);
+    for (let pt of cell.polygon) {
+      let jitter = insectBaseUnit * 0.018;
+      let safePoint = jitterPointInsideOutline(
+        g,
+        pt[0],
+        pt[1],
+        cell.center,
+        outline,
+        jitter
+      );
+      brush.vertex(safePoint[0], safePoint[1], roughRandom(g, 0.75, 1.08));
+    }
+    brush.endShape(true);
+  }
+
+  brush.noFill();
+}
+
+function getRoughVoronoiStrokeColor(g, progress, wingColorLineType) {
+  let inkA = g.color("#050504");
+  let inkB = g.color("#151511");
+  let strokeCol = g.lerpColor(inkA, inkB, g.noise(progress * 12));
+  strokeCol.setAlpha(255);
+  return strokeCol;
+}
+
+function getRoughWatercolorPalette(g, color1, color2) {
+  let sourceA = g.color(color1.h_adj, color1.s_adj * 0.62, min(100, color1.b_adj + 14), 118);
+  let sourceB = g.color(color2.h_adj, color2.s_adj * 0.62, min(100, color2.b_adj + 14), 112);
+
+  return [
+    colorToBrushPaint(sourceA, 118),
+    colorToBrushPaint(sourceB, 112),
+    colorToBrushPaint(g.color(92, 30, 58, 116), 116),
+    colorToBrushPaint(g.color(190, 32, 76, 108), 108),
+    colorToBrushPaint(g.color(12, 58, 94, 118), 118),
+    colorToBrushPaint(g.color(258, 28, 84, 104), 104)
+  ];
+}
+
+function pickPointInOutline(g, wLength, wWidth, tipYOffset, outline) {
+  for (let tries = 0; tries < 80; tries++) {
+    let px = roughRandom(g, wLength * 0.08, wLength * 0.95);
+    let py = roughRandom(g, -wWidth * 0.65, tipYOffset + wWidth * 0.85);
+    if (isPointInPolygon(px, py, outline)) return { x: px, y: py };
+  }
+  return null;
+}
+
+function makeWatercolorBlob(g, cx, cy, radius, pointCount) {
+  let points = [];
+  let yScale = roughRandom(g, 0.35, 0.75);
+  let rot = roughRandom(g, -0.45, 0.45);
+
+  for (let i = 0; i < pointCount; i++) {
+    let a = (TWO_PI * i) / pointCount;
+    let r = radius * roughRandom(g, 0.55, 1.15);
+    let localX = cos(a) * r;
+    let localY = sin(a) * r * yScale;
+    points.push([
+      cx + localX * cos(rot) - localY * sin(rot),
+      cy + localX * sin(rot) + localY * cos(rot)
+    ]);
+  }
+
+  return points;
+}
+
+function constrainBlobToOutline(blob, center, outline) {
+  return insetPolygonTowardsPoint(
+    constrainPolygonToOutline(blob, center, outline),
+    center,
+    insectBaseUnit * 0.08
+  );
+}
+
+function constrainPolygonToOutline(polygon, center, outline) {
+  return polygon.map((pt) => {
+    if (isPointInPolygon(pt[0], pt[1], outline)) return pt;
+
+    let t = 0.72;
+    let x = center.x + (pt[0] - center.x) * t;
+    let y = center.y + (pt[1] - center.y) * t;
+
+    while (t > 0.18 && !isPointInPolygon(x, y, outline)) {
+      t *= 0.72;
+      x = center.x + (pt[0] - center.x) * t;
+      y = center.y + (pt[1] - center.y) * t;
+    }
+
+    return [x, y];
+  });
+}
+
+function colorToBrushPaint(c, fallbackAlpha = 255) {
+  if (!c || !c.levels) return { color: "#ffffff", alpha: fallbackAlpha };
+
+  let r = c.levels[0];
+  let g = c.levels[1];
+  let b = c.levels[2];
+  let a = c.levels.length > 3 ? c.levels[3] : fallbackAlpha;
+
+  return {
+    color: `rgb(${r}, ${g}, ${b})`,
+    alpha: a
+  };
+}
+
+function resetRoughBrushFillState() {
+  brush.noStroke();
+  brush.noFill();
+  if (typeof brush.noHatch === "function") brush.noHatch();
+  if (typeof brush.noWash === "function") brush.noWash();
+  if (typeof brush.noMass === "function") brush.noMass();
+}
+
+function outlineToBrushPoints(outline) {
+  return outline.map((p) => [p.x, p.y]);
+}
+
+function drawBrushPolygon(points) {
+  if (!points || points.length < 3) return;
+
+  let brushPoints = ensureClockwiseBrushPoints(points);
+  if (typeof brush.polygon === "function") {
+    brush.polygon(brushPoints);
+    return;
+  }
+
+  brush.beginShape();
+  for (let pt of brushPoints) brush.vertex(pt[0], pt[1]);
+  brush.endShape(true);
+}
+
+function ensureClockwiseBrushPoints(points) {
+  let normalized = points.map((pt) => [pt[0], pt[1]]);
+  return getPointArraySignedArea(normalized) >= 0 ? normalized : normalized.reverse();
+}
+
+function getPointArraySignedArea(points) {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    let p1 = points[i];
+    let p2 = points[(i + 1) % points.length];
+    area += p1[0] * p2[1] - p2[0] * p1[1];
+  }
+  return area * 0.5;
+}
+
+function insetPolygonTowardsPoint(polygon, center, insetAmount) {
+  if (!polygon || polygon.length < 3 || !center) return polygon;
+
+  return polygon.map((pt) => {
+    let dx = center.x - pt[0];
+    let dy = center.y - pt[1];
+    let d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 0.0001) return pt;
+
+    let t = Math.min(0.35, insetAmount / d);
+    return [
+      pt[0] + dx * t,
+      pt[1] + dy * t
+    ];
+  });
+}
+
+function jitterPointInsideOutline(g, x, y, center, outline, jitter) {
+  let px = x + roughRandom(g, -jitter, jitter);
+  let py = y + roughRandom(g, -jitter, jitter);
+
+  if (!outline || isPointInPolygon(px, py, outline)) return [px, py];
+  if (!center) return [x, y];
+
+  let t = 0.82;
+  while (t > 0.08) {
+    let ix = center.x + (px - center.x) * t;
+    let iy = center.y + (py - center.y) * t;
+    if (isPointInPolygon(ix, iy, outline)) return [ix, iy];
+    t *= 0.7;
+  }
+
+  return [center.x, center.y];
+}
+
+function clipPolygonToOutline(polygon, outline) {
+  let output = polygon.map((pt) => [pt[0], pt[1]]);
+  let isCounterClockwise = getOutlineSignedArea(outline) > 0;
+
+  for (let i = 0; i < outline.length; i++) {
+    let clipStart = outline[i];
+    let clipEnd = outline[(i + 1) % outline.length];
+    let input = output;
+    output = [];
+    if (input.length === 0) break;
+
+    let previous = input[input.length - 1];
+    for (let current of input) {
+      let currentInside = isInsideClipEdge(current, clipStart, clipEnd, isCounterClockwise);
+      let previousInside = isInsideClipEdge(previous, clipStart, clipEnd, isCounterClockwise);
+
+      if (currentInside) {
+        if (!previousInside) output.push(intersectClipEdge(previous, current, clipStart, clipEnd));
+        output.push(current);
+      } else if (previousInside) {
+        output.push(intersectClipEdge(previous, current, clipStart, clipEnd));
+      }
+      previous = current;
+    }
+  }
+
+  return output;
+}
+
+function getOutlineSignedArea(outline) {
+  let area = 0;
+  for (let i = 0; i < outline.length; i++) {
+    let p1 = outline[i];
+    let p2 = outline[(i + 1) % outline.length];
+    area += p1.x * p2.y - p2.x * p1.y;
+  }
+  return area * 0.5;
+}
+
+function isInsideClipEdge(point, edgeStart, edgeEnd, isCounterClockwise) {
+  let cross = (edgeEnd.x - edgeStart.x) * (point[1] - edgeStart.y) -
+              (edgeEnd.y - edgeStart.y) * (point[0] - edgeStart.x);
+  return isCounterClockwise ? cross >= 0 : cross <= 0;
+}
+
+function intersectClipEdge(segmentStart, segmentEnd, edgeStart, edgeEnd) {
+  let a1 = segmentEnd[1] - segmentStart[1];
+  let b1 = segmentStart[0] - segmentEnd[0];
+  let c1 = a1 * segmentStart[0] + b1 * segmentStart[1];
+  let a2 = edgeEnd.y - edgeStart.y;
+  let b2 = edgeStart.x - edgeEnd.x;
+  let c2 = a2 * edgeStart.x + b2 * edgeStart.y;
+  let det = a1 * b2 - a2 * b1;
+
+  if (Math.abs(det) < 0.00001) return segmentEnd;
+
+  return [
+    (b2 * c1 - b1 * c2) / det,
+    (a1 * c2 - a2 * c1) / det
+  ];
 }
 
 /**
