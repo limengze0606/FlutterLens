@@ -1,16 +1,29 @@
 // 負責把照片跟標記點「焊」在一起
 let resultCanvasFinalized = false;
 let resultCaptureScheduled = false;
+let resultRenderSeed = null;
 
 function setupResultCanvas() {
     // 1. 建立一個跟「當前螢幕」一模一樣大小的畫布
     resultCanvas = createGraphics(width, height);
+    syncResultCanvasDensity();
     resultCanvasFinalized = false;
     resultCaptureScheduled = false;
+    resultRenderSeed = floor(random(1000000000));
 
     // 2. 直接把相機畫面用我們算好的無變形參數畫上去 (捕捉完美瞬間)
     if (video) {
         resultCanvas.image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
+    }
+}
+
+function syncResultCanvasDensity() {
+    if (!resultCanvas || typeof resultCanvas.pixelDensity !== "function") return;
+    if (typeof pixelDensity !== "function") return;
+
+    let mainDensity = pixelDensity();
+    if (resultCanvas.pixelDensity() !== mainDensity) {
+        resultCanvas.pixelDensity(mainDensity);
     }
 }
 
@@ -22,37 +35,20 @@ function drawResultPage() {
         image(resultCanvas, 0, 0, width, height); 
         pop();  
 
-        if (!resultCanvasFinalized) {
-            if (spawnPosition) {
-                drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
+        if (spawnPosition) {
+            if (typeof setRoughSeed === "function" && resultRenderSeed !== null) {
+                setRoughSeed(window, resultRenderSeed);
             }
-            scheduleResultCapture();
-            return;
+            drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
         }
     }
     
     drawBackButton(); 
-}
 
-function scheduleResultCapture() {
-    if (resultCaptureScheduled) return;
-
-    resultCaptureScheduled = true;
-    noLoop();
-    requestAnimationFrame(() => {
-        if (!resultCanvas) {
-            resultCaptureScheduled = false;
-            loop();
-            return;
-        }
-
-        let finalFrame = get(0, 0, width, height);
-        resultCanvas.clear();
-        resultCanvas.image(finalFrame, 0, 0, width, height);
+    if (!resultCanvasFinalized) {
         resultCanvasFinalized = true;
-        resultCaptureScheduled = false;
-        loop();
-    });
+        noLoop();
+    }
 }
 
 function drawBackButton() {
@@ -96,6 +92,7 @@ function resetResultData() {
     spawnPosition = null;
     resultCanvasFinalized = false;
     resultCaptureScheduled = false;
+    resultRenderSeed = null;
     if (resultCanvas) {
         resultCanvas.remove(); // 釋放記憶體
         resultCanvas = null;

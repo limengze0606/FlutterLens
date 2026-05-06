@@ -132,6 +132,7 @@ function handleInteraction() {
       if (checkBackButtonClicked(mouseX, mouseY)) {
         resetResultData();
         currentPagesState = PagesState.SCANNING;
+        loop();
       }
       break;
   }
