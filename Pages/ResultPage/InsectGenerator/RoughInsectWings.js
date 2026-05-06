@@ -160,12 +160,7 @@ function drawEdgeWithOvershoot(g, points, col, wt, strokeIndex = 0) {
   brush.strokeWeight(wt);
   brush.noFill();
 
-  // 根據不同下筆次數 (strokeIndex) 選擇不同筆刷質感
-  if (strokeIndex === 0) {
-    brush.pick('marker');   // 第一筆：主線比較實，使用麥克筆質感
-  } else {
-    brush.pick('charcoal'); // 第二筆：輔助速寫線，使用炭筆增加毛邊與粗糙感
-  }
+  brush.set("markerBrush");
 
   // 3. 繪製手繪曲線路徑
   brush.beginShape();

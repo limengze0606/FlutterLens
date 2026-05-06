@@ -20,20 +20,30 @@ async function setup() {
   }
   brush.scaleBrushes(3.5);
 
-  brush.add("watercolor", {
-        type:    "custom",
-        weight:  10,
-        scatter: 1.05,
-        opacity: 9,
-        spacing: 0.3,
-        pressure: [0.8, 1.3],
-        rotate:  "natural",
-        tip: (_m) => {
-            _m.fill(0, 200)
-            _m.rect(-20, -20, 50, 50)
-            _m.rect(25, 25, 20, 20)
-        },
-    });
+  brush.add("default", {
+    type:    "default",
+    weight:  0.9,
+    scatter: 1.8,
+    sharpness: 0.3,
+    grain:     0.9,
+    opacity: 170,
+    spacing: 0.3,
+    noise:   0.5,
+    pressure: [1.1, 0.9],
+    rotate:  "natural",
+  });
+
+  brush.add("markerBrush", {
+  type:    "marker",
+  weight:  6,
+  scatter: 0.35,
+  opacity: 1,
+  spacing: 0.09,
+  noise:   1,
+  pressure: [1.2, 0.86],
+  rotate:  "none",
+  markerTip: true,
+});
 }
 
 function draw() {
