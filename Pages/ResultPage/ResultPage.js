@@ -1,38 +1,77 @@
 // 負責把照片跟標記點「焊」在一起
-let resultCanvasFinalized = false;
+let resultSceneFinalized = false;
 let resultCaptureScheduled = false;
 let resultRenderSeed = null;
+let resultExportPending = false;
+let resultExportReady = false;
 
-function setupResultCanvas() {
-    // 1. 建立一個跟「當前螢幕」一模一樣大小的畫布
-    resultCanvas = createGraphics(width, height);
-    syncResultCanvasDensity();
-    resultCanvasFinalized = false;
+function setupResultPhoto() {
+    resultPhoto = video ? video.get() : null;
+    updateResultPhotoLayout();
+    resultSceneFinalized = false;
     resultCaptureScheduled = false;
     resultRenderSeed = floor(random(1000000000));
-
-    // 2. 直接把相機畫面用我們算好的無變形參數畫上去 (捕捉完美瞬間)
-    if (video) {
-        resultCanvas.image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
-    }
 }
 
-function syncResultCanvasDensity() {
-    if (!resultCanvas || typeof resultCanvas.pixelDensity !== "function") return;
-    if (typeof pixelDensity !== "function") return;
+function updateResultPhotoLayout() {
+    if (!resultPhoto || resultPhoto.width === 0 || resultPhoto.height === 0) return;
 
-    let mainDensity = pixelDensity();
-    if (resultCanvas.pixelDensity() !== mainDensity) {
-        resultCanvas.pixelDensity(mainDensity);
+    let photoWidth = resultPhoto.width;
+    let photoHeight = resultPhoto.height;
+    let isCanvasLandscape = width > height;
+    let isPhotoLandscape = photoWidth > photoHeight;
+
+    if (isCanvasLandscape !== isPhotoLandscape) {
+        photoWidth = resultPhoto.height;
+        photoHeight = resultPhoto.width;
     }
+
+    let photoAspect = photoWidth / photoHeight;
+    let canvasAspect = width / height;
+
+    if (canvasAspect > photoAspect) {
+        resultPhotoLayout.w = width;
+        resultPhotoLayout.h = width / photoAspect;
+    } else {
+        resultPhotoLayout.h = height;
+        resultPhotoLayout.w = height * photoAspect;
+    }
+
+    resultPhotoLayout.x = (width - resultPhotoLayout.w) / 2;
+    resultPhotoLayout.y = (height - resultPhotoLayout.h) / 2;
 }
 
 function drawResultPage() {
-    if (resultCanvas) {
+    updateSpawnPositionForViewport();
+
+    if (resultExportPending) {
+        renderResultArtwork();
+        resultExportReady = true;
+        return;
+    }
+
+    renderResultArtwork();
+    renderResultUi();
+
+    if (!resultSceneFinalized) {
+        resultSceneFinalized = true;
+        noLoop();
+    }
+}
+
+function renderResultScene(includeUi) {
+    renderResultArtwork();
+
+    if (includeUi) {
+        renderResultUi();
+    }
+}
+
+function renderResultArtwork() {
+    if (resultPhoto) {
+        updateResultPhotoLayout();
         push(); 
-        // 【修改點】：因為 resultCanvas 已經是螢幕大小了
-        // 我們直接畫在 (0, 0) 並且填滿 width, height，完美覆蓋！
-        image(resultCanvas, 0, 0, width, height); 
+        image(resultPhoto, resultPhotoLayout.x, resultPhotoLayout.y, resultPhotoLayout.w, resultPhotoLayout.h);
         pop();  
 
         if (spawnPosition) {
@@ -42,13 +81,21 @@ function drawResultPage() {
             drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
         }
     }
-    
-    drawBackButton(); 
 
-    if (!resultCanvasFinalized) {
-        resultCanvasFinalized = true;
-        noLoop();
-    }
+}
+
+function renderResultUi() {
+    drawBackButton(); 
+    drawSaveButton();
+}
+
+function updateSpawnPositionForViewport() {
+    if (!spawnPositionRatio) return;
+
+    spawnPosition = {
+        x: constrain(spawnPositionRatio.x * width, width * 0.2, width * 0.8),
+        y: constrain(spawnPositionRatio.y * height, height * 0.2, height * 0.8)
+    };
 }
 
 function drawBackButton() {
@@ -73,6 +120,25 @@ function drawBackButton() {
   pop();
 }
 
+function drawSaveButton() {
+  push();
+  let btnX = width / 2;
+  let btnY = height - 145;
+
+  fill(255, 255, 255, 220);
+  noStroke();
+  rectMode(CENTER);
+  rect(btnX, btnY, 140, 50, 25);
+
+  drawScreenText("\u5132\u5b58", btnX, btnY, {
+    fill: 0,
+    size: 18,
+    alignX: CENTER,
+    alignY: CENTER
+  });
+  pop();
+}
+
 // 檢查是否點擊到「返回」按鈕的範圍
 function checkBackButtonClicked(mx, my) {
   let btnX = width / 2;
@@ -88,13 +154,55 @@ function checkBackButtonClicked(mx, my) {
   return false;
 }
 
+function checkSaveButtonClicked(mx, my) {
+  let btnX = width / 2;
+  let btnY = height - 145;
+  let btnW = 140;
+  let btnH = 50;
+
+  if (mx > btnX - btnW/2 && mx < btnX + btnW/2 &&
+      my > btnY - btnH/2 && my < btnY + btnH/2) {
+    return true;
+  }
+  return false;
+}
+
+function exportResultImage() {
+    if (!resultPhoto) return;
+
+    clearScreenTextLayer();
+    resultExportPending = true;
+    resultExportReady = false;
+    resultSceneFinalized = false;
+    loop();
+}
+
+function completeResultExportIfReady() {
+    if (!resultExportReady) return;
+
+    resultExportPending = false;
+    resultExportReady = false;
+
+    setTimeout(() => {
+        if (drawingContext && typeof drawingContext.finish === "function") {
+            drawingContext.finish();
+        }
+
+        saveCanvas("FlutterLens-result", "png");
+        clearScreenTextLayer();
+        resultSceneFinalized = false;
+        loop();
+    }, 0);
+}
+
 function resetResultData() {
     spawnPosition = null;
-    resultCanvasFinalized = false;
+    spawnPositionRatio = null;
+    resultSceneFinalized = false;
     resultCaptureScheduled = false;
     resultRenderSeed = null;
-    if (resultCanvas) {
-        resultCanvas.remove(); // 釋放記憶體
-        resultCanvas = null;
-    }
+    resultExportPending = false;
+    resultExportReady = false;
+    resultPhoto = null;
+    resultPhotoLayout = { x: 0, y: 0, w: 0, h: 0 };
 }

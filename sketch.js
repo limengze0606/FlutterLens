@@ -18,8 +18,6 @@ async function setup() {
   if (typeof brush !== "undefined" && typeof brush.load === "function") {
     brush.load();
   }
-  brush.scaleBrushes(3.5);
-
   brush.add("default", {
     type:    "default",
     weight:  0.9,
@@ -95,6 +93,10 @@ function draw() {
   });
 
   drawScreenTextLayer();
+
+  if (currentPagesState === PagesState.RESULT && typeof completeResultExportIfReady === "function") {
+    completeResultExportIfReady();
+  }
 }
 
 // 建立一個共用的互動處理函數
@@ -122,14 +124,20 @@ function handleInteraction() {
           x: screenSpawnX,
           y: screenSpawnY
         };
+        spawnPositionRatio = {
+          x: screenSpawnX / width,
+          y: screenSpawnY / height
+        };
 
-        setupResultCanvas();
+        setupResultPhoto();
         currentPagesState = PagesState.RESULT;
       }
       break;
       
     case PagesState.RESULT:
-      if (checkBackButtonClicked(mouseX, mouseY)) {
+      if (checkSaveButtonClicked(mouseX, mouseY)) {
+        exportResultImage();
+      } else if (checkBackButtonClicked(mouseX, mouseY)) {
         resetResultData();
         currentPagesState = PagesState.SCANNING;
         loop();
@@ -162,6 +170,14 @@ function windowResized() {
   if (screenTextLayer) {
     screenTextLayer.remove();
     screenTextLayer = null;
+  }
+
+  if (currentPagesState === PagesState.RESULT) {
+    if (typeof updateSpawnPositionForViewport === "function") {
+      updateSpawnPositionForViewport();
+    }
+    resultSceneFinalized = false;
+    loop();
   }
 }
 
