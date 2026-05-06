@@ -1,39 +1,17 @@
 // 負責把照片跟標記點「焊」在一起
+let resultCanvasFinalized = false;
+let resultCaptureScheduled = false;
+
 function setupResultCanvas() {
     // 1. 建立一個跟「當前螢幕」一模一樣大小的畫布
     resultCanvas = createGraphics(width, height);
+    resultCanvasFinalized = false;
+    resultCaptureScheduled = false;
 
     // 2. 直接把相機畫面用我們算好的無變形參數畫上去 (捕捉完美瞬間)
     if (video) {
         resultCanvas.image(video, camLayout.x, camLayout.y, camLayout.w, camLayout.h);
     }
-
-    // 3. p5.brush 只能穩定畫到目前 WebGL 目標或 p5.Framebuffer。
-    let insectLayer = createFramebuffer({
-        width,
-        height,
-        density: pixelDensity(),
-        depth: false
-    });
-    if (spawnPosition) {
-        insectLayer.begin();
-        try {
-            clear();
-            if (typeof brush !== "undefined" && typeof brush.load === "function") {
-                brush.load(insectLayer);
-            }
-            drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
-        } finally {
-            if (typeof brush !== "undefined" && typeof brush.load === "function") {
-                brush.load();
-            }
-            insectLayer.end();
-        }
-    }
-
-    // 4. 將昆蟲圖層的內容合成到結果畫布上
-    resultCanvas.image(insectLayer.get(), 0, 0, width, height);
-    insectLayer.remove(); // 釋放昆蟲圖層的記憶體
 }
 
 function drawResultPage() {
@@ -43,9 +21,38 @@ function drawResultPage() {
         // 我們直接畫在 (0, 0) 並且填滿 width, height，完美覆蓋！
         image(resultCanvas, 0, 0, width, height); 
         pop();  
+
+        if (!resultCanvasFinalized) {
+            if (spawnPosition) {
+                drawRoughInsect(window, spawnPosition.x, spawnPosition.y);
+            }
+            scheduleResultCapture();
+            return;
+        }
     }
     
     drawBackButton(); 
+}
+
+function scheduleResultCapture() {
+    if (resultCaptureScheduled) return;
+
+    resultCaptureScheduled = true;
+    noLoop();
+    requestAnimationFrame(() => {
+        if (!resultCanvas) {
+            resultCaptureScheduled = false;
+            loop();
+            return;
+        }
+
+        let finalFrame = get(0, 0, width, height);
+        resultCanvas.clear();
+        resultCanvas.image(finalFrame, 0, 0, width, height);
+        resultCanvasFinalized = true;
+        resultCaptureScheduled = false;
+        loop();
+    });
 }
 
 function drawBackButton() {
@@ -87,6 +94,8 @@ function checkBackButtonClicked(mx, my) {
 
 function resetResultData() {
     spawnPosition = null;
+    resultCanvasFinalized = false;
+    resultCaptureScheduled = false;
     if (resultCanvas) {
         resultCanvas.remove(); // 釋放記憶體
         resultCanvas = null;
