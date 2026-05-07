@@ -107,7 +107,7 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillTyp
   for (let p of baseOutline) g.vertex(p.x, p.y);
   g.endShape(g.CLOSE);
   
-  //drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, baseOutline);
+  drawRoughWingColor(g, color1, color2, fillType, baseOutline);
   drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, baseOutline);
 
   // (這裡未來會放你的 Voronoi 繪製邏輯)
@@ -174,42 +174,6 @@ function drawEdgeWithOvershoot(g, points, strokeIndex = 0) {
   brush.vertex(endOvershootX, endOvershootY);
   
   brush.endShape();
-}
-
-function drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, outline) {
-  if (typeof brush === "undefined" || !outline || outline.length < 3) return;
-
-  resetRoughBrushFillState();
-
-  let basePaint = colorToBrushPaint(g.color(54, 16, 96, 90), 90);
-  brush.noStroke();
-  brush.fillBleed(0.14, "in");
-  brush.fillTexture(0.78, 0.22, true);
-  brush.fill(basePaint.color, basePaint.alpha);
-  drawBrushPolygon(outlineToBrushPoints(outline));
-
-  let palette = getRoughWatercolorPalette(g, color1, color2);
-  let washCount = floor(roughRandom(g, 16, 24));
-
-  brush.fillBleed(0.22, "out");
-  brush.fillTexture(0.92, 0.24, true);
-
-  for (let i = 0; i < washCount; i++) {
-    let center = pickPointInOutline(g, wLength, wWidth, tipYOffset, outline);
-    if (!center) continue;
-
-    let blob = makeWatercolorBlob(g, center.x, center.y, roughRandom(g, wLength * 0.07, wLength * 0.17), roughRandom(g, 9, 15));
-    let visibleBlob = constrainBlobToOutline(blob, center, outline);
-    if (!visibleBlob || visibleBlob.length < 3) continue;
-
-    let paint = palette[floor(roughRandom(g, 0, palette.length))];
-    brush.noStroke();
-    brush.fill(paint.color, paint.alpha);
-    drawBrushPolygon(visibleBlob);
-  }
-
-  brush.noFill();
-  if (typeof brush.noWash === "function") brush.noWash();
 }
 
 function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
@@ -541,55 +505,7 @@ function getRoughVoronoiStrokeColor(g, progress, wingColorLineType) {
   return strokeCol;
 }
 
-function getRoughWatercolorPalette(g, color1, color2) {
-  let sourceA = g.color(color1.h_adj, color1.s_adj * 0.62, min(100, color1.b_adj + 14), 118);
-  let sourceB = g.color(color2.h_adj, color2.s_adj * 0.62, min(100, color2.b_adj + 14), 112);
 
-  return [
-    colorToBrushPaint(sourceA, 118),
-    colorToBrushPaint(sourceB, 112),
-    colorToBrushPaint(g.color(92, 30, 58, 116), 116),
-    colorToBrushPaint(g.color(190, 32, 76, 108), 108),
-    colorToBrushPaint(g.color(12, 58, 94, 118), 118),
-    colorToBrushPaint(g.color(258, 28, 84, 104), 104)
-  ];
-}
-
-function pickPointInOutline(g, wLength, wWidth, tipYOffset, outline) {
-  for (let tries = 0; tries < 80; tries++) {
-    let px = roughRandom(g, wLength * 0.08, wLength * 0.95);
-    let py = roughRandom(g, -wWidth * 0.65, tipYOffset + wWidth * 0.85);
-    if (isPointInPolygon(px, py, outline)) return { x: px, y: py };
-  }
-  return null;
-}
-
-function makeWatercolorBlob(g, cx, cy, radius, pointCount) {
-  let points = [];
-  let yScale = roughRandom(g, 0.35, 0.75);
-  let rot = roughRandom(g, -0.45, 0.45);
-
-  for (let i = 0; i < pointCount; i++) {
-    let a = (TWO_PI * i) / pointCount;
-    let r = radius * roughRandom(g, 0.55, 1.15);
-    let localX = cos(a) * r;
-    let localY = sin(a) * r * yScale;
-    points.push([
-      cx + localX * cos(rot) - localY * sin(rot),
-      cy + localX * sin(rot) + localY * cos(rot)
-    ]);
-  }
-
-  return points;
-}
-
-function constrainBlobToOutline(blob, center, outline) {
-  return insetPolygonTowardsPoint(
-    constrainPolygonToOutline(blob, center, outline),
-    center,
-    insectBaseUnit * 0.08
-  );
-}
 
 function constrainPolygonToOutline(polygon, center, outline) {
   return polygon.map((pt) => {
@@ -623,63 +539,6 @@ function colorToBrushPaint(c, fallbackAlpha = 255) {
   };
 }
 
-function resetRoughBrushFillState() {
-  brush.noStroke();
-  brush.noFill();
-  if (typeof brush.noHatch === "function") brush.noHatch();
-  if (typeof brush.noWash === "function") brush.noWash();
-  if (typeof brush.noMass === "function") brush.noMass();
-}
-
-function outlineToBrushPoints(outline) {
-  return outline.map((p) => [p.x, p.y]);
-}
-
-function drawBrushPolygon(points) {
-  if (!points || points.length < 3) return;
-
-  let brushPoints = ensureClockwiseBrushPoints(points);
-  if (typeof brush.polygon === "function") {
-    brush.polygon(brushPoints);
-    return;
-  }
-
-  brush.beginShape();
-  for (let pt of brushPoints) brush.vertex(pt[0], pt[1]);
-  brush.endShape(true);
-}
-
-function ensureClockwiseBrushPoints(points) {
-  let normalized = points.map((pt) => [pt[0], pt[1]]);
-  return getPointArraySignedArea(normalized) >= 0 ? normalized : normalized.reverse();
-}
-
-function getPointArraySignedArea(points) {
-  let area = 0;
-  for (let i = 0; i < points.length; i++) {
-    let p1 = points[i];
-    let p2 = points[(i + 1) % points.length];
-    area += p1[0] * p2[1] - p2[0] * p1[1];
-  }
-  return area * 0.5;
-}
-
-function insetPolygonTowardsPoint(polygon, center, insetAmount) {
-  if (!polygon || polygon.length < 3 || !center) return polygon;
-
-  return polygon.map((pt) => {
-    let dx = center.x - pt[0];
-    let dy = center.y - pt[1];
-    let d = Math.sqrt(dx * dx + dy * dy);
-    if (d < 0.0001) return pt;
-
-    let t = Math.min(0.35, insetAmount / d);
-    return [
-      pt[0] + dx * t,
-      pt[1] + dy * t
-    ];
-  });
-}
 
 function jitterPointInsideOutline(g, x, y, center, outline, jitter) {
   let px = x + roughRandom(g, -jitter, jitter);
@@ -873,4 +732,90 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   // 【核心修正 2：不合併陣列，拆開回傳】
   // 我們將上下緣作為物件的兩個屬性回傳，方便後續畫出獨立的交叉點
   return { top: topPoints, bottom: bottomPoints };
+}
+
+function drawRoughWingColor(g, color1, color2, fillType, baseOutline){
+  if (typeof brush === "undefined" || !baseOutline || baseOutline.length < 3) return;
+
+  let bounds = getOutlineBounds(baseOutline, 0);
+  let center = getOutlineCentroid(baseOutline);
+  let markerCount = Math.floor(roughRandom(g, 3, 6));
+
+  brush.noFill();
+  if (typeof brush.noHatch === "function") brush.noHatch();
+
+  for (let i = 0; i < markerCount; i++) {
+    let markerColor = getRoughWingMarkerColor(g, i / Math.max(1, markerCount - 1), fillType, color1, color2);
+    let markerPaint = colorToBrushPaint(markerColor, 90);
+    let start = samplePointInsideOutline(g, baseOutline, bounds, center);
+    let end = samplePointInsideOutline(g, baseOutline, bounds, center);
+    if (!start || !end) continue;
+
+    let linePoints = makeRoughMarkerStroke(g, start, end, center, baseOutline);
+    linePoints = trimPolylineToOutline(linePoints, baseOutline);
+    if (!linePoints || linePoints.length < 2) continue;
+
+    brush.set("marker1", "#0000FF", roughRandom(g, 0.7, 1.08));
+    brush.strokeWeight(roughRandom(g, 4.8, 8.2));
+    brush.noFill();
+
+    brush.beginShape(0.12);
+    for (let j = 0; j < linePoints.length; j++) {
+      let pt = linePoints[j];
+      let t = linePoints.length <= 1 ? 0 : j / (linePoints.length - 1);
+      let taper = Math.sin(t * Math.PI);
+      let pressure = roughRandom(g, 0.5, 0.86) + taper * roughRandom(g, 0.1, 0.28);
+      brush.vertex(pt[0], pt[1], g.constrain(pressure, 0.42, 1.05));
+    }
+    brush.endShape();
+  }
+}
+
+function getRoughWingMarkerColor(g, progress, fillType, color1, color2) {
+  let c1 = g.color(color1.h_adj, color1.s_adj, color1.b_adj);
+  let c2 = g.color(color2.h_adj, color2.s_adj, color2.b_adj);
+
+  switch (fillType) {
+    case 1:
+      return g.lerpColor(c2, c1, 1.0 - g.pow(progress, 0.6));
+    case 2:
+      return g.lerpColor(c1, c2, progress * 0.65);
+    default:
+      return g.lerpColor(c1, c2, roughRandom(g, 0.15, 0.85));
+  }
+}
+
+function samplePointInsideOutline(g, outline, bounds, center) {
+  for (let i = 0; i < 40; i++) {
+    let x = roughRandom(g, bounds.minX, bounds.maxX);
+    let y = roughRandom(g, bounds.minY, bounds.maxY);
+    if (isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 0.08)) {
+      return nudgePointInsideOutline(x, y, center, outline, insectBaseUnit * 0.04);
+    }
+  }
+
+  return [center.x, center.y];
+}
+
+function makeRoughMarkerStroke(g, start, end, center, outline) {
+  let length = dist2D(start[0], start[1], end[0], end[1]);
+  let steps = Math.max(3, Math.floor(length / Math.max(1, insectBaseUnit * 0.8)));
+  let normal = getSegmentNormal(start, end);
+  let bowAmount = roughRandom(g, -insectBaseUnit * 0.55, insectBaseUnit * 0.55);
+  let jitter = insectBaseUnit * 0.16;
+  let points = [];
+
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    let ease = Math.sin(t * Math.PI);
+    let x = start[0] + (end[0] - start[0]) * t;
+    let y = start[1] + (end[1] - start[1]) * t;
+    let wobble = (g.noise(x * 0.03, y * 0.03, i * 0.2) - 0.5) * jitter * 2;
+
+    x += normal.x * (bowAmount * ease + wobble * ease) + roughRandom(g, -jitter, jitter) * 0.35 * ease;
+    y += normal.y * (bowAmount * ease + wobble * ease) + roughRandom(g, -jitter, jitter) * 0.35 * ease;
+    points.push(jitterPointInsideOutline(g, x, y, center, outline, insectBaseUnit * 0.02));
+  }
+
+  return points;
 }

@@ -55,7 +55,7 @@ function drawStartPage() {
   currentY += textBlockHeight + gap; // Y 座標繼續往下推
 
   // [第三塊：權限提示]
-  drawScreenText("( 進入時需允許相機與動作感測器權限，)\n" + "(ver.0.0.2 )", cx, currentY, {
+  drawScreenText("( 進入時需允許相機與動作感測器權限，)", cx, currentY, {
     fill: 150,
     size: 20,
     alignX: CENTER,

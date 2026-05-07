@@ -77,7 +77,7 @@ async function setup() {
 
   await brush.add("marker1", {
     type:    "image",
-    weight:  7,
+    weight:  3,
     scatter: 0.9,
     opacity: 40,
     spacing: 0.8,
