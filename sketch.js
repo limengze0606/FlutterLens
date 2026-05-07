@@ -58,6 +58,23 @@ async function setup() {
     image: {src: "assets/brushTips/pencil1.jpg"},
   });
 
+  await brush.add("pencil2", {
+    type:    "image",
+    weight:  1.5,
+    scatter: 0.4,
+    opacity: 150,
+    spacing: 0.5,
+    noise:   1,
+    pressure: {
+      mode: "gaussian",
+      curve: [0, 0.09],
+      min_max: [0.6, 1.14],
+    },
+    rotate:  "random",
+    markerTip: true,
+    image: {src: "assets/brushTips/pencil1.jpg"},
+  });
+
   await brush.add("marker1", {
     type:    "image",
     weight:  7,

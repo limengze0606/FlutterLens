@@ -35,8 +35,6 @@ function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
   
-  // 這裡可以根據 insectType 呼叫對應的 drawRoughButterflyWings 等等...
-  // 為了示範，我們先直接寫核心的 WingPair 邏輯
   let wingStyle = (insectType === 1) ? 1 : 0; 
   drawRoughWingPair(g, seedValue, 0.5 * insectBaseUnit, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType);
 
@@ -112,7 +110,7 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillTyp
   if (g.drawingContext && typeof g.drawingContext.clip === "function") {
     g.drawingContext.clip();
   }
-  drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, baseOutline);
+  //drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, baseOutline);
   drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, baseOutline);
 
   // (這裡未來會放你的 Voronoi 繪製邏輯)
@@ -219,7 +217,8 @@ function drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2,
 
 function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
   let seedPoints = [];
-  let strategyType = floor(roughRandom(g, 0, 3));
+  //let strategyType = floor(roughRandom(g, 0, 3));
+  let strategyType = 0;
 
   switch (strategyType) {
     case 0: seedPoints = scatterUniform(g, wLength, wWidth, tipYOffset, outline); break;
@@ -231,7 +230,7 @@ function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
 
   const delaunay = d3.Delaunay.from(seedPoints);
   const voronoi = delaunay.voronoi([0, -wWidth * 2, wLength + 50, wWidth * 2]);
-  let cells = [];
+  let lineMap = new Map();
 
   for (let i = 0; i < seedPoints.length; i++) {
     let polygon = voronoi.cellPolygon(i);
@@ -242,56 +241,169 @@ function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
       ? clippedPolygon
       : constrainPolygonToOutline(polygon, center, outline);
     if (!visiblePolygon || visiblePolygon.length < 3) continue;
-    visiblePolygon = insetPolygonTowardsPoint(
-      constrainPolygonToOutline(visiblePolygon, center, outline),
-      center,
-      insectBaseUnit * 0.16
-    );
+    visiblePolygon = constrainPolygonToOutline(visiblePolygon, center, outline);
     if (!visiblePolygon || visiblePolygon.length < 3) continue;
-    cells.push({
-      polygon: visiblePolygon,
-      center,
-      progress: g.constrain(seedPoints[i][0] / wLength, 0, 1)
-    });
+
+    let progress = g.constrain(seedPoints[i][0] / wLength, 0, 1);
+    addRoughVoronoiEdges(g, lineMap, visiblePolygon, center, progress, outline);
   }
 
-  return cells;
+  return Array.from(lineMap.values())
+    .filter((segment) => segment.length > insectBaseUnit * 0.7)
+    .sort((a, b) => a.progress - b.progress);
 }
 
 function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, outline) {
   if (typeof brush === "undefined" || !roughPattern || roughPattern.length <= 0) return;
 
-  brush.set("pencil1", "#090907", 0.95);
+  brush.set("pencil2", "#090907", 0.5);
   brush.stroke("#090907");
   brush.noFill();
   if (typeof brush.noHatch === "function") brush.noHatch();
 
-  for (let cell of roughPattern) {
-    let strokeCol = getRoughVoronoiStrokeColor(g, cell.progress, wingColorLineType);
-    let strokePaint = colorToBrushPaint(strokeCol, 190);
+  for (let segment of roughPattern) {
+    //let strokeCol = getRoughVoronoiStrokeColor(g, segment.progress, wingColorLineType);
+    //let strokePaint = colorToBrushPaint(strokeCol, 190);
+    let pressure = roughRandom(g, 0.72, 1.08);
 
-    brush.set("pencil1", strokePaint.color, roughRandom(g, 0.85, 1.08));
-    brush.stroke(strokePaint.color);
-    brush.strokeWeight(roughRandom(g, 0.82, 1.05));
+    brush.set("pencil2", "#090907", pressure);
+    brush.stroke("#090907");
+    brush.strokeWeight(roughRandom(g, 0.55, 0.95));
     brush.noFill();
 
-    brush.beginShape(0.08);
-    for (let pt of cell.polygon) {
-      let jitter = insectBaseUnit * 0.018;
-      let safePoint = jitterPointInsideOutline(
-        g,
-        pt[0],
-        pt[1],
-        cell.center,
-        outline,
-        jitter
-      );
-      brush.vertex(safePoint[0], safePoint[1], roughRandom(g, 0.75, 1.08));
+    let repeats = roughRandom(g, 0, 1) < 0.22 ? 2 : 1;
+    for (let pass = 0; pass < repeats; pass++) {
+      let linePoints = makeRoughSegmentPolyline(g, segment, outline, pass);
+      if (!linePoints || linePoints.length < 2) continue;
+
+      brush.beginShape(0.08);
+      for (let pt of linePoints) {
+        brush.vertex(pt[0], pt[1], roughRandom(g, 0.68, 1.05));
+      }
+      brush.endShape();
     }
-    brush.endShape(true);
   }
 
   brush.noFill();
+}
+
+function addRoughVoronoiEdges(g, lineMap, polygon, center, progress, outline) {
+  for (let i = 0; i < polygon.length; i++) {
+    let a = polygon[i];
+    let b = polygon[(i + 1) % polygon.length];
+    if (!a || !b) continue;
+
+    let length = dist2D(a[0], a[1], b[0], b[1]);
+    if (length < insectBaseUnit * 0.45) continue;
+
+    let mx = (a[0] + b[0]) * 0.5;
+    let my = (a[1] + b[1]) * 0.5;
+    if (!isPointInPolygon(mx, my, outline)) continue;
+    if (isNearOutline(mx, my, outline, insectBaseUnit * 0.28)) continue;
+
+    let key = makeSegmentKey(a, b);
+    let safeA = nudgePointInsideOutline(a[0], a[1], center, outline, insectBaseUnit * 0.08);
+    let safeB = nudgePointInsideOutline(b[0], b[1], center, outline, insectBaseUnit * 0.08);
+    let existing = lineMap.get(key);
+    if (existing && existing.length >= length) continue;
+
+    lineMap.set(key, {
+      a: safeA,
+      b: safeB,
+      center,
+      progress,
+      length
+    });
+  }
+}
+
+function makeRoughSegmentPolyline(g, segment, outline, pass = 0) {
+  let points = [];
+  let steps = Math.max(3, Math.floor(segment.length / (insectBaseUnit * 0.55)));
+  let jitter = insectBaseUnit * (pass === 0 ? 0.035 : 0.055);
+  let normal = getSegmentNormal(segment.a, segment.b);
+
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    let ease = Math.sin(t * Math.PI);
+    let x = segment.a[0] + (segment.b[0] - segment.a[0]) * t;
+    let y = segment.a[1] + (segment.b[1] - segment.a[1]) * t;
+    let wobble = (g.noise(x * 0.035, y * 0.035, pass * 31.7) - 0.5) * jitter * 2 * ease;
+    let scratch = roughRandom(g, -jitter, jitter) * 0.35 * ease;
+
+    x += normal.x * wobble + scratch;
+    y += normal.y * wobble + roughRandom(g, -jitter, jitter) * 0.28 * ease;
+
+    let safePoint = jitterPointInsideOutline(g, x, y, segment.center, outline, insectBaseUnit * 0.012);
+    points.push(safePoint);
+  }
+
+  return points;
+}
+
+function nudgePointInsideOutline(x, y, center, outline, insetAmount) {
+  if (isPointInPolygon(x, y, outline)) {
+    let dx = center.x - x;
+    let dy = center.y - y;
+    let d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 0.0001) return [x, y];
+    return [x + (dx / d) * insetAmount, y + (dy / d) * insetAmount];
+  }
+
+  let t = 0.86;
+  while (t > 0.08) {
+    let ix = center.x + (x - center.x) * t;
+    let iy = center.y + (y - center.y) * t;
+    if (isPointInPolygon(ix, iy, outline)) return [ix, iy];
+    t *= 0.72;
+  }
+
+  return [center.x, center.y];
+}
+
+function makeSegmentKey(a, b) {
+  let qa = quantizeVoronoiPoint(a);
+  let qb = quantizeVoronoiPoint(b);
+  return qa < qb ? `${qa}|${qb}` : `${qb}|${qa}`;
+}
+
+function quantizeVoronoiPoint(pt) {
+  let grid = Math.max(1, insectBaseUnit * 0.22);
+  return `${Math.round(pt[0] / grid)},${Math.round(pt[1] / grid)}`;
+}
+
+function getSegmentNormal(a, b) {
+  let dx = b[0] - a[0];
+  let dy = b[1] - a[1];
+  let d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 0.0001) return { x: 0, y: 1 };
+  return { x: -dy / d, y: dx / d };
+}
+
+function dist2D(x1, y1, x2, y2) {
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function isNearOutline(x, y, outline, threshold) {
+  for (let i = 0; i < outline.length; i++) {
+    let a = outline[i];
+    let b = outline[(i + 1) % outline.length];
+    if (distanceToSegment(x, y, a.x, a.y, b.x, b.y) < threshold) return true;
+  }
+  return false;
+}
+
+function distanceToSegment(px, py, x1, y1, x2, y2) {
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  let lenSq = dx * dx + dy * dy;
+  if (lenSq < 0.0001) return dist2D(px, py, x1, y1);
+
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return dist2D(px, py, x1 + dx * t, y1 + dy * t);
 }
 
 function getRoughVoronoiStrokeColor(g, progress, wingColorLineType) {
