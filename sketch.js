@@ -61,9 +61,9 @@ async function setup() {
   await brush.add("pencil2", {
     type:    "image",
     weight:  1.5,
-    scatter: 0.4,
+    scatter: 0.2,
     opacity: 150,
-    spacing: 0.5,
+    spacing: 0.6,
     noise:   1,
     pressure: {
       mode: "gaussian",

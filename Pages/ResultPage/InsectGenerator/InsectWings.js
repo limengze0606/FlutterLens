@@ -282,7 +282,7 @@ function scatterUniform(g, wLength, wWidth, tipYOffset, outline) {
 
 function scatterSineDensity(g, wLength, wWidth, tipYOffset, outline) {
   let pts = [];
-  let numPointsToTry = floor(g.random(500, 3000)); 
+  let numPointsToTry = floor(g.random(200, 1000)); 
   let frequency = g.random(0.01, 0.08);
   let phaseOffset = g.random(0, TWO_PI);
   let minProb = g.random(0.0, 0.15); 

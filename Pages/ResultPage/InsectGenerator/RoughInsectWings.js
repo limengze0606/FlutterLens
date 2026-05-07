@@ -107,9 +107,6 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillTyp
   for (let p of baseOutline) g.vertex(p.x, p.y);
   g.endShape(g.CLOSE);
   
-  if (g.drawingContext && typeof g.drawingContext.clip === "function") {
-    g.drawingContext.clip();
-  }
   //drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2, baseOutline);
   drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, baseOutline);
 
@@ -217,8 +214,8 @@ function drawRoughWatercolorWash(g, wLength, wWidth, tipYOffset, color1, color2,
 
 function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
   let seedPoints = [];
-  //let strategyType = floor(roughRandom(g, 0, 3));
-  let strategyType = 0;
+  let strategyType = floor(roughRandom(g, 0, 3));
+  //let strategyType = 1;
 
   switch (strategyType) {
     case 0: seedPoints = scatterUniform(g, wLength, wWidth, tipYOffset, outline); break;
@@ -226,11 +223,17 @@ function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
     case 2: seedPoints = scatterJitteredGrid(g, wLength, wWidth, tipYOffset, outline); break;
   }
 
+  seedPoints = seedPoints
+    .filter((pt) => isPointInsideOrOnOutline(pt[0], pt[1], outline, insectBaseUnit * 0.05))
+    .filter(() => roughRandom(g, 0, 1) < 0.38);
+  seedPoints = seedPoints.concat(sampleOutlineVoronoiSeeds(g, outline, wWidth));
+
   if (seedPoints.length <= 0) return [];
 
   const delaunay = d3.Delaunay.from(seedPoints);
-  const voronoi = delaunay.voronoi([0, -wWidth * 2, wLength + 50, wWidth * 2]);
-  let lineMap = new Map();
+  const bounds = getOutlineBounds(outline, insectBaseUnit * 2);
+  const voronoi = delaunay.voronoi([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]);
+  let segments = [];
 
   for (let i = 0; i < seedPoints.length; i++) {
     let polygon = voronoi.cellPolygon(i);
@@ -245,11 +248,11 @@ function createRoughVoronoiPattern(g, wLength, wWidth, tipYOffset, outline) {
     if (!visiblePolygon || visiblePolygon.length < 3) continue;
 
     let progress = g.constrain(seedPoints[i][0] / wLength, 0, 1);
-    addRoughVoronoiEdges(g, lineMap, visiblePolygon, center, progress, outline);
+    addRoughVoronoiEdges(g, segments, visiblePolygon, center, progress, outline);
   }
 
-  return Array.from(lineMap.values())
-    .filter((segment) => segment.length > insectBaseUnit * 0.7)
+  return segments
+    .filter((segment) => segment.length > insectBaseUnit * 0.4)
     .sort((a, b) => a.progress - b.progress);
 }
 
@@ -274,6 +277,7 @@ function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, ou
     let repeats = roughRandom(g, 0, 1) < 0.22 ? 2 : 1;
     for (let pass = 0; pass < repeats; pass++) {
       let linePoints = makeRoughSegmentPolyline(g, segment, outline, pass);
+      linePoints = trimPolylineToOutline(linePoints, outline);
       if (!linePoints || linePoints.length < 2) continue;
 
       brush.beginShape(0.08);
@@ -287,7 +291,7 @@ function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, ou
   brush.noFill();
 }
 
-function addRoughVoronoiEdges(g, lineMap, polygon, center, progress, outline) {
+function addRoughVoronoiEdges(g, segments, polygon, center, progress, outline) {
   for (let i = 0; i < polygon.length; i++) {
     let a = polygon[i];
     let b = polygon[(i + 1) % polygon.length];
@@ -298,16 +302,16 @@ function addRoughVoronoiEdges(g, lineMap, polygon, center, progress, outline) {
 
     let mx = (a[0] + b[0]) * 0.5;
     let my = (a[1] + b[1]) * 0.5;
-    if (!isPointInPolygon(mx, my, outline)) continue;
-    if (isNearOutline(mx, my, outline, insectBaseUnit * 0.28)) continue;
+    let aNearOutline = isNearOutline(a[0], a[1], outline, insectBaseUnit * 0.18);
+    let bNearOutline = isNearOutline(b[0], b[1], outline, insectBaseUnit * 0.18);
+    if (!isPointInsideOrOnOutline(mx, my, outline, insectBaseUnit * 0.04)) continue;
+    if (aNearOutline && bNearOutline && isNearOutline(mx, my, outline, insectBaseUnit * 0.32)) continue;
 
-    let key = makeSegmentKey(a, b);
-    let safeA = nudgePointInsideOutline(a[0], a[1], center, outline, insectBaseUnit * 0.08);
-    let safeB = nudgePointInsideOutline(b[0], b[1], center, outline, insectBaseUnit * 0.08);
-    let existing = lineMap.get(key);
-    if (existing && existing.length >= length) continue;
+    let insetAmount = (aNearOutline || bNearOutline) ? insectBaseUnit * 0.015 : insectBaseUnit * 0.08;
+    let safeA = nudgePointInsideOutline(a[0], a[1], center, outline, insetAmount);
+    let safeB = nudgePointInsideOutline(b[0], b[1], center, outline, insetAmount);
 
-    lineMap.set(key, {
+    segments.push({
       a: safeA,
       b: safeB,
       center,
@@ -341,6 +345,114 @@ function makeRoughSegmentPolyline(g, segment, outline, pass = 0) {
   return points;
 }
 
+function sampleOutlineVoronoiSeeds(g, outline, wWidth) {
+  if (!outline || outline.length < 3) return [];
+
+  let seeds = [];
+  let perimeter = getOutlinePerimeter(outline);
+  let targetCount = Math.max(6, Math.min(22, Math.floor(perimeter / Math.max(1, insectBaseUnit * 2.8))));
+  let startOffset = roughRandom(g, 0, perimeter / targetCount);
+  let center = getOutlineCentroid(outline);
+
+  for (let i = 0; i < targetCount; i++) {
+    let distance = startOffset + (perimeter * i) / targetCount + roughRandom(g, -wWidth * 0.04, wWidth * 0.04);
+    let point = getPointOnOutlineAtDistance(outline, distance);
+    if (!point) continue;
+
+    let inset = roughRandom(g, insectBaseUnit * 0.015, insectBaseUnit * 0.09);
+    let dx = center.x - point.x;
+    let dy = center.y - point.y;
+    let d = Math.sqrt(dx * dx + dy * dy);
+    if (d > 0.0001) {
+      point.x += (dx / d) * inset;
+      point.y += (dy / d) * inset;
+    }
+
+    if (isPointInsideOrOnOutline(point.x, point.y, outline, insectBaseUnit * 0.12)) {
+      seeds.push([point.x, point.y]);
+    }
+  }
+
+  return seeds;
+}
+
+function getOutlineBounds(outline, padding = 0) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (let p of outline) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+
+  return {
+    minX: minX - padding,
+    minY: minY - padding,
+    maxX: maxX + padding,
+    maxY: maxY + padding
+  };
+}
+
+function getOutlinePerimeter(outline) {
+  let perimeter = 0;
+  for (let i = 0; i < outline.length; i++) {
+    let a = outline[i];
+    let b = outline[(i + 1) % outline.length];
+    perimeter += dist2D(a.x, a.y, b.x, b.y);
+  }
+  return perimeter;
+}
+
+function getPointOnOutlineAtDistance(outline, targetDistance) {
+  let perimeter = getOutlinePerimeter(outline);
+  if (perimeter <= 0) return null;
+
+  let remaining = ((targetDistance % perimeter) + perimeter) % perimeter;
+  for (let i = 0; i < outline.length; i++) {
+    let a = outline[i];
+    let b = outline[(i + 1) % outline.length];
+    let edgeLength = dist2D(a.x, a.y, b.x, b.y);
+    if (edgeLength < 0.0001) continue;
+    if (remaining <= edgeLength) {
+      let t = remaining / edgeLength;
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t
+      };
+    }
+    remaining -= edgeLength;
+  }
+
+  return { x: outline[0].x, y: outline[0].y };
+}
+
+function getOutlineCentroid(outline) {
+  let x = 0;
+  let y = 0;
+  for (let p of outline) {
+    x += p.x;
+    y += p.y;
+  }
+  return {
+    x: x / outline.length,
+    y: y / outline.length
+  };
+}
+
+function isPointInsideOrOnOutline(x, y, outline, edgeTolerance = 0) {
+  if (!outline || outline.length < 3) return false;
+  return isPointInPolygon(x, y, outline) || isNearOutline(x, y, outline, edgeTolerance);
+}
+
+function trimPolylineToOutline(points, outline) {
+  if (!points || !outline) return points;
+  return points.filter((pt) => isPointInsideOrOnOutline(pt[0], pt[1], outline, insectBaseUnit * 0.03));
+}
+
 function nudgePointInsideOutline(x, y, center, outline, insetAmount) {
   if (isPointInPolygon(x, y, outline)) {
     let dx = center.x - x;
@@ -359,17 +471,6 @@ function nudgePointInsideOutline(x, y, center, outline, insetAmount) {
   }
 
   return [center.x, center.y];
-}
-
-function makeSegmentKey(a, b) {
-  let qa = quantizeVoronoiPoint(a);
-  let qb = quantizeVoronoiPoint(b);
-  return qa < qb ? `${qa}|${qb}` : `${qb}|${qa}`;
-}
-
-function quantizeVoronoiPoint(pt) {
-  let grid = Math.max(1, insectBaseUnit * 0.22);
-  return `${Math.round(pt[0] / grid)},${Math.round(pt[1] / grid)}`;
 }
 
 function getSegmentNormal(a, b) {
