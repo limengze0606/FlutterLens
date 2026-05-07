@@ -271,7 +271,7 @@ function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, ou
 
     brush.set("pencil2", "#090907", pressure);
     brush.stroke("#090907");
-    brush.strokeWeight(roughRandom(g, 0.55, 0.95));
+    brush.strokeWeight(roughRandom(g, 0.48, 0.88));
     brush.noFill();
 
     let repeats = roughRandom(g, 0, 1) < 0.22 ? 2 : 1;
@@ -281,8 +281,13 @@ function drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, ou
       if (!linePoints || linePoints.length < 2) continue;
 
       brush.beginShape(0.08);
-      for (let pt of linePoints) {
-        brush.vertex(pt[0], pt[1], roughRandom(g, 0.68, 1.05));
+      for (let i = 0; i < linePoints.length; i++) {
+        let pt = linePoints[i];
+        let t = linePoints.length <= 1 ? 0 : i / (linePoints.length - 1);
+        let taper = Math.sin(t * Math.PI);
+        let grain = g.noise(pt[0] * 0.045, pt[1] * 0.045, pass * 19.3);
+        let pointPressure = roughRandom(g, 0.48, 0.82) + taper * roughRandom(g, 0.08, 0.28) + grain * 0.16;
+        brush.vertex(pt[0], pt[1], g.constrain(pointPressure, 0.42, 1.12));
       }
       brush.endShape();
     }
@@ -326,17 +331,30 @@ function makeRoughSegmentPolyline(g, segment, outline, pass = 0) {
   let steps = Math.max(3, Math.floor(segment.length / (insectBaseUnit * 0.55)));
   let jitter = insectBaseUnit * (pass === 0 ? 0.035 : 0.055);
   let normal = getSegmentNormal(segment.a, segment.b);
+  let direction = getSegmentDirection(segment.a, segment.b);
+  let endpointJitter = insectBaseUnit * (pass === 0 ? 0.055 : 0.085);
+  let bowAmount = roughRandom(g, -insectBaseUnit * 0.18, insectBaseUnit * 0.18) * (pass === 0 ? 1 : 1.35);
+  let bowSkew = roughRandom(g, -0.28, 0.28);
+  let start = [
+    segment.a[0] + direction.x * roughRandom(g, -endpointJitter, endpointJitter * 0.4) + normal.x * roughRandom(g, -endpointJitter, endpointJitter),
+    segment.a[1] + direction.y * roughRandom(g, -endpointJitter, endpointJitter * 0.4) + normal.y * roughRandom(g, -endpointJitter, endpointJitter)
+  ];
+  let end = [
+    segment.b[0] + direction.x * roughRandom(g, -endpointJitter * 0.4, endpointJitter) + normal.x * roughRandom(g, -endpointJitter, endpointJitter),
+    segment.b[1] + direction.y * roughRandom(g, -endpointJitter * 0.4, endpointJitter) + normal.y * roughRandom(g, -endpointJitter, endpointJitter)
+  ];
 
   for (let i = 0; i <= steps; i++) {
     let t = i / steps;
     let ease = Math.sin(t * Math.PI);
-    let x = segment.a[0] + (segment.b[0] - segment.a[0]) * t;
-    let y = segment.a[1] + (segment.b[1] - segment.a[1]) * t;
+    let x = start[0] + (end[0] - start[0]) * t;
+    let y = start[1] + (end[1] - start[1]) * t;
+    let bow = ease * bowAmount * (1 + (t - 0.5) * bowSkew);
     let wobble = (g.noise(x * 0.035, y * 0.035, pass * 31.7) - 0.5) * jitter * 2 * ease;
     let scratch = roughRandom(g, -jitter, jitter) * 0.35 * ease;
 
-    x += normal.x * wobble + scratch;
-    y += normal.y * wobble + roughRandom(g, -jitter, jitter) * 0.28 * ease;
+    x += normal.x * (bow + wobble) + scratch + direction.x * roughRandom(g, -jitter, jitter) * 0.18 * ease;
+    y += normal.y * (bow + wobble) + roughRandom(g, -jitter, jitter) * 0.28 * ease + direction.y * roughRandom(g, -jitter, jitter) * 0.18 * ease;
 
     let safePoint = jitterPointInsideOutline(g, x, y, segment.center, outline, insectBaseUnit * 0.012);
     points.push(safePoint);
@@ -479,6 +497,14 @@ function getSegmentNormal(a, b) {
   let d = Math.sqrt(dx * dx + dy * dy);
   if (d < 0.0001) return { x: 0, y: 1 };
   return { x: -dy / d, y: dx / d };
+}
+
+function getSegmentDirection(a, b) {
+  let dx = b[0] - a[0];
+  let dy = b[1] - a[1];
+  let d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 0.0001) return { x: 1, y: 0 };
+  return { x: dx / d, y: dy / d };
 }
 
 function dist2D(x1, y1, x2, y2) {
