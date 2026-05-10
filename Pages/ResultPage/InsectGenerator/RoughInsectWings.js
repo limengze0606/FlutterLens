@@ -737,35 +737,47 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
 function drawRoughWingColor(g, color1, color2, fillType, baseOutline){
   if (typeof brush === "undefined" || !baseOutline || baseOutline.length < 3) return;
 
-  let bounds = getOutlineBounds(baseOutline, 0);
+  let bounds = getOutlineBounds(baseOutline, insectBaseUnit * 1.25);
   let center = getOutlineCentroid(baseOutline);
-  let markerCount = Math.floor(roughRandom(g, 3, 6));
+  let root = getRoughWingRootPoint(g, baseOutline);
+  let washCount = Math.floor(roughRandom(g, 2, 4));
+  let markerCount = Math.floor(roughRandom(g, 16, 23));
 
-  brush.noFill();
   if (typeof brush.noHatch === "function") brush.noHatch();
 
-  for (let i = 0; i < markerCount; i++) {
-    let markerColor = getRoughWingMarkerColor(g, i / Math.max(1, markerCount - 1), fillType, color1, color2);
-    let markerPaint = colorToBrushPaint(markerColor, 90);
-    let start = samplePointInsideOutline(g, baseOutline, bounds, center);
-    let end = samplePointInsideOutline(g, baseOutline, bounds, center);
-    if (!start || !end) continue;
+  for (let i = 0; i < washCount; i++) {
+    let progress = getRadialWingProgress(g, i, washCount, true);
+    let washColor = tintRoughWingBrushColor(g, getRoughWingMarkerColor(g, progress, fillType, color1, color2), i);
+    drawRadialWingWash(g, root, center, baseOutline, bounds, washColor, progress, i);
+  }
 
-    let linePoints = makeRoughMarkerStroke(g, start, end, center, baseOutline);
-    linePoints = trimPolylineToOutline(linePoints, baseOutline);
+  brush.noFill();
+  brush.noStroke();
+
+  for (let i = 0; i < markerCount; i++) {
+    let progress = getRadialWingProgress(g, i, markerCount, false);
+    let markerColor = tintRoughWingBrushColor(g, getRoughWingMarkerColor(g, progress, fillType, color1, color2), i);
+    let markerPaint = colorToBrushPaint(markerColor, 118);
+    let start = makeRadialWingStrokeStart(g, root, progress);
+    let end = getWingOutlinePointAtProgress(g, baseOutline, progress, insectBaseUnit * roughRandom(g, 0.2, 1.1));
+    if (!start || !end) continue; 
+
+    let linePoints = makeRadialWingMarkerStroke(g, start, end, root, center, baseOutline, progress);
     if (!linePoints || linePoints.length < 2) continue;
 
-    brush.set("marker1", "#0000FF", roughRandom(g, 0.7, 1.08));
-    brush.strokeWeight(roughRandom(g, 4.8, 8.2));
+    brush.set("marker1", markerPaint.color, roughRandom(g, 0.68, 1.05));
+    brush.stroke(markerPaint.color, markerPaint.alpha);
+    brush.strokeWeight(roughRandom(g, 5.8, 12.8));
     brush.noFill();
 
-    brush.beginShape(0.12);
+    brush.beginShape(0.08);
     for (let j = 0; j < linePoints.length; j++) {
       let pt = linePoints[j];
       let t = linePoints.length <= 1 ? 0 : j / (linePoints.length - 1);
       let taper = Math.sin(t * Math.PI);
-      let pressure = roughRandom(g, 0.5, 0.86) + taper * roughRandom(g, 0.1, 0.28);
-      brush.vertex(pt[0], pt[1], g.constrain(pressure, 0.42, 1.05));
+      let paperGrain = g.noise(pt[0] * 0.09, pt[1] * 0.09, i * 17.1);
+      let pressure = roughRandom(g, 0.42, 0.82) + taper * roughRandom(g, 0.12, 0.32) + paperGrain * 0.14;
+      brush.vertex(pt[0], pt[1], g.constrain(pressure, 0.32, 1.08));
     }
     brush.endShape();
   }
@@ -785,6 +797,171 @@ function getRoughWingMarkerColor(g, progress, fillType, color1, color2) {
   }
 }
 
+function tintRoughWingBrushColor(g, baseColor, colorIndex) {
+  let hueShiftSet = [-18, 14, 34, -42, 58, -70];
+  let hueShift = hueShiftSet[colorIndex % hueShiftSet.length] + roughRandom(g, -8, 8);
+  let sourceHue = g.hue(baseColor);
+  let sourceSat = g.saturation(baseColor);
+  let sourceBri = g.brightness(baseColor);
+  let tinted = g.color(
+    (sourceHue + hueShift + 360) % 360,
+    g.constrain(sourceSat + roughRandom(g, 16, 34), 24, 82),
+    g.constrain(sourceBri + roughRandom(g, -28, -4), 28, 78),
+    180
+  );
+  return g.lerpColor(baseColor, tinted, roughRandom(g, 0.34, 0.68));
+}
+
+function getRoughWingRootPoint(g, outline) {
+  let root = outline && outline.length > 0 ? outline[0] : { x: 0, y: 0 };
+  return [
+    root.x + roughRandom(g, -insectBaseUnit * 0.16, insectBaseUnit * 0.16),
+    root.y + roughRandom(g, -insectBaseUnit * 0.22, insectBaseUnit * 0.22)
+  ];
+}
+
+function getRadialWingProgress(g, index, count, broadPatch = false) {
+  let t = count <= 1 ? 0.5 : index / (count - 1);
+  let bandRoll = roughRandom(g, 0, 1);
+  let progress;
+
+  if (broadPatch) {
+    progress = 0.18 + t * 0.68;
+  } else if (bandRoll < 0.3) {
+    progress = roughRandom(g, 0.12, 0.38);
+  } else if (bandRoll < 0.62) {
+    progress = roughRandom(g, 0.38, 0.62);
+  } else {
+    progress = roughRandom(g, 0.62, 0.92);
+  }
+
+  return g.constrain(progress + roughRandom(g, -0.035, 0.035), 0.08, 0.94);
+}
+
+function getWingOutlinePointAtProgress(g, outline, progress, overshoot = 0) {
+  if (!outline || outline.length < 2) return null;
+
+  let indexFloat = g.constrain(progress, 0, 1) * (outline.length - 1);
+  let indexA = Math.floor(indexFloat);
+  let indexB = Math.min(outline.length - 1, indexA + 1);
+  let t = indexFloat - indexA;
+  let a = outline[indexA];
+  let b = outline[indexB];
+  let x = a.x + (b.x - a.x) * t;
+  let y = a.y + (b.y - a.y) * t;
+  let root = outline[0];
+  let dx = x - root.x;
+  let dy = y - root.y;
+  let d = Math.sqrt(dx * dx + dy * dy);
+
+  if (d > 0.0001) {
+    x += (dx / d) * overshoot;
+    y += (dy / d) * overshoot;
+  }
+
+  return [x, y];
+}
+
+function makeRadialWingStrokeStart(g, root, progress) {
+  let rootDrift = insectBaseUnit * roughRandom(g, 0.1, 0.75);
+  let fanAngle = g.map(progress, 0.08, 0.94, -0.55, 0.72);
+  return [
+    root[0] + Math.cos(fanAngle) * rootDrift + roughRandom(g, -insectBaseUnit * 0.22, insectBaseUnit * 0.22),
+    root[1] + Math.sin(fanAngle) * rootDrift + roughRandom(g, -insectBaseUnit * 0.28, insectBaseUnit * 0.28)
+  ];
+}
+
+function makeRadialWingMarkerStroke(g, start, end, root, center, outline, progress) {
+  let length = dist2D(start[0], start[1], end[0], end[1]);
+  let steps = Math.max(4, Math.floor(length / Math.max(1, insectBaseUnit * 0.62)));
+  let normal = getSegmentNormal(start, end);
+  let direction = getSegmentDirection(start, end);
+  let points = [];
+  let jitter = insectBaseUnit * 0.18;
+  let bowAmount = roughRandom(g, -insectBaseUnit * 0.55, insectBaseUnit * 0.55);
+  let wingFlow = progress < 0.5 ? -1 : 1;
+  let endOvershoot = insectBaseUnit * roughRandom(g, 0.25, 1.25);
+
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    let ease = Math.sin(t * Math.PI);
+    let x = start[0] + (end[0] + direction.x * endOvershoot - start[0]) * t;
+    let y = start[1] + (end[1] + direction.y * endOvershoot - start[1]) * t;
+    let grain = g.noise(root[0] * 0.03 + t * 2.4, root[1] * 0.03 + progress * 6.0, i * 0.17);
+    let sideSlip = (grain - 0.5) * jitter * 2 + bowAmount * ease;
+    let dryBrushGap = roughRandom(g, 0, 1) < 0.08 && t > 0.18 && t < 0.92;
+
+    if (dryBrushGap) continue;
+
+    x += normal.x * sideSlip + wingFlow * roughRandom(g, -jitter, jitter) * 0.24 * ease;
+    y += normal.y * sideSlip + roughRandom(g, -jitter, jitter) * 0.36 * ease;
+
+    if (isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 1.25) || roughRandom(g, 0, 1) < 0.9) {
+      points.push([x, y]);
+    }
+  }
+
+  return points;
+}
+
+function drawRadialWingWash(g, root, center, outline, bounds, washColor, progress, patchIndex) {
+  let spread = roughRandom(g, 0.08, 0.18);
+  let p1 = g.constrain(progress - spread, 0.08, 0.94);
+  let p2 = g.constrain(progress + spread * roughRandom(g, 0.75, 1.25), 0.08, 0.94);
+  let edgeA = getWingOutlinePointAtProgress(g, outline, p1, insectBaseUnit * roughRandom(g, 0.0, 0.65));
+  let edgeB = getWingOutlinePointAtProgress(g, outline, p2, insectBaseUnit * roughRandom(g, 0.0, 0.75));
+  if (!edgeA || !edgeB) return;
+
+  let paint = colorToBrushPaint(washColor, 30);
+  let innerA = interpolatePoint(root, edgeA, roughRandom(g, 0.12, 0.28));
+  let innerB = interpolatePoint(root, edgeB, roughRandom(g, 0.16, 0.34));
+  let mid = interpolatePoint(root, [
+    (edgeA[0] + edgeB[0]) * 0.5,
+    (edgeA[1] + edgeB[1]) * 0.5
+  ], roughRandom(g, 0.55, 0.78));
+  let polygonPoints = [
+    jitterArrayPoint(g, innerA, insectBaseUnit * 0.22),
+    jitterArrayPoint(g, mid, insectBaseUnit * 0.55),
+    jitterArrayPoint(g, edgeB, insectBaseUnit * 0.42),
+    jitterArrayPoint(g, interpolatePoint(edgeB, edgeA, 0.45), insectBaseUnit * 0.5),
+    jitterArrayPoint(g, edgeA, insectBaseUnit * 0.42),
+    jitterArrayPoint(g, innerB, insectBaseUnit * 0.2)
+  ];
+
+  if (typeof brush.fill === "function") brush.fill(paint.color, paint.alpha);
+  if (typeof brush.fillBleed === "function") brush.fillBleed(roughRandom(g, 0.015, 0.055), "out");
+  if (typeof brush.fillTexture === "function") brush.fillTexture(roughRandom(g, 0.24, 0.48), roughRandom(g, 0.08, 0.22), false);
+  brush.noStroke();
+
+  brush.beginShape(0.16);
+  for (let pt of polygonPoints) {
+    let x = pt[0];
+    let y = pt[1];
+    if (!isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 1.2) && roughRandom(g, 0, 1) < 0.55) {
+      let nudged = nudgePointInsideOutline(x, y, center, outline, insectBaseUnit * 0.04);
+      x = nudged[0];
+      y = nudged[1];
+    }
+    brush.vertex(x, y, roughRandom(g, 0.28, 0.75));
+  }
+  brush.endShape(true);
+  brush.noFill();
+}
+
+function interpolatePoint(a, b, t) {
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t
+  ];
+}
+
+function jitterArrayPoint(g, point, amount) {
+  return [
+    point[0] + roughRandom(g, -amount, amount),
+    point[1] + roughRandom(g, -amount, amount)
+  ];
+}
+
 function samplePointInsideOutline(g, outline, bounds, center) {
   for (let i = 0; i < 40; i++) {
     let x = roughRandom(g, bounds.minX, bounds.maxX);
@@ -797,25 +974,119 @@ function samplePointInsideOutline(g, outline, bounds, center) {
   return [center.x, center.y];
 }
 
-function makeRoughMarkerStroke(g, start, end, center, outline) {
+function sampleLooseWingBrushPoint(g, outline, bounds, center, preferEdge = false) {
+  let point = preferEdge
+    ? samplePointNearOutlineEdge(g, outline, center)
+    : samplePointInsideOutline(g, outline, bounds, center);
+  if (!point) return [center.x, center.y];
+
+  let overshoot = insectBaseUnit * roughRandom(g, -0.28, 0.72);
+  let dx = point[0] - center.x;
+  let dy = point[1] - center.y;
+  let d = Math.sqrt(dx * dx + dy * dy);
+  if (d > 0.0001) {
+    point[0] += (dx / d) * overshoot;
+    point[1] += (dy / d) * overshoot;
+  }
+
+  return point;
+}
+
+function samplePointNearOutlineEdge(g, outline, center) {
+  if (!outline || outline.length < 2) return null;
+
+  let edgeIndex = Math.floor(roughRandom(g, 0, outline.length));
+  let a = outline[edgeIndex];
+  let b = outline[(edgeIndex + 1) % outline.length];
+  let t = roughRandom(g, 0, 1);
+  let x = a.x + (b.x - a.x) * t;
+  let y = a.y + (b.y - a.y) * t;
+  let inset = insectBaseUnit * roughRandom(g, 0.05, 0.5);
+  let dx = center.x - x;
+  let dy = center.y - y;
+  let d = Math.sqrt(dx * dx + dy * dy);
+  if (d > 0.0001) {
+    x += (dx / d) * inset;
+    y += (dy / d) * inset;
+  }
+  return [x, y];
+}
+
+function makeRoughMarkerStroke(g, start, end, center, outline, allowOvershoot = false) {
   let length = dist2D(start[0], start[1], end[0], end[1]);
   let steps = Math.max(3, Math.floor(length / Math.max(1, insectBaseUnit * 0.8)));
   let normal = getSegmentNormal(start, end);
-  let bowAmount = roughRandom(g, -insectBaseUnit * 0.55, insectBaseUnit * 0.55);
-  let jitter = insectBaseUnit * 0.16;
+  let direction = getSegmentDirection(start, end);
+  let bowAmount = roughRandom(g, -insectBaseUnit * 0.85, insectBaseUnit * 0.85);
+  let jitter = insectBaseUnit * (allowOvershoot ? 0.28 : 0.16);
+  let endpointOvershoot = allowOvershoot ? insectBaseUnit * roughRandom(g, 0.25, 1.15) : 0;
+  let looseStart = [
+    start[0] - direction.x * endpointOvershoot + normal.x * roughRandom(g, -jitter, jitter),
+    start[1] - direction.y * endpointOvershoot + normal.y * roughRandom(g, -jitter, jitter)
+  ];
+  let looseEnd = [
+    end[0] + direction.x * endpointOvershoot + normal.x * roughRandom(g, -jitter, jitter),
+    end[1] + direction.y * endpointOvershoot + normal.y * roughRandom(g, -jitter, jitter)
+  ];
   let points = [];
 
   for (let i = 0; i <= steps; i++) {
     let t = i / steps;
     let ease = Math.sin(t * Math.PI);
-    let x = start[0] + (end[0] - start[0]) * t;
-    let y = start[1] + (end[1] - start[1]) * t;
+    let x = looseStart[0] + (looseEnd[0] - looseStart[0]) * t;
+    let y = looseStart[1] + (looseEnd[1] - looseStart[1]) * t;
     let wobble = (g.noise(x * 0.03, y * 0.03, i * 0.2) - 0.5) * jitter * 2;
 
     x += normal.x * (bowAmount * ease + wobble * ease) + roughRandom(g, -jitter, jitter) * 0.35 * ease;
     y += normal.y * (bowAmount * ease + wobble * ease) + roughRandom(g, -jitter, jitter) * 0.35 * ease;
-    points.push(jitterPointInsideOutline(g, x, y, center, outline, insectBaseUnit * 0.02));
+    if (allowOvershoot) {
+      let maxLooseDistance = insectBaseUnit * 1.35;
+      if (isPointInsideOrOnOutline(x, y, outline, maxLooseDistance) || roughRandom(g, 0, 1) < 0.88) {
+        points.push([x, y]);
+      }
+    } else {
+      points.push(jitterPointInsideOutline(g, x, y, center, outline, insectBaseUnit * 0.02));
+    }
   }
 
   return points;
+}
+
+function drawLooseWingColorPatch(g, outline, bounds, center, patchColor, patchIndex) {
+  let anchor = sampleLooseWingBrushPoint(g, outline, bounds, center, patchIndex % 2 === 0);
+  if (!anchor) return;
+
+  let paint = colorToBrushPaint(patchColor, 52);
+  let radiusX = roughRandom(g, insectBaseUnit * 0.7, insectBaseUnit * 2.2);
+  let radiusY = roughRandom(g, insectBaseUnit * 0.35, insectBaseUnit * 1.25);
+  let rotation = roughRandom(g, -0.9, 0.9);
+  let vertexCount = Math.floor(roughRandom(g, 7, 12));
+
+  brush.set("marker1", paint.color, roughRandom(g, 0.32, 0.58));
+  brush.stroke(paint.color, paint.alpha);
+  brush.strokeWeight(roughRandom(g, 3.2, 7.2));
+  brush.noFill();
+
+  for (let pass = 0; pass < 2; pass++) {
+    brush.beginShape(0.1);
+    for (let i = 0; i <= vertexCount; i++) {
+      let a = (i / vertexCount) * g.TWO_PI;
+      let grain = roughRandom(g, 0.72, 1.25);
+      let lx = Math.cos(a) * radiusX * grain;
+      let ly = Math.sin(a) * radiusY * roughRandom(g, 0.65, 1.35);
+      let x = anchor[0] + lx * Math.cos(rotation) - ly * Math.sin(rotation);
+      let y = anchor[1] + lx * Math.sin(rotation) + ly * Math.cos(rotation);
+      x += roughRandom(g, -insectBaseUnit * 0.24, insectBaseUnit * 0.24);
+      y += roughRandom(g, -insectBaseUnit * 0.24, insectBaseUnit * 0.24);
+
+      if (!isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 1.15) && roughRandom(g, 0, 1) < 0.65) {
+        let nudged = nudgePointInsideOutline(x, y, center, outline, insectBaseUnit * 0.08);
+        x = nudged[0];
+        y = nudged[1];
+      }
+
+      brush.vertex(x, y, roughRandom(g, 0.22, 0.58));
+    }
+    brush.endShape();
+  }
 }

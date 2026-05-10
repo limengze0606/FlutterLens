@@ -308,3 +308,130 @@ CDP 腳本目前仍以 `--window-size` 為穩定模式，runtime viewport 與指
 
 #### 建議的下一步
 修正 landscape Start page 排版後，使用 `scripts/run-cdp-visual-test.ps1` 重跑並比較新的 `summary.json` 與 screenshots；接著可考慮把 CDP script 加入更正式的測試檢查流程，並補上 console 404 的來源確認。
+
+---
+
+### 2026-05-10 — 調整 RoughInsectWings 手繪上色筆觸
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+調整 `RoughInsectWings.js` 的 `drawRoughWingColor()`，讓 rough wing 上色從被輪廓裁切的少量 marker 線段，改成更自然、手繪、可略微出界的多層筆觸與色斑。
+
+#### 使用者需求
+使用者希望 `RoughInsectWings.js` 的 `drawRoughWingColor()` 能以自然、手繪的筆觸來上色，可以稍微出界，也不需要太依照翅膀的網格形狀，並參考示意圖中類似 ink on photo、水彩或 marker 色塊覆蓋在翅膀線稿下方的視覺。
+
+#### 實作前理解
+前次工作日誌指出本專案的視覺修改必須實際跑瀏覽器驗證，且已有可重跑的 CDP 視覺測試腳本。閱讀 `RoughInsectWings.js` 後確認：原本 `drawRoughWingColor()` 雖然會建立 `markerPaint`，但實際 `brush.set("marker1", "#0000FF", ...)` 硬寫成藍色，而且筆觸會經過 `trimPolylineToOutline()` 裁回 `baseOutline`，因此不容易產生參考圖中自然溢出、自由色塊、不貼齊 Voronoi 網格的感覺。
+
+#### 實作方案
+保留現有 rough wing 的輪廓、Voronoi 線稿與 p5.brush 架構，只改寫上色層。將上色改為多條鬆散 marker 筆觸，取樣點可來自翅膀內部或輪廓邊緣附近，端點加入 overshoot，並取消完全裁切回輪廓內的行為。同時新增少量不規則色斑，讓色彩不完全服從 Voronoi 網格。為了避免 fake camera 或真實照片取樣色太接近時畫面過淡，對筆觸色加入小幅 hue shift 與飽和度提升，但仍以 `color1` / `color2` 為基底。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `sketch.js`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有新增外部依賴，也沒有改動 GitHub Pages 載入路徑。保留 `marker1` brush，因為專案已經載入 `assets/brushTips/marker1.jpg` 並用於 rough wing 上色；本次只調整 stroke 生成方式、顏色使用方式與鬆散取樣策略。Voronoi 線稿仍在色彩層之後繪製，讓結果接近「先染色、再用墨線標註翅脈」的順序。
+
+#### 遇到的問題
+CDP 使用 fake camera 時背景與取樣色偏單一亮綠，因此自動截圖中的翅膀色彩主要呈現淡綠、白色水痕與邊緣暈染，無法完整代表真實照片下的多色效果。Console 仍出現每個 viewport 一筆 404 resource 訊息，與前次測試一致，未阻止流程。
+
+#### 嘗試過的解法
+第一版先將 `drawRoughWingColor()` 改成多條不裁切的 marker 筆觸與色斑，並真正套用 `getRoughWingMarkerColor()` 的結果。視覺截圖顯示已有溢出與暈染，但 fake camera 色彩偏淡；第二版加入 `tintRoughWingBrushColor()`，對照片主色做小幅色相偏移與飽和度補強，讓單色環境下仍能保留手繪色塊層次。
+
+#### 最終解法
+`drawRoughWingColor()` 現在會產生 9 到 14 條鬆散 marker 筆觸，以及 3 到 5 個不規則色斑。新增 `sampleLooseWingBrushPoint()`、`samplePointNearOutlineEdge()`、`tintRoughWingBrushColor()`、`drawLooseWingColorPatch()`，並擴充 `makeRoughMarkerStroke()` 支援 `allowOvershoot`。筆觸端點與取樣點可稍微超出 `baseOutline`，但仍會以輪廓附近範圍控制，避免色彩大幅飄離翅膀。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-color-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：Result page 的 rough wing 色彩應呈現自然 marker / watercolor 筆觸，可小幅出界，不完全貼合 Voronoi 網格；portrait / compact 應維持流程通過，portrait Save / Back 應正常
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 並清空 Result data。Result 截圖可看到翅膀周圍與內部有鬆散暈染、出界與淡色水痕，線稿仍在上層。因 fake camera 色彩單一，真實照片下的多色筆觸仍需實機或真實影像確認
+- 手機 / AR 後續確認事項：真實手機相機、GitHub Pages HTTPS、後鏡頭、觸控、效能與真實環境色彩仍需人工確認
+
+#### 尚未解決的風險
+fake camera 不能代表真實照片的色彩分布，因此需要用真實手機或至少真實照片背景確認色相偏移是否過強或過淡。landscape Start page 的按鈕不可見問題仍存在，非本次任務範圍。Console 404 resource 來源仍未追蹤。
+
+#### 使用者回饋或修正
+使用者核准先前提出的實作方案，指示「開始」。尚未針對本次視覺結果提出後續修正。
+
+#### 建議的下一步
+用真實手機拍攝多色自然背景，確認 rough wing 上色在真實照片中是否達到示意圖的水彩 / marker 手繪感；若顏色仍偏淡，可再提高 `marker1` 筆觸密度或建立專用 rough wash brush。另建議後續修正 landscape Start page 排版與 console 404 來源。
+
+---
+
+### 2026-05-10 — 將 Rough Wing 上色改為根部放射式筆觸
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依照使用者回饋，將 `drawRoughWingColor()` 從較隨機的補色筆觸，改為由翅膀根部往上緣、尖端與尾端延伸的放射狀上色結構，讓手繪色彩更接近真實翅膀的生長方向。
+
+#### 使用者需求
+使用者新增 `docs/llms.txt`，希望 agent 理解 p5.brush 更完整的使用方式，並指出上一版筆刷方向仍太隨機，像是隨便填幾筆。使用者提出希望上色能像真實蝴蝶翅膀一樣，從翅膀根部放射狀延伸到尖端與尾端，看起來更自然。
+
+#### 實作前理解
+`docs/llms.txt` 說明本專案使用的是 p5 build，已由 p5 的 `createCanvas(..., WEBGL)` 管理 canvas 與 frame flush；`brush.load()` 只需要在切換 target 時使用。文件也指出 `brush.fill()`、`brush.fillBleed()`、`brush.fillTexture()` 可用於 watercolor fill，`brush.beginShape()` / `vertex()` / `endShape()` 可支援 stroke 與 fill。這讓 rough wing 上色可以從單純 marker stroke 擴充為「淡水彩 wedge + 放射 marker stroke」。
+
+#### 實作方案
+以 `baseOutline[0]` 作為翅膀根部，建立 root-to-edge radial system。先畫 2 到 3 個從根部往外緣展開的淡色 wedge，使用 `brush.fill()`、`brush.fillBleed()` 與 `brush.fillTexture()` 製造水彩底色，再畫 16 到 22 條根部往外緣的 marker strokes。隨機性只用於端點 overshoot、線條彎曲、乾筆斷裂與邊緣 jitter，不再決定整體方向。
+
+#### 檢視過的檔案
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+採用 p5.brush 的 fill API 來試做水彩底色，但把 bleed 與 texture 控制得較低，避免 fake camera 下產生過大的亮綠外圈。保留 `marker1` 作為主要上色筆刷，因為它已存在於專案 setup，且能延續前一版手繪 marker 質感。
+
+#### 遇到的問題
+第一次 radial 版本的 watercolor wedge 在 fake camera 單一亮綠背景中產生偏大的發光暈染，內部放射筆觸不夠清楚。這不一定代表真實照片會同樣失敗，但自動截圖很難看出使用者期待的自然多色手繪感。
+
+#### 嘗試過的解法
+先實作 root-to-edge 的 watercolor wedge 與 marker strokes，跑 CDP 視覺測試後觀察到外圈偏亮。第二次微調降低 `brush.fill()` opacity、降低 `fillBleed()`、關閉 `fillTexture()` 的 scatter，並增加 marker stroke 數量與 alpha，使放射筆觸比外圈暈染更明確。
+
+#### 最終解法
+`drawRoughWingColor()` 現在先取得 root point，使用 `drawRadialWingWash()` 畫淡色放射 wedge，再以 `makeRadialWingMarkerStroke()` 畫從根部往外緣的 marker strokes。新增 helper 包含 `getRoughWingRootPoint()`、`getRadialWingProgress()`、`getWingOutlinePointAtProgress()`、`makeRadialWingStrokeStart()`、`makeRadialWingMarkerStroke()`、`drawRadialWingWash()`、`interpolatePoint()` 與 `jitterArrayPoint()`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-radial-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 色彩應沿翅膀根部往外放射，保留手繪筆觸與小幅 overshoot，不再像隨機補色
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且清空 Result data。Result 截圖可看到上色集中在翅膀周圍並有根部向外延伸的方向感，但 fake camera 單一亮綠仍讓色彩偏白、偏發光，真實照片效果需再確認
+- 手機 / AR 後續確認事項：真實手機相機、自然背景、多色照片下的色相表現、筆觸是否過亮、手機效能仍需人工測試
+
+#### 尚未解決的風險
+目前自動截圖使用 fake camera，無法可靠評估真實環境中的色彩與水彩透明度。若實機仍覺得像外圈發光，下一步應進一步降低 `brush.fillBleed()` 或改用純 radial marker strokes，不使用 fill wedge。landscape Start page 與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者指出上一版「筆刷方向還是太過於隨機，像是隨便填幾筆」，並提議改成像真實蝴蝶翅膀一樣從根部放射到尖端與尾端。本次已依該方向實作並驗證。
+
+#### 建議的下一步
+用真實手機拍攝自然環境，特別是包含多種綠、棕、天空或花色的背景，檢查 radial rough wing 是否比上一版自然。若色彩仍過白或過亮，優先降低 watercolor wedge 比重，讓 marker strokes 成為主體。

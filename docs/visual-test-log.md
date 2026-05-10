@@ -193,3 +193,98 @@ portrait 與 compact portrait 的自動化流程通過；landscape Start page �
 
 ### 備註 / 風險
 可重跑腳本已成立，未來修正視覺問題後可用同一腳本回歸。landscape Start page 仍是目前最明確的可用性問題。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證 `RoughInsectWings.js` 的 `drawRoughWingColor()` 手繪上色筆觸調整。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+Result page 的 rough wing 上色應呈現自然、手繪 marker / watercolor 筆觸，允許小幅溢出翅膀輪廓，不需要完全依照 Voronoi 網格形狀。Start → Scanning → Result 流程、portrait Save / Back 驗證不應因上色調整而回歸失敗。
+
+### 實際觀察
+`rough-wing-color-final-2026-05-10` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 64,350 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖可看到翅膀色彩有鬆散暈染、淡色水痕與小幅出界，線稿與 Voronoi 紋理仍保持在上層。由於 fake camera 畫面是單一亮綠，色彩變化主要呈現淡綠與白色暈染；真實照片下的多色效果仍需實機確認。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-color-final-2026-05-10/screenshots/rough-wing-color-final-2026-05-10-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-color-final-2026-05-10/screenshots/rough-wing-color-final-2026-05-10-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-color-final-2026-05-10/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-color-final-2026-05-10/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實照片色彩下的 rough wing 上色不過淡也不過度偏色
+- [ ] 筆觸溢出在不同手機尺寸下仍看起來自然
+
+### 備註 / 風險
+CDP fake camera 可確認流程與基本視覺層次，但不能代表真實環境照片的色彩分布。landscape Start page 仍回報 `startVisible=false`，此為既有版面風險，非本次 rough wing 上色修改造成。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證 rough wing 根部放射式上色，包含 p5.brush watercolor fill wedge 與 radial marker strokes。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 上色應從翅膀根部往上緣、尖端與尾端放射，筆觸可保留手繪 jitter 與小幅 overshoot，但不應再像隨機填幾筆。Result page 流程、Save 與 Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-radial-final-2026-05-10` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 93,294 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖可看到翅膀上色比前一版更集中於根部向外的方向，但 fake camera 單一亮綠使 watercolor wedge 偏白、偏發光；真實照片下仍需確認是否自然。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-radial-final-2026-05-10/screenshots/rough-wing-radial-final-2026-05-10-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-radial-final-2026-05-10/screenshots/rough-wing-radial-final-2026-05-10-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-radial-final-2026-05-10/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-radial-final-2026-05-10/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實照片中放射筆觸方向自然
+- [ ] watercolor wedge 不會像外圈發光
+- [ ] 多色背景下的翅膀色彩不過白也不過度偏色
+
+### 備註 / 風險
+CDP fake camera 可驗證流程與基本視覺結構，但不適合判斷真實照片下的色彩自然度。若實機觀察仍偏亮，建議降低或移除 watercolor fill wedge，改由 radial marker strokes 主導上色。
