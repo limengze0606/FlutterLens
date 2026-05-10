@@ -384,3 +384,51 @@ rough wing 上色應由多段短小筆觸累積，而不是少數大塊色帶或
 
 ### 備註 / 風險
 本次 CDP fake camera 可確認流程、截圖與基本視覺方向，但不能代表真實照片下的色彩自然度與手機 GPU 實際效能。短筆觸數量目前約每側翅膀 82 到 118 條，若實機卡頓，可優先降低 layer count 或改用更低成本的 p5 native 小線段。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證 rough wing 小筆觸上色改為只使用第一主色與第二主色之間的漸變，並限制筆觸在翅膀輪廓內。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 色彩只應取自第一主色到第二主色的漸變，不再使用額外 accent hue。筆觸應限制在翅膀輪廓內，不再出界。填滿感應比前一版更明顯，但仍需控制筆觸數量以考慮手機效能。
+
+### 實際觀察
+`rough-wing-contained-gradient-filled-2026-05-10` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 64,227 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖顯示筆觸比前一版更厚、填滿感較高，且沒有明顯出界；fake camera 下第一與第二主色接近綠色，因此截圖主要呈現綠色系漸變。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/screenshots/rough-wing-contained-gradient-filled-2026-05-10-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/screenshots/rough-wing-contained-gradient-filled-2026-05-10-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實照片下第一 / 第二主色漸變足夠可辨識
+- [ ] 筆觸在高 DPR 手機上不會因粗度而明顯溢出輪廓
+- [ ] 小幅增加筆觸數與粗度後，Result 生成速度仍可接受
+
+### 備註 / 風險
+本次為了限制出界已移除 watercolor wash，並將每個粒子點位往翅膀內側推。p5.brush 筆刷本身有寬度，因此嚴格像 mask 一樣完全不出界仍需真正 polygon clipping；目前是以中心線內縮避免可見溢出。若實機仍覺得不夠滿，可先微增 brush weight，而不是大幅增加 count。

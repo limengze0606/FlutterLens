@@ -678,3 +678,63 @@ p5.brush 短筆觸數量比上一版多，雖然每條都較短較細，但實�
 
 #### 建議的下一步
 請使用者檢視 `rough-wing-particle-strokes-2026-05-10` 的 Result 截圖。如果方向正確，下一步應以真實手機拍攝自然背景測試生成速度與色彩；若筆觸仍太密或太碎，可降低第二層 count 或拉長單筆 stroke。
+
+---
+
+### 2026-05-10 — 收斂 Rough Wing 小筆觸為主色漸變與輪廓內填色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依使用者回饋，將 rough wing 小筆觸上色收斂為只使用第一主色與第二主色之間的漸變，限制筆觸在翅膀範圍內，並在考慮效能的前提下提高填滿感。
+
+#### 使用者需求
+使用者希望顏色只使用第一主色和第二主色之間的漸變；由於這種多段小筆觸畫法看起來應該待在翅膀內，因此希望限制不要出界；同時希望筆觸可以加粗或更填滿，但仍需考慮目標裝置效能。
+
+#### 實作前理解
+前一版已將上色改為一幀式小筆觸粒子，但包含少量 accent hue，且點位允許靠近或略超出 outline。這次需要移除額外跳色，改用穩定的主色漸變，並避免 `brush.fillBleed()` 造成出界。
+
+#### 實作方案
+移除 watercolor wash 與 accent 色彩。新增 `getRoughWingGradientColor()`，以粒子 `progress` 在 `color1` 與 `color2` 間取樣，只做小幅 saturation / brightness 調整，不改 hue family。新增 `keepRoughParticlePointInsideWing()`，將 stroke 的每個點位推回翅膀內側並避開輪廓邊緣。填滿感透過小幅增加 count、alpha、brushWeight 與 strokeWeight 完成，而不是大幅增加粒子數。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+為了避免出界，本次關閉 wash，而非使用更低的 bleed。真正 polygon mask clipping 目前沒有導入，因 p5.brush 筆刷寬度仍可能跨出中心線；本次採用較低成本的中心線內縮策略，將粒子點位推入輪廓內側。
+
+#### 遇到的問題
+fake camera 的第一主色與第二主色都偏綠，因此自動截圖無法展示真實照片下的雙主色漸變差異。此問題不代表邏輯沒有使用漸變，而是測試素材色彩單一。
+
+#### 嘗試過的解法
+先將 accent 色與 wash 移除，再觀察 CDP 截圖發現填滿感偏薄；第二輪提高兩層粒子的 alpha、brushWeight、strokeWeight，並只小幅增加 count，避免效能成本過大。
+
+#### 最終解法
+`drawRoughWingParticleStrokes()` 現在使用兩層粒子：第一層約 50 到 63 條較粗筆觸，第二層約 60 到 77 條補色筆觸。`getRoughWingGradientColor()` 只混合 `color1` / `color2`，`keepRoughParticlePointInsideWing()` 負責把取樣點與短筆觸點位限制在翅膀內側。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 上色只使用第一與第二主色間的漸變，筆觸在翅膀內，填滿感比前版提高
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 64,227 bytes；Back 回到 `SCANNING` 且清空 Result data。Result 截圖顯示筆觸更厚且沒有明顯出界；fake camera 下主要呈現綠色系
+- 手機 / AR 後續確認事項：真實手機相機、雙主色漸變效果、筆觸是否在高 DPR 下仍不溢出、生成速度與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+目前是用中心線內縮控制出界，並非真正對 p5.brush stroke 做 polygon mask clipping；若筆刷很粗或手機 DPR 很高，邊緣仍可能有少量可見外溢。筆觸數量與粗度增加後，手機效能需實機驗證。
+
+#### 使用者回饋或修正
+使用者要求顏色回到第一主色與第二主色之間的漸變，並限制筆觸在翅膀範圍內，同時提高填滿感但注意效能。
+
+#### 建議的下一步
+用真實手機和多色背景測試雙主色漸變是否自然。若仍不夠滿，優先略增 brushWeight；若手機卡頓，優先降低第二層 count 或改用低成本 p5 native 筆觸。
