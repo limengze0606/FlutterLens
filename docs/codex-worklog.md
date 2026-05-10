@@ -435,3 +435,126 @@ fake camera 不能代表真實照片的色彩分布，因此需要用真實手�
 
 #### 建議的下一步
 用真實手機拍攝自然環境，特別是包含多種綠、棕、天空或花色的背景，檢查 radial rough wing 是否比上一版自然。若色彩仍過白或過亮，優先降低 watercolor wedge 比重，讓 marker strokes 成為主體。
+
+---
+
+### 2026-05-10 — 研究 Rough Wing 手繪上色演算法方向
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+閱讀專案規範、前次工作紀錄、`docs/llms.txt` 與 `RoughInsectWings.js`，整理 `drawRoughWingColor()` 可用於自然手繪上色的演算法與實作邏輯。
+
+#### 使用者需求
+使用者要求先閱讀 `AGENTS.md`、`docs/codex-worklog.md`，吸收前人工作紀錄，再閱讀 `llms.txt` 學習 p5.brush，目標是思考 `RoughInsectWings.js` 的 `drawRoughWingColor()` 如何用自然、手繪的筆觸上色。
+
+#### 實作前理解
+目前專案使用 p5 build 的 p5.brush，主畫布由 p5 的 `createCanvas(..., WEBGL)` 管理，不需要呼叫 standalone build 的 `brush.render()`。前次已將 rough wing 上色從隨機補色筆觸改為根部放射式架構，包含淡水彩 wedge 與 marker strokes。使用者此輪仍在詢問演算法方向，因此本次不修改功能程式碼。
+
+#### 實作方案
+先閱讀現有文件與程式，確認目前 `drawRoughWingColor()` 的資料來源、筆觸方向、p5.brush API 使用方式，再提出可落地的演算法建議：根部放射流場、分層透明水彩、乾筆斷裂、邊界小幅溢出、局部色斑與與 Voronoi 線稿分離的筆觸邏輯。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本次只整理演算法與設計方向，不改 `RoughInsectWings.js`。後續若要實作，應先讓使用者確認採用哪一種視覺策略，再修改程式並重跑 CDP 視覺測試。
+
+#### 遇到的問題
+使用者提到 `llms.txt`，但專案根目錄沒有該檔案；依前次工作紀錄判斷實際位置為 `docs/llms.txt`，已改讀該檔案。
+
+#### 嘗試過的解法
+先以 UTF-8 讀取專案規範與工作紀錄，再用 `rg` 定位 `RoughInsectWings.js` 內相關函式行號，確認目前上色核心位於 `drawRoughWingColor()`、`drawRadialWingWash()`、`makeRadialWingMarkerStroke()` 等函式。
+
+#### 最終解法
+整理出後續可採用的演算法方向，核心建議是以「翅膀根部到外緣的放射流場」作為筆觸主方向，再疊加水彩 wash、marker 乾筆、邊界 overshoot、色相變化與少量非網格化色斑。
+
+#### 視覺驗證紀錄
+- 測試環境：未執行瀏覽器測試
+- 瀏覽器：未執行
+- 裝置 / viewport：未執行
+- 是否有截圖：無
+- Console 錯誤：未檢查
+- 預期畫面：本次為演算法討論，尚未改變視覺結果
+- 實際觀察：未產生新畫面
+- 手機 / AR 後續確認事項：若後續修改 `drawRoughWingColor()`，需重跑 CDP 視覺測試並以真實手機確認照片色彩與 AR 疊合效果
+
+#### 尚未解決的風險
+目前建議尚未實作與視覺驗證。fake camera 色彩單一，未來即使 CDP 通過，也仍需真實手機或真實照片背景判斷筆觸色彩是否自然。
+
+#### 使用者回饋或修正
+使用者目前要求先提出適合的演算法或邏輯，尚未指定要開始修改程式。
+
+#### 建議的下一步
+請使用者選擇偏好的上色策略：偏水彩暈染、偏 marker 乾筆、或偏真實蝶翼放射色帶。確認後再調整 `drawRoughWingColor()` 並執行視覺驗證。
+
+---
+
+### 2026-05-10 — 嘗試 Rough Wing 鮮艷乾筆上色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依使用者要求嘗試讓 `drawRoughWingColor()` 的 rough wing 上色更鮮艷，同時避免使用太多 watercolor 暈染造成目標手機裝置效能負擔。
+
+#### 使用者需求
+使用者希望 rough wing 顏色可以更鮮艷，但擔心使用太多暈染會讓目標裝置跑不動或變慢。使用者指示「試試看」。
+
+#### 實作前理解
+前次版本已使用根部放射式筆觸，但 fake camera 測試中水彩 wedge 容易偏白、偏發光。`docs/llms.txt` 指出 `brush.fillBleed()` 與 `fillTexture()` 可做 watercolor 效果，但這類 fill 模擬相對昂貴；若要顧及手機效能，應減少暈染與 texture，把主要色彩交給較少量的 stroke。
+
+#### 實作方案
+降低 `washCount`、`fillBleed()`、`fillTexture()` 與 wash alpha，減少 watercolor 成本。主色改用 `markerBrush` 而不是 image-based `marker1`，避免白霧感並降低對 image brush 的依賴。為了讓 fake camera 單色背景也能看出鮮艷色彩，`tintRoughWingBrushColor()` 改成產生較大幅度的色相偏移，並用手寫 HSB-to-RGB 轉換直接輸出 CSS RGB 顏料。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `docs/visual-test-log.md`
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+最終選擇「鮮艷乾筆放射」而不是增加 watercolor 暈染。`markerBrush` opacity 從 1 提高到 32，讓現有 p5.brush marker 型態可以真的承擔色彩。`marker1` 曾一度提高 opacity，但最終主上色不再使用 `marker1`，因此已收回原值，避免留下不必要的全域 brush 行為變化。
+
+#### 遇到的問題
+前幾輪只提高 saturation、alpha 或 `marker1` opacity 時，fake camera 截圖仍偏白或偏灰；改用 `default` brush 時顏色出來但變成顆粒噴濺；改用高 opacity `markerBrush` 時顏色過厚、蓋掉翅脈。最後確認 `colorToBrushPaint()` 直接讀 `p5.Color.levels` 在目前 HSB 流程下不夠可靠，因此改用明確的 CSS RGB 顏料輸出。
+
+#### 嘗試過的解法
+嘗試降低 wash、提高 marker alpha、提高 image brush opacity、加入大幅 hue shift、改用 `default` brush、改用 `markerBrush`，並多次跑 CDP 測試截圖觀察。最後保留 `markerBrush`，但把 opacity 與 strokeWeight 收斂到較輕的範圍。
+
+#### 最終解法
+`drawRoughWingColor()` 現在只產生 0 到 1 層極淡 wash，並將 marker stroke 數量降到 12 到 17 條。主筆觸使用 `markerBrush`，strokeWeight 降到 3.8 到 7.2，筆刷 weight multiplier 降到 0.32 到 0.5。`tintRoughWingBrushColor()` 改為輸出 `roughPaintColor`，並新增 `hsbToRgb()`，確保 p5.brush 收到明確 CSS RGB 色彩。`drawRadialWingWash()` 的 alpha、bleed 與 texture 也大幅降低。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 色彩更鮮艷，但不依賴大量暈染；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且清空 Result data。Result 截圖出現明顯紅、紫、藍綠與黃褐色筆觸，色彩比前版更鮮艷，但 fake camera 仍不能代表真實照片下的自然度
+- 手機 / AR 後續確認事項：真實手機相機、自然照片色彩、鮮艷色相是否突兀、手機效能與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+fake camera 單色綠背景無法可靠評估真實照片中的色彩自然度。新的 `markerBrush` 色塊在截圖中仍偏大塊，實機上可能需要再降低 opacity、strokeWeight 或改回較接近照片色的 hue shift。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者指出想要顏色更鮮艷，但也擔心暈染過多導致目標裝置效能不佳。本次已依此方向降低暈染、提高乾筆色彩。
+
+#### 建議的下一步
+用真實手機拍攝多色自然背景測試 rough wing，如果色彩過度突兀，優先縮小 hue shift；如果仍太厚，優先降低 `markerBrush` opacity 或 strokeWeight，而不是恢復大量 watercolor fill。

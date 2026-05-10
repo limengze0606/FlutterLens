@@ -33,7 +33,7 @@ async function setup() {
     type:    "marker",
     weight:  6,
     scatter: 0.35,
-    opacity: 1,
+    opacity: 32,
     spacing: 0.09,
     noise:   1,
     pressure: [1.2, 0.86],

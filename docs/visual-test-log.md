@@ -288,3 +288,51 @@ rough wing 上色應從翅膀根部往上緣、尖端與尾端放射，筆觸可
 
 ### 備註 / 風險
 CDP fake camera 可驗證流程與基本視覺結構，但不適合判斷真實照片下的色彩自然度。若實機觀察仍偏亮，建議降低或移除 watercolor fill wedge，改由 radial marker strokes 主導上色。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證 rough wing 鮮艷乾筆放射式上色，降低 watercolor 暈染成本，改由 `markerBrush` 承擔主要色彩。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 色彩應比前一版更鮮艷，但不依賴大量 `brush.fillBleed()` 或 `fillTexture()`。筆觸仍應從翅膀根部往外放射，Voronoi 翅脈需維持可讀。Result page 流程、Save 與 Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-vivid-balanced-final-2026-05-10` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 46,875 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖顯示 rough wing 已出現明顯紅、紫、藍綠、黃褐色塊，色彩比前版更鮮艷；筆觸仍偏大塊，需真實手機與真實照片確認是否自然。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/screenshots/rough-wing-vivid-balanced-final-2026-05-10-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/screenshots/rough-wing-vivid-balanced-final-2026-05-10-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實照片下的鮮艷色相不會過度突兀
+- [ ] `markerBrush` 色塊在手機上不會蓋掉翅脈
+- [ ] 降低 watercolor 暈染後效能與觸控流暢度可接受
+
+### 備註 / 風險
+本次最終視覺驗證使用 fake camera，因此只能確認流程與鮮艷色塊大方向，不能代表真實照片的色彩自然度。landscape Start page 仍回報 `startVisible=false`，此為既有版面風險。視覺驗證後曾將未使用於主上色路徑的 `marker1` opacity 收回原值，並以 Node REPL parse 檢查 `sketch.js` 與 `RoughInsectWings.js` 語法通過。
