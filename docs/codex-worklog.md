@@ -558,3 +558,123 @@ fake camera 單色綠背景無法可靠評估真實照片中的色彩自然度�
 
 #### 建議的下一步
 用真實手機拍攝多色自然背景測試 rough wing，如果色彩過度突兀，優先縮小 hue shift；如果仍太厚，優先降低 `markerBrush` opacity 或 strokeWeight，而不是恢復大量 watercolor fill。
+
+---
+
+### 2026-05-10 — 分析參考程式的小筆觸上色策略
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+閱讀使用者提供的下載檔案 `C:\Users\ja120\Downloads\新文字文件.txt`，分析其以粒子與 noise flow 累積小筆觸的繪圖方式，並對照目前 `drawRoughWingColor()` 可如何改成一幀完成的手繪上色。
+
+#### 使用者需求
+使用者想換一個方式繪製 rough wing 上色，參考找到的程式。該程式使用多段小筆觸完成畫面，但使用者不想做成動畫，而是希望一幀就看到結果；挑選顏色方式也希望可以從專案原有方式延伸修改。
+
+#### 實作前理解
+參考程式以 `Particle` 為單位，每個粒子從圖片座標取色，使用 `noise(pos.x / 400, pos.y / 400) * TAU` 決定移動方向，並在生命週期中反覆畫小圓。它靠多輪粒子與逐漸變小的筆觸尺寸累積出印象派筆觸。FlutterLens 不需要動畫累積，因此可把粒子的生命週期在單次函式呼叫中跑完，直接畫出多段短 stroke 或小橢圓筆觸。
+
+#### 實作方案
+本次只提出設計方案，不修改功能程式碼。建議以翅膀 root-to-edge 放射方向作為主流場，加入少量 noise flow 偏移，產生很多短小 stroke。每個 stroke 的起點在翅膀內部或邊界附近取樣，顏色從現有 `getRoughWingMarkerColor()` 延伸，依局部 progress、照片色、原本 `color1/color2` 與輕微 hue shift 取得，而不是完全照參考程式從外部圖片取色。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\新文字文件.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+不直接照搬參考程式的動畫 loop，也不把圖片取色機制搬進 rough wing。更適合本專案的是「一次性粒子模擬」：在 `drawRoughWingColor()` 內建立固定數量的小筆觸，每條筆觸只走 2 到 5 個短步，並以 p5.brush 或 p5 shape 畫出結果。
+
+#### 遇到的問題
+參考程式在 1920x1920 canvas 上以動畫逐幀累積，粒子數與生命週期都偏大；若原樣搬到手機 AR Result page，可能會造成明顯效能負擔。且參考程式取色來源是靜態 image，本專案 rough wing 色彩來源是拍照後的 `color1/color2` 與昆蟲生成參數，兩者資料流不同。
+
+#### 嘗試過的解法
+將參考程式拆解為粒子初始化、取色、noise flow 移動、生命週期畫點四個概念，再重新對應到 FlutterLens：粒子初始化改成翅膀 outline 內取樣；取色改成沿用 `getRoughWingMarkerColor()` 與照片色；noise flow 改成 root-to-edge 方向加 jitter；生命週期改成單次函式內的短步模擬。
+
+#### 最終解法
+提出一幀式小筆觸演算法：先產生多個 brush particles，依翅膀進度取得顏色與方向，每個 particle 立刻跑完短生命週期並畫出 2 到 5 段小筆觸。筆觸數量應控制在手機可承受範圍，例如每側翅膀 80 到 160 條短 stroke，而不是上千粒子乘以 100 幀。
+
+#### 視覺驗證紀錄
+- 測試環境：未執行瀏覽器測試
+- 瀏覽器：未執行
+- 裝置 / viewport：未執行
+- 是否有截圖：無
+- Console 錯誤：未檢查
+- 預期畫面：本次為演算法分析，尚未改變視覺結果
+- 實際觀察：未產生新畫面
+- 手機 / AR 後續確認事項：若後續實作，需使用 CDP 測試 Result page，並以真實手機確認短筆觸數量對效能的影響
+
+#### 尚未解決的風險
+短筆觸數量、p5.brush stroke 成本與真實手機效能仍需測試。若用 p5.brush 畫太多短線，可能仍比少量 marker strokes 慢；可準備降級方案，用 p5 的 `ellipse()` 或 `line()` 畫低成本色點。
+
+#### 使用者回饋或修正
+使用者明確表示不需要動畫逐幀跑，希望一幀完成；並希望挑色方式從原專案既有方式延伸。
+
+#### 建議的下一步
+請使用者確認是否採用「一次性粒子短筆觸」方案。若確認，下一步可將 `drawRoughWingColor()` 改為小筆觸生成器，保留現有 Voronoi 翅脈與輪廓流程，並重跑 CDP 視覺測試。
+
+---
+
+### 2026-05-10 — 實作 Rough Wing 一幀式小筆觸粒子上色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+將 `drawRoughWingColor()` 從少量大段放射筆觸改為一幀式小筆觸粒子上色，參考使用者提供的粒子 flow 程式，但不使用動畫逐幀累積。
+
+#### 使用者需求
+使用者確認「試試看」，希望把參考程式中多段小筆觸的精神用在 rough wing 上色，但結果要一幀完成；顏色挑選則從專案原有的 `color1/color2` 與 `fillType` 邏輯延伸。
+
+#### 實作前理解
+原本最新版本使用 `markerBrush` 畫 12 到 17 條較大的放射筆觸，顏色鮮艷但容易形成大色塊。參考程式則以粒子生命週期逐幀畫小圓，累積成印象派質感。FlutterLens 的 Result page 不適合等待動畫累積，因此需要在 `drawRoughWingColor()` 單次呼叫中直接完成短筆觸模擬。
+
+#### 實作方案
+保留現有翅膀輪廓、Voronoi 翅脈與 root-to-edge 結構，只替換上色層。新增 `drawRoughWingParticleStrokes()`，分兩層產生約 82 到 118 條短筆觸。每條筆觸先在翅膀內或邊緣附近取樣起點，再以 root-to-point 的放射方向為主，加入 noise flow 與 fan bend，立即跑完 1 到 4 個短步並用 `markerBrush` 畫出。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\新文字文件.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `sketch.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有新增依賴，也沒有改 `sketch.js` 的 brush 定義。繼續使用既有 `markerBrush`，但每條筆觸的 brush weight 與 strokeWeight 都比上一版小。顏色不再使用大幅極端 hue shift 作為主體，而是新增 `tintRoughWingParticleColor()`：多數筆觸只做較小色相偏移，少數筆觸作為 accent 色。
+
+#### 遇到的問題
+若直接用大量 p5.brush 短線可能造成手機效能負擔，因此本次控制每側翅膀約 82 到 118 條短筆觸，且每條只有 1 到 4 個短步。CDP fake camera 可確認畫面與流程，但仍不能評估真實手機生成時間。
+
+#### 嘗試過的解法
+先將 `drawRoughWingColor()` 的大段 marker stroke loop 移除，改為 `drawRoughWingParticleStrokes()`。新增粒子取樣、progress 推估、短筆觸生成與粒子顏色函式。也修正 `colorToBrushPaint()` 對 `roughPaintColor` 的 alpha 處理，讓 wash 傳入的低 alpha 不會被顏料物件的 alpha 覆蓋。
+
+#### 最終解法
+`drawRoughWingColor()` 現在只保留 0 到 1 層極淡 wash，主要上色由 `drawRoughWingParticleStrokes()` 完成。新增 helper：`sampleRoughWingParticleStart()`、`getRoughWingParticleProgress()`、`makeRoughWingParticleStroke()`、`tintRoughWingParticleColor()`。筆觸方向為根部放射加 noise flow，顏色由原本 `getRoughWingMarkerColor()` 延伸。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 上色由多段短筆觸累積，一幀完成，不依賴動畫；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 52,836 bytes；Back 回到 `SCANNING` 且清空 Result data。Result 截圖顯示短筆觸感比上一版大色塊自然，翅脈仍可讀
+- 手機 / AR 後續確認事項：真實手機相機、生成時間、觸控流暢度、真實照片下的色彩自然度仍需人工確認
+
+#### 尚未解決的風險
+p5.brush 短筆觸數量比上一版多，雖然每條都較短較細，但實際手機效能仍需測。若卡頓，建議先降低 layer count，或考慮用 p5 native `line()` / `ellipse()` 畫低成本筆觸。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者確認要嘗試參考程式的多段小筆觸方向，並提醒不需要動畫逐幀累積。
+
+#### 建議的下一步
+請使用者檢視 `rough-wing-particle-strokes-2026-05-10` 的 Result 截圖。如果方向正確，下一步應以真實手機拍攝自然背景測試生成速度與色彩；若筆觸仍太密或太碎，可降低第二層 count 或拉長單筆 stroke。

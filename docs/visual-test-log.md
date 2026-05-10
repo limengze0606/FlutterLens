@@ -336,3 +336,51 @@ rough wing 色彩應比前一版更鮮艷，但不依賴大量 `brush.fillBleed(
 
 ### 備註 / 風險
 本次最終視覺驗證使用 fake camera，因此只能確認流程與鮮艷色塊大方向，不能代表真實照片的色彩自然度。landscape Start page 仍回報 `startVisible=false`，此為既有版面風險。視覺驗證後曾將未使用於主上色路徑的 `marker1` opacity 收回原值，並以 Node REPL parse 檢查 `sketch.js` 與 `RoughInsectWings.js` 語法通過。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證 rough wing 一幀式小筆觸粒子上色，參考粒子 flow 程式但不使用動畫逐幀累積。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 上色應由多段短小筆觸累積，而不是少數大塊色帶或大量 watercolor 暈染。畫面需一幀內完成，不依賴動畫 loop。翅脈與外輪廓仍需可讀，Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-particle-strokes-2026-05-10` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 52,836 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖顯示 rough wing 色彩由許多短筆觸堆疊，翅脈仍可讀；比前一版大色塊更接近參考程式的粒子筆觸感。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/screenshots/rough-wing-particle-strokes-2026-05-10-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/screenshots/rough-wing-particle-strokes-2026-05-10-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 一幀式短筆觸在真實手機上生成速度可接受
+- [ ] 真實照片下的短筆觸色彩自然，不過度斑駁或過暗
+- [ ] 翅脈與小筆觸在高 DPR 手機上仍清楚
+
+### 備註 / 風險
+本次 CDP fake camera 可確認流程、截圖與基本視覺方向，但不能代表真實照片下的色彩自然度與手機 GPU 實際效能。短筆觸數量目前約每側翅膀 82 到 118 條，若實機卡頓，可優先降低 layer count 或改用更低成本的 p5 native 小線段。
