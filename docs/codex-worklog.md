@@ -186,3 +186,125 @@ CDP + fake camera 可以驗證頁面狀態與 UI 流程，但不能取代真實�
 
 #### 建議的下一步
 將本次使用的 CDP 驗證流程整理成可重複執行的腳本，並加入 console event 收集、不同 viewport 測試、返回 / 儲存按鈕驗證，以及真實手機手動測試清單。
+
+---
+
+### 2026-05-10 — 擴充 CDP 測試：console、viewport、儲存與返回
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+在已驗證的 CDP 自動化流程上加入 console event 收集、不同 viewport 測試，以及 Result page 的儲存 / 返回按鈕驗證。
+
+#### 使用者需求
+使用者確認前一階段完成後，要求測試加入 console event 收集、不同 viewport 測試、返回 / 儲存按鈕驗證。
+
+#### 實作前理解
+前次流程已可用 CDP 模擬 Start → Scanning → Result。本次需擴充同一套流程，不另開新的測試方向。`drawSaveButton()` 的按鈕中心為 `width / 2, height - 145`；`drawBackButton()` 的按鈕中心為 `width / 2, height - 80`。儲存會呼叫 `saveCanvas("FlutterLens-result", "png")`，因此 headless Chrome 需設定 download behavior 並檢查下載目錄。
+
+#### 實作方案
+啟動 Python static server 與 Chrome headless，透過 CDP 啟用 `Runtime.enable`、`Log.enable`、`Page.enable`、`Browser.setDownloadBehavior`。每個 viewport 讀取 Start button runtime 座標後點擊，進入 Scanning 後讀取 shutter 座標再點擊，最後截 Result。主要 portrait viewport 額外點擊儲存按鈕並檢查下載檔，再點擊返回按鈕並確認狀態回到 `SCANNING` 且 Result data 已清空。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+延續前次 worklog 中可重用的 CDP 技術路線，並將 console event 與 download behavior 加入同一次自動化流程。不同 viewport 先以 Chrome `--window-size` 測試，因目前環境下 CDP `Emulation.setDeviceMetricsOverride` 的重跑嘗試發生 timeout，暫不把它作為穩定流程。
+
+#### 遇到的問題
+三個 viewport 中，portrait 與 compact 可完成 Start → Scanning → Result；landscape `844x390` 未進入 Scanning。截圖顯示橫向高度下 Start page 的按鈕掉到畫面外，CDP runtime 也停留在 `START`，因此不是單純點擊座標錯誤，而是橫向版面可用性風險。console 收集到一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，推測為瀏覽器自動請求 favicon 或其他非必要資源，未阻止流程。精準 emulated viewport 測試曾嘗試使用 `Emulation.setDeviceMetricsOverride`，但該輪 CDP 命令 timeout，已清理殘留 headless Chrome profile。
+
+#### 嘗試過的解法
+先用現有穩定 CDP 流程加入 console event 收集與多 viewport。對於儲存流程，透過 `Browser.setDownloadBehavior` 指定下載目錄，點擊儲存後檢查檔案是否出現。對於返回流程，點擊返回後用 `Runtime.evaluate` 讀取 `currentPagesState`、`resultPhoto`、`spawnPosition` 與 `spawnPositionRatio`。另嘗試改用 CDP device metrics override 取得更精準 viewport，但本次在 PowerShell WebSocket 流程中 timeout，暫列為工具流程待改善。
+
+#### 最終解法
+擴充測試成功涵蓋 console、portrait / compact viewport、儲存與返回。`portrait-390x844` runtime 約 `478x694`，完成 `START → SCANNING → RESULT`，儲存後下載 `docs/cdp-downloads-2026-05-10/portrait-390x844/FlutterLens-result.png`，大小 43,501 bytes；返回後狀態為 `SCANNING`，且 `resultPhoto` 與 `spawnPosition` 已清空。`compact-360x740` runtime 約 `478x590`，完成 `START → SCANNING → RESULT`。`landscape-844x390` runtime 約 `822x240`，Start button 不可見，流程停在 `START`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`390x844`、`360x740`、`844x390` window size；runtime 分別約 `478x694`、`478x590`、`822x240`
+- 是否有截圖：有，`docs/extended-portrait-390x844-start.png`、`docs/extended-portrait-390x844-scanning.png`、`docs/extended-portrait-390x844-result.png`、`docs/extended-portrait-390x844-after-back.png`、`docs/extended-compact-360x740-start.png`、`docs/extended-compact-360x740-scanning.png`、`docs/extended-compact-360x740-result.png`、`docs/extended-landscape-844x390-start.png`、`docs/extended-landscape-844x390-scanning.png`、`docs/extended-landscape-844x390-result.png`
+- Console 錯誤：每個 viewport 收到 1 筆 404 resource 訊息，未阻止 p5.js 與互動流程；未觀察到 fatal JS exception
+- 預期畫面：portrait / compact 應完成 Start、Scanning、Result；portrait 的 Save 應產生 PNG，Back 應回到 Scanning。landscape 應至少可操作 Start button。
+- 實際觀察：portrait / compact 符合預期；portrait Save / Back 通過。landscape Start button 不在可視範圍，無法進入 Scanning。
+- 手機 / AR 後續確認事項：需在真實手機橫向與直向確認 viewport、高度、安全區域、權限彈窗與觸控手感。
+
+#### 尚未解決的風險
+landscape Start page 目前有明顯可用性風險：在短高度橫向 viewport 下按鈕不可見，使用者無法啟動流程。Chrome `--window-size` 與 runtime viewport 不完全相同，未來若要做可重複測試，應將 CDP script 獨立成檔案並修正 `Emulation.setDeviceMetricsOverride` timeout 問題。console 404 需進一步確認是否只是 favicon；若要讓 console 完全乾淨，可補 favicon 或過濾非頁面資源。
+
+#### 使用者回饋或修正
+使用者要求本階段直接測試 console 收集、多 viewport、返回與儲存按鈕。尚未提出對測試結果的修正意見。
+
+#### 建議的下一步
+優先修正 landscape Start page 的垂直配置，確保按鈕在橫向手機高度下可見；接著將 CDP 測試整理成可重跑腳本，加入穩定的 device metrics override、console 分級、download 檢查、返回 / 儲存按鈕斷言，以及 screenshots 產物命名規則。
+
+---
+
+### 2026-05-10 — 建立可重跑 CDP 視覺測試腳本與產物命名規則
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+將前幾輪手動 PowerShell / CDP 操作整理成可重跑的 `scripts/run-cdp-visual-test.ps1`，並新增 `docs/cdp-visual-test-workflow.md` 記錄執行方式與 screenshots / downloads / JSON 產物命名規則。
+
+#### 使用者需求
+使用者要求將 CDP 測試整理成可重跑腳本，並增加 screenshots 產物命名規則。
+
+#### 實作前理解
+前次 CDP 測試已驗證 Start → Scanning → Result、console event 收集、portrait / compact / landscape viewport、Save 與 Back。最需要固化的是可重跑性、產物位置、命名規則、summary / console 記錄，以及 headless Chrome profile 的清理。
+
+#### 實作方案
+新增 `scripts/run-cdp-visual-test.ps1`，預設從專案根目錄啟動 Python static server 與 Chrome headless，使用 fake camera 與 CDP 操作三個 viewport。產物集中輸出到 `docs/cdp-runs/<runId>/`，並用 `<runId>-<viewportLabel>-<stage>.png` 命名截圖。新增 `docs/cdp-visual-test-workflow.md` 以繁體中文說明執行方式、命名規則、判讀重點與已知限制。
+
+#### 檢視過的檔案
+- `.gitignore`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+腳本採用前次已穩定的 Chrome `--window-size` 流程，而不是預設使用 `Emulation.setDeviceMetricsOverride`，因後者前次在 PowerShell WebSocket 流程中發生 timeout。產物採用 run 目錄集中管理，避免 screenshots 散落在 `docs/` 根層。Chrome profile 預設放在 run 目錄下的 `profiles/`，測試結束後自動清除；只有指定 `-KeepProfiles` 時才保留。
+
+#### 遇到的問題
+需要避免測試腳本誤殺使用者日常 Chrome，因此清理程序只根據本次 profile path 篩選 Chrome process。landscape viewport 的 Start button 不可見問題仍存在，腳本會在 summary 中記錄 `startVisible=false`，不會硬點畫面外座標。
+
+#### 嘗試過的解法
+將前次手動 CDP 互動拆成 PowerShell functions：`Send-Cdp`、`Invoke-CdpEval`、`Save-CdpScreenshot`、`Invoke-CdpClick`、`Receive-CdpMessage`。用 `Browser.setDownloadBehavior` 驗證 Save，並將 console event 另存為 JSON。
+
+#### 最終解法
+腳本已可重跑。執行 `.\scripts\run-cdp-visual-test.ps1 -RunId "codex-script-smoke"` 成功產生 `docs/cdp-runs/codex-script-smoke/`，包含 screenshots、downloads、`codex-script-smoke-summary.json` 與 `codex-script-smoke-console.json`。Smoke run 結果：`portrait-390x844` 完成流程、Save 下載 `FlutterLens-result.png`、Back 回到 `SCANNING` 且清空 result data；`compact-360x740` 完成流程；`landscape-844x390` 記錄 `startVisible=false` 並停在 `START`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/codex-script-smoke/screenshots/`
+- Console 錯誤：summary 顯示每個 viewport 收到 1 筆 console event；詳細內容在 `docs/cdp-runs/codex-script-smoke/codex-script-smoke-console.json`
+- 預期畫面：portrait / compact 可完成流程；portrait 可 Save 與 Back；landscape 目前應被腳本標記為 Start 不可見風險
+- 實際觀察：符合預期，腳本回傳 JSON summary，且產物命名符合規則
+- 手機 / AR 後續確認事項：仍需真實手機確認 camera / orientation / touch / performance
+
+#### 尚未解決的風險
+CDP 腳本目前仍以 `--window-size` 為穩定模式，runtime viewport 與指定 window size 不完全相同。landscape Start page 的按鈕不可見是功能風險，需另行修正。Console 404 resource 訊息來源尚未追蹤到具體資源。
+
+#### 使用者回饋或修正
+使用者要求把已驗證的 CDP 測試流程產品化成可重跑腳本，並補上 screenshots 命名規則。本次已完成。
+
+#### 建議的下一步
+修正 landscape Start page 排版後，使用 `scripts/run-cdp-visual-test.ps1` 重跑並比較新的 `summary.json` 與 screenshots；接著可考慮把 CDP script 加入更正式的測試檢查流程，並補上 console 404 的來源確認。

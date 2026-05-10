@@ -87,3 +87,109 @@ CDP 回讀初始狀態為 `START`，`hasP5=true`，Start button 座標為 `(239,
 
 ### 備註 / 風險
 CDP + fake camera 流程已確認可用於本機自動化視覺驗證，但真實相機、後鏡頭、DeviceOrientation 權限、觸控手感與行動裝置效能仍需實機測試。未來建議將 CDP 指令整理為可重跑腳本，並加入 console event 收集。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+擴充 CDP 自動化視覺測試：console event 收集、不同 viewport、Result page 儲存與返回按鈕。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：Chrome `--window-size=390,844`、`360,740`、`844,390`；runtime 約 `478x694`、`478x590`、`822x240`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 `--use-fake-device-for-media-stream` 與 `--use-fake-ui-for-media-stream`
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+三個 viewport 應可從 Start 進入 Scanning，再點擊 shutter 進入 Result。portrait viewport 應可點擊儲存並下載 PNG，點擊返回後應回到 Scanning，並清空 Result page 暫存資料。Console 不應出現阻斷流程的 JavaScript 錯誤。
+
+### 實際觀察
+`portrait-390x844` 完成 `START → SCANNING → RESULT`；儲存按鈕成功下載 `FlutterLens-result.png`，大小 43,501 bytes；返回後狀態為 `SCANNING`，且 `resultPhoto` 與 `spawnPosition` 清空。`compact-360x740` 完成 `START → SCANNING → RESULT`。`landscape-844x390` 停在 `START`，截圖顯示 Start button 掉到畫面下方不可見，無法操作進入 Scanning。Console event 收集在各 viewport 皆捕捉到 1 筆 404 resource 訊息，未阻止流程，未觀察到 fatal JS exception。
+
+### 截圖
+- `docs/extended-portrait-390x844-start.png`
+- `docs/extended-portrait-390x844-scanning.png`
+- `docs/extended-portrait-390x844-result.png`
+- `docs/extended-portrait-390x844-after-back.png`
+- `docs/extended-compact-360x740-start.png`
+- `docs/extended-compact-360x740-scanning.png`
+- `docs/extended-compact-360x740-result.png`
+- `docs/extended-landscape-844x390-start.png`
+- `docs/extended-landscape-844x390-scanning.png`
+- `docs/extended-landscape-844x390-result.png`
+- 下載驗證：`docs/cdp-downloads-2026-05-10/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+捕捉到 `Failed to load resource: the server responded with a status of 404 (File not found)`。目前判斷不影響 p5.js 初始化、fake camera、Result render、Save 或 Back。仍需進一步確認來源是否為 favicon 或其他非必要資源。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 橫向手機 Start button 可見且可點擊
+- [ ] 儲存流程在手機瀏覽器上符合預期
+
+### 備註 / 風險
+portrait 與 compact portrait 的自動化流程通過；landscape Start page 有明顯版面風險，需優先修正。CDP `Emulation.setDeviceMetricsOverride` 的精準 viewport 重跑本次發生 timeout，未納入穩定結果；未來應整理成獨立腳本後再補強。
+
+---
+
+### 日期
+2026-05-10
+
+### 任務 / 功能
+驗證可重跑的 CDP 視覺測試腳本與 screenshots 命名規則。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId "codex-script-smoke"` 應產生 `docs/cdp-runs/codex-script-smoke/`，其中 screenshots 命名應符合 `<runId>-<viewportLabel>-<stage>.png`，並產出 summary / console JSON。portrait viewport 應完成 Save / Back 驗證。
+
+### 實際觀察
+腳本成功執行並回傳 JSON summary。`portrait-390x844` 完成 `START → SCANNING → RESULT`，Save 產生 `FlutterLens-result.png`，Back 回到 `SCANNING` 且 `backCleared=true`。`compact-360x740` 完成 `START → SCANNING → RESULT`。`landscape-844x390` 回報 `startVisible=false`，未硬點畫面外座標，保留為已知版面風險。
+
+### 截圖
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-portrait-390x844-start.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-portrait-390x844-scanning.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-portrait-390x844-result.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-portrait-390x844-after-back.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-compact-360x740-start.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-compact-360x740-scanning.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-compact-360x740-result.png`
+- `docs/cdp-runs/codex-script-smoke/screenshots/codex-script-smoke-landscape-844x390-start.png`
+- 下載驗證：`docs/cdp-runs/codex-script-smoke/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+腳本產出 `docs/cdp-runs/codex-script-smoke/codex-script-smoke-console.json`。summary 顯示每個 viewport 收到 1 筆 console event；未阻止測試流程。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 橫向手機 Start button 可見且可點擊
+- [ ] 儲存流程在手機瀏覽器上符合預期
+
+### 備註 / 風險
+可重跑腳本已成立，未來修正視覺問題後可用同一腳本回歸。landscape Start page 仍是目前最明確的可用性問題。
