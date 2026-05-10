@@ -762,7 +762,7 @@ function drawRoughWingParticleStrokes(g, root, center, outline, bounds, fillType
   let layers = [
     {
       count: Math.floor(roughRandom(g, 50, 64)),
-      alpha: 176,
+      alpha: 220,
       brushWeight: [0.38, 0.54],
       strokeWeight: [3.2, 5.4],
       stepLength: [0.5, 1.0],
@@ -770,7 +770,7 @@ function drawRoughWingParticleStrokes(g, root, center, outline, bounds, fillType
     },
     {
       count: Math.floor(roughRandom(g, 60, 78)),
-      alpha: 188,
+      alpha: 255,
       brushWeight: [0.24, 0.38],
       strokeWeight: [2.0, 3.4],
       stepLength: [0.34, 0.72],
@@ -789,7 +789,7 @@ function drawRoughWingParticleStrokes(g, root, center, outline, bounds, fillType
 
       if (!points || points.length < 2) continue;
 
-      brush.set("markerBrush", particlePaint.color, roughRandom(g, layer.brushWeight[0], layer.brushWeight[1]));
+      brush.set("marker1", particlePaint.color, roughRandom(g, layer.brushWeight[0], layer.brushWeight[1]));
       brush.stroke(particlePaint.color, particlePaint.alpha);
       brush.strokeWeight(roughRandom(g, layer.strokeWeight[0], layer.strokeWeight[1]));
       brush.noFill();
