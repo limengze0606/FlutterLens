@@ -3,3 +3,8 @@ Thumbs.db
 .vscode/
 node_modules/
 *.log
+
+# Local visual test outputs
+docs/cdp-runs/
+docs/cdp-downloads-*/
+docs/chrome-profile*/
