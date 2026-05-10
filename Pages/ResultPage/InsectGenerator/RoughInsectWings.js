@@ -755,7 +755,11 @@ function drawRoughWingColor(g, color1, color2, fillType, baseOutline){
   brush.noFill();
   brush.noStroke();
 
+  let colorProfile = analyzeRoughWingColorPair(g, color1, color2);
   drawRoughWingParticleStrokes(g, root, center, baseOutline, bounds, fillType, color1, color2);
+  drawRoughWingButterflyPattern(g, root, center, baseOutline, bounds, colorProfile);
+  drawRoughWingAccentStrokes(g, root, center, baseOutline, bounds, colorProfile);
+  drawRoughWingSpecularStrokes(g, root, center, baseOutline, bounds, colorProfile);
 }
 
 function drawRoughWingParticleStrokes(g, root, center, outline, bounds, fillType, color1, color2) {
@@ -872,6 +876,376 @@ function keepRoughParticlePointInsideWing(x, y, center, outline, insetAmount) {
   }
 
   return point;
+}
+
+function analyzeRoughWingColorPair(g, color1, color2) {
+  let first = makeRoughWingColorStats(color1);
+  let second = makeRoughWingColorStats(color2);
+  let hueDistance = getHueDistance(first.h, second.h);
+  let saturationDistance = Math.abs(first.s - second.s);
+  let brightnessDistance = Math.abs(first.b - second.b);
+  let contrastScore = g.constrain(
+    hueDistance / 180 * 0.46 +
+    saturationDistance / 100 * 0.2 +
+    brightnessDistance / 100 * 0.34,
+    0,
+    1
+  );
+  let averageSaturation = (first.s + second.s) * 0.5;
+  let averageBrightness = (first.b + second.b) * 0.5;
+  let stronger = first.s + first.b * 0.35 >= second.s + second.b * 0.35 ? first : second;
+  let quieter = stronger === first ? second : first;
+  let alreadyContrasty = hueDistance > 86 || brightnessDistance > 34 || contrastScore > 0.52;
+  let mutedPair = averageSaturation < 38;
+  let closeHuePair = hueDistance < 34;
+  let accentStrength = alreadyContrasty
+    ? g.constrain(0.32 - contrastScore * 0.24, 0.06, 0.18)
+    : g.constrain(0.42 + (0.52 - contrastScore) * 0.72 + (mutedPair ? 0.16 : 0), 0.24, 0.86);
+
+  let accentHue = stronger.h;
+  let accentSaturation = g.constrain(stronger.s + 18, 44, 94);
+  let accentBrightness = averageBrightness > 62 ? 28 : 76;
+
+  if (alreadyContrasty) {
+    accentHue = quieter.h;
+    accentSaturation = g.constrain(quieter.s + 8, 30, 70);
+    accentBrightness = averageBrightness > 58 ? 24 : 82;
+  } else if (closeHuePair && mutedPair) {
+    accentHue = wrapHue(stronger.h + (stronger.h < 180 ? 158 : -158));
+    accentSaturation = 66;
+    accentBrightness = averageBrightness > 56 ? 32 : 74;
+  } else if (closeHuePair) {
+    accentHue = stronger.h;
+    accentSaturation = g.constrain(stronger.s + 12, 50, 88);
+    accentBrightness = averageBrightness > 58 ? 26 : 80;
+  } else if (mutedPair) {
+    accentHue = wrapHue(stronger.h + (hueDistance < 90 ? 132 : -42));
+    accentSaturation = 62;
+    accentBrightness = averageBrightness > 55 ? 34 : 76;
+  }
+
+  let accentRgb = hsbToRgb(accentHue, accentSaturation, accentBrightness);
+  let darkHue = wrapHue(stronger.h + (hueDistance > 86 ? 18 : 205));
+  let darkRgb = hsbToRgb(darkHue, g.constrain(stronger.s * 0.55 + 22, 28, 66), averageBrightness > 58 ? 18 : 26);
+  let highlightHue = wrapHue(stronger.h + roughRandom(g, -8, 12));
+  let highlightRgb = hsbToRgb(highlightHue, g.constrain(stronger.s * 0.16, 4, 18), averageBrightness > 70 ? 92 : 98);
+  let rimRgb = hsbToRgb(darkHue, g.constrain(stronger.s * 0.28 + 12, 16, 42), averageBrightness > 48 ? 24 : 32);
+  let spotRgb = hsbToRgb(highlightHue, g.constrain(stronger.s * 0.06, 0, 10), averageBrightness > 72 ? 88 : 94);
+  let bandHue = alreadyContrasty ? quieter.h : accentHue;
+  let bandRgb = hsbToRgb(
+    wrapHue(bandHue + roughRandom(g, -10, 10)),
+    g.constrain((alreadyContrasty ? quieter.s : accentSaturation) + 6, 38, 88),
+    alreadyContrasty ? g.constrain(quieter.b + 6, 42, 86) : accentBrightness
+  );
+
+  return {
+    first,
+    second,
+    stronger,
+    quieter,
+    hueDistance,
+    saturationDistance,
+    brightnessDistance,
+    contrastScore,
+    accentStrength,
+    specularStrength: g.constrain(0.34 + averageSaturation / 220 - contrastScore * 0.16, 0.24, 0.62),
+    accentPaint: {
+      roughPaintColor: `rgb(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b})`,
+      roughPaintAlpha: Math.round(120 + accentStrength * 100),
+      levels: [accentRgb.r, accentRgb.g, accentRgb.b, Math.round(120 + accentStrength * 100)]
+    },
+    darkReflectionPaint: {
+      roughPaintColor: `rgb(${darkRgb.r}, ${darkRgb.g}, ${darkRgb.b})`,
+      roughPaintAlpha: 128,
+      levels: [darkRgb.r, darkRgb.g, darkRgb.b, 128]
+    },
+    highlightPaint: {
+      roughPaintColor: `rgb(${highlightRgb.r}, ${highlightRgb.g}, ${highlightRgb.b})`,
+      roughPaintAlpha: 176,
+      levels: [highlightRgb.r, highlightRgb.g, highlightRgb.b, 176]
+    },
+    rimPaint: {
+      roughPaintColor: `rgb(${rimRgb.r}, ${rimRgb.g}, ${rimRgb.b})`,
+      roughPaintAlpha: 132,
+      levels: [rimRgb.r, rimRgb.g, rimRgb.b, 132]
+    },
+    spotPaint: {
+      roughPaintColor: `rgb(${spotRgb.r}, ${spotRgb.g}, ${spotRgb.b})`,
+      roughPaintAlpha: 168,
+      levels: [spotRgb.r, spotRgb.g, spotRgb.b, 168]
+    },
+    bandPaint: {
+      roughPaintColor: `rgb(${bandRgb.r}, ${bandRgb.g}, ${bandRgb.b})`,
+      roughPaintAlpha: alreadyContrasty ? 116 : 142,
+      levels: [bandRgb.r, bandRgb.g, bandRgb.b, alreadyContrasty ? 116 : 142]
+    }
+  };
+}
+
+function makeRoughWingColorStats(sourceColor) {
+  return {
+    h: wrapHue(sourceColor.h_adj),
+    s: Math.max(0, Math.min(100, sourceColor.s_adj)),
+    b: Math.max(0, Math.min(100, sourceColor.b_adj))
+  };
+}
+
+function getHueDistance(a, b) {
+  let diff = Math.abs(wrapHue(a) - wrapHue(b));
+  return Math.min(diff, 360 - diff);
+}
+
+function wrapHue(hueValue) {
+  return ((hueValue % 360) + 360) % 360;
+}
+
+function drawRoughWingButterflyPattern(g, root, center, outline, bounds, colorProfile) {
+  if (!colorProfile) return;
+
+  let archetypeRoll = roughRandom(g, 0, 1);
+  let highContrast = colorProfile.contrastScore > 0.5 || colorProfile.hueDistance > 82 || colorProfile.brightnessDistance > 32;
+  let useEyeSpots = !highContrast && archetypeRoll > 0.78;
+  let useRadialBands = highContrast || archetypeRoll < 0.72;
+
+  drawRoughWingRimBand(g, center, outline, colorProfile);
+  if (useRadialBands) drawRoughWingRadialBands(g, root, center, outline, bounds, colorProfile, highContrast);
+  drawRoughWingRimSpots(g, center, outline, colorProfile);
+  if (useEyeSpots) drawRoughWingEyeSpots(g, root, center, outline, bounds, colorProfile);
+
+  brush.noFill();
+  brush.noStroke();
+}
+
+function drawRoughWingRimBand(g, center, outline, colorProfile) {
+  let paint = colorToBrushPaint(colorProfile.rimPaint, 118);
+  let perimeter = getOutlinePerimeter(outline);
+  let step = Math.max(1, insectBaseUnit * roughRandom(g, 1.25, 1.8));
+  let count = Math.max(7, Math.floor(perimeter / step));
+  let inset = insectBaseUnit * roughRandom(g, 0.62, 0.92);
+
+  brush.set("marker1", paint.color, roughRandom(g, 0.12, 0.2));
+  brush.stroke(paint.color, paint.alpha);
+  brush.strokeWeight(roughRandom(g, 1.15, 2.05));
+  brush.noFill();
+
+  for (let pass = 0; pass < 1; pass++) {
+    brush.beginShape(0.05);
+    for (let i = 0; i < count; i++) {
+      if (roughRandom(g, 0, 1) < 0.3) continue;
+      let perimeterPoint = getPointOnOutlineAtDistance(outline, (perimeter * i) / count + roughRandom(g, -step * 0.18, step * 0.18));
+      if (!perimeterPoint) continue;
+      let point = nudgePointInsideOutline(perimeterPoint.x, perimeterPoint.y, center, outline, inset);
+      let wobble = roughRandom(g, -insectBaseUnit * 0.045, insectBaseUnit * 0.045);
+      brush.vertex(point[0] + wobble, point[1] - wobble * 0.35, roughRandom(g, 0.18, 0.44));
+    }
+    brush.endShape(false);
+  }
+}
+
+function drawRoughWingRimSpots(g, center, outline, colorProfile) {
+  let perimeter = getOutlinePerimeter(outline);
+  let count = Math.floor(roughRandom(g, 5, 10));
+  let offset = roughRandom(g, 0, perimeter / Math.max(1, count));
+  let lightPaint = colorToBrushPaint(colorProfile.spotPaint, 150);
+
+  for (let i = 0; i < count; i++) {
+    if (roughRandom(g, 0, 1) < 0.28) continue;
+    let distance = offset + (perimeter * i) / count + roughRandom(g, -perimeter / count * 0.18, perimeter / count * 0.18);
+    let perimeterPoint = getPointOnOutlineAtDistance(outline, distance);
+    if (!perimeterPoint) continue;
+    let point = nudgePointInsideOutline(perimeterPoint.x, perimeterPoint.y, center, outline, insectBaseUnit * roughRandom(g, 0.72, 1.05));
+    let radius = insectBaseUnit * roughRandom(g, 0.08, 0.16);
+
+    drawRoughWingPatternDot(g, point[0], point[1], radius, lightPaint, 0.16);
+  }
+}
+
+function drawRoughWingRadialBands(g, root, center, outline, bounds, colorProfile, highContrast) {
+  let bandCount = highContrast ? Math.floor(roughRandom(g, 1, 3)) : Math.floor(roughRandom(g, 2, 4));
+  let paintOptions = [
+    colorToBrushPaint(colorProfile.bandPaint, 126),
+    colorToBrushPaint(colorProfile.accentPaint, 112)
+  ];
+
+  for (let i = 0; i < bandCount; i++) {
+    let progress = g.constrain((i + 1) / (bandCount + 1) + roughRandom(g, -0.08, 0.08), 0.18, 0.88);
+    let edge = getWingOutlinePointAtProgress(g, outline, progress, -insectBaseUnit * roughRandom(g, 0.8, 1.2));
+    if (!edge) continue;
+    let start = interpolatePoint(root, edge, roughRandom(g, 0.12, 0.28));
+    let end = interpolatePoint(root, edge, roughRandom(g, 0.68, 0.92));
+    let paint = paintOptions[i % paintOptions.length];
+    let width = highContrast ? roughRandom(g, 1.25, 2.1) : roughRandom(g, 1.8, 3.0);
+
+    drawRoughWingPatternStroke(g, start, end, center, outline, paint, roughRandom(g, 0.11, 0.2), width, i + 137);
+  }
+}
+
+function drawRoughWingEyeSpots(g, root, center, outline, bounds, colorProfile) {
+  let count = 1;
+  let ringPaint = colorToBrushPaint(colorProfile.rimPaint, 118);
+  let middlePaint = colorToBrushPaint(colorProfile.accentPaint, 136);
+  let centerPaint = colorToBrushPaint(colorProfile.spotPaint, 150);
+
+  for (let i = 0; i < count; i++) {
+    let progress = roughRandom(g, 0.56, 0.86);
+    let yBias = roughRandom(g, -0.36, 0.36);
+    let x = root[0] + (bounds.maxX - root[0]) * progress;
+    let y = center.y + (bounds.maxY - bounds.minY) * yBias * 0.28;
+    let point = keepRoughParticlePointInsideWing(x, y, center, outline, insectBaseUnit * 1.05);
+    let radius = insectBaseUnit * roughRandom(g, 0.24, 0.42);
+
+    drawRoughWingPatternDot(g, point[0], point[1], radius, ringPaint, 0.45);
+    drawRoughWingPatternDot(g, point[0], point[1], radius * 0.62, middlePaint, 0.34);
+    drawRoughWingPatternDot(
+      g,
+      point[0] - radius * roughRandom(g, 0.08, 0.2),
+      point[1] - radius * roughRandom(g, 0.06, 0.18),
+      radius * 0.22,
+      centerPaint,
+      0.2
+    );
+  }
+}
+
+function drawRoughWingPatternDot(g, x, y, radius, paint, roughness) {
+  brush.set("marker1", paint.color, roughRandom(g, 0.08, 0.16));
+  brush.stroke(paint.color, paint.alpha);
+  if (typeof brush.wash === "function") brush.wash(paint.color, paint.alpha);
+  else if (typeof brush.fill === "function") brush.fill(paint.color, paint.alpha);
+  brush.strokeWeight(roughRandom(g, 0.16, 0.42));
+  brush.circle(x, y, radius, roughness);
+  if (typeof brush.noWash === "function") brush.noWash();
+  brush.noFill();
+}
+
+function drawRoughWingPatternStroke(g, start, end, center, outline, paint, brushWeight, strokeWeight, noiseIndex) {
+  let length = dist2D(start[0], start[1], end[0], end[1]);
+  let steps = Math.max(3, Math.floor(length / Math.max(1, insectBaseUnit * 0.5)));
+  let normal = getSegmentNormal(start, end);
+
+  brush.set("marker1", paint.color, brushWeight);
+  brush.stroke(paint.color, paint.alpha);
+  brush.strokeWeight(strokeWeight);
+  brush.noFill();
+  brush.beginShape(0.08);
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    let ease = Math.sin(t * Math.PI);
+    let x = start[0] + (end[0] - start[0]) * t;
+    let y = start[1] + (end[1] - start[1]) * t;
+    let wobble = (g.noise(x * 0.08, y * 0.08, noiseIndex * 0.21 + i * 0.17) - 0.5) * insectBaseUnit * 0.55 * ease;
+    let point = keepRoughParticlePointInsideWing(
+      x + normal.x * wobble,
+      y + normal.y * wobble,
+      center,
+      outline,
+      insectBaseUnit * 0.92
+    );
+    brush.vertex(point[0], point[1], g.constrain(0.22 + ease * 0.44, 0.16, 0.72));
+  }
+  brush.endShape();
+}
+
+function drawRoughWingAccentStrokes(g, root, center, outline, bounds, colorProfile) {
+  if (!colorProfile || colorProfile.accentStrength <= 0.08) return;
+
+  let count = Math.floor(roughRandom(g, 8, 15) * colorProfile.accentStrength);
+  let layer = {
+    alpha: 176,
+    brushWeight: [0.18, 0.28],
+    strokeWeight: [1.35, 2.25],
+    stepLength: [0.42, 0.82],
+    steps: [2, 3]
+  };
+  let paint = colorToBrushPaint(colorProfile.accentPaint, 170);
+
+  for (let i = 0; i < count; i++) {
+    let start = sampleRoughWingParticleStart(g, outline, bounds, center, root, 1);
+    let progress = getRoughWingParticleProgress(g, start, root, bounds);
+    if (roughRandom(g, 0, 1) < 0.58) {
+      start = samplePointNearOutlineEdge(g, outline, center) || start;
+      start = keepRoughParticlePointInsideWing(start[0], start[1], center, outline, insectBaseUnit * 0.28);
+    }
+    let points = makeRoughWingParticleStroke(g, start, root, center, outline, progress, layer, i + 307);
+    if (!points || points.length < 2) continue;
+
+    brush.set("marker1", paint.color, roughRandom(g, layer.brushWeight[0], layer.brushWeight[1]));
+    brush.stroke(paint.color, paint.alpha);
+    brush.strokeWeight(roughRandom(g, layer.strokeWeight[0], layer.strokeWeight[1]));
+    brush.noFill();
+
+    brush.beginShape(0.03);
+    for (let j = 0; j < points.length; j++) {
+      let pt = points[j];
+      let t = points.length <= 1 ? 0 : j / (points.length - 1);
+      brush.vertex(pt[0], pt[1], g.constrain(0.2 + Math.sin(t * Math.PI) * 0.32, 0.16, 0.58));
+    }
+    brush.endShape();
+  }
+}
+
+function drawRoughWingSpecularStrokes(g, root, center, outline, bounds, colorProfile) {
+  if (!colorProfile) return;
+
+  let ridgeCount = Math.floor(roughRandom(g, 5, 9) * colorProfile.specularStrength);
+  let highlightPaint = colorToBrushPaint(colorProfile.highlightPaint, 160);
+  let darkPaint = colorToBrushPaint(colorProfile.darkReflectionPaint, 118);
+
+  for (let i = 0; i < ridgeCount; i++) {
+    let progress = g.constrain(roughRandom(g, 0.42, 0.92), 0.08, 0.96);
+    let edge = getWingOutlinePointAtProgress(g, outline, progress, -insectBaseUnit * roughRandom(g, 0.28, 0.72));
+    if (!edge) continue;
+
+    let baseAngle = Math.atan2(edge[1] - root[1], edge[0] - root[0]);
+    let length = insectBaseUnit * roughRandom(g, 0.65, 1.45);
+    let sweep = roughRandom(g, -0.42, 0.42);
+    let darkStart = [
+      edge[0] - Math.cos(baseAngle) * insectBaseUnit * roughRandom(g, 0.18, 0.42),
+      edge[1] - Math.sin(baseAngle) * insectBaseUnit * roughRandom(g, 0.18, 0.42)
+    ];
+    let brightStart = [
+      edge[0] - Math.cos(baseAngle + sweep) * insectBaseUnit * roughRandom(g, 0.05, 0.18),
+      edge[1] - Math.sin(baseAngle + sweep) * insectBaseUnit * roughRandom(g, 0.05, 0.18)
+    ];
+
+    drawRoughWingGlintStroke(g, darkStart, baseAngle + sweep, length * 1.12, center, outline, darkPaint, 0.13, 0.8, i + 601);
+    drawRoughWingGlintStroke(g, brightStart, baseAngle + sweep * 0.65, length * 0.72, center, outline, highlightPaint, 0.09, 0.46, i + 719);
+  }
+}
+
+function drawRoughWingGlintStroke(g, start, angle, length, center, outline, paint, brushWeight, strokeWeight, noiseIndex) {
+  let steps = Math.max(2, Math.floor(length / Math.max(1, insectBaseUnit * 0.45)));
+  let points = [];
+  let normalAngle = angle + Math.PI / 2;
+
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    let flare = Math.sin(t * Math.PI);
+    let x = start[0] + Math.cos(angle) * length * t;
+    let y = start[1] + Math.sin(angle) * length * t;
+    let wobble = (g.noise(x * 0.11, y * 0.11, noiseIndex * 0.19 + i) - 0.5) * insectBaseUnit * 0.16 * flare;
+    points.push(keepRoughParticlePointInsideWing(
+      x + Math.cos(normalAngle) * wobble,
+      y + Math.sin(normalAngle) * wobble,
+      center,
+      outline,
+      insectBaseUnit * 0.32
+    ));
+  }
+
+  if (points.length < 2) return;
+
+  brush.set("marker1", paint.color, roughRandom(g, brushWeight * 0.85, brushWeight * 1.15));
+  brush.stroke(paint.color, paint.alpha);
+  brush.strokeWeight(roughRandom(g, strokeWeight * 0.82, strokeWeight * 1.18));
+  brush.noFill();
+  brush.beginShape(0.02);
+  for (let i = 0; i < points.length; i++) {
+    let t = points.length <= 1 ? 0 : i / (points.length - 1);
+    let pressure = g.constrain(0.12 + Math.sin(t * Math.PI) * 0.42, 0.08, 0.54);
+    brush.vertex(points[i][0], points[i][1], pressure);
+  }
+  brush.endShape();
 }
 
 function getRoughWingGradientColor(g, progress, color1, color2) {

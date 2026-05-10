@@ -432,3 +432,151 @@ rough wing 色彩只應取自第一主色到第二主色的漸變，不再使用
 
 ### 備註 / 風險
 本次為了限制出界已移除 watercolor wash，並將每個粒子點位往翅膀內側推。p5.brush 筆刷本身有寬度，因此嚴格像 mask 一樣完全不出界仍需真正 polygon clipping；目前是以中心線內縮避免可見溢出。若實機仍覺得不夠滿，可先微增 brush weight，而不是大幅增加 count。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough wing 新增雙主色關係判斷、裝飾色短筆觸與 NMM 式亮暗高光。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 應保留第一主色與第二主色之間的主漸變，並在兩主色對比不足時加入較明顯的裝飾色；若兩主色本來差異大，裝飾色應減量。NMM 式高光應提供亮暗節奏與金屬反射感，但不能蓋掉翅脈或造成明顯出界。Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-accent-nmm-2026-05-11` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 63,654 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。Result 截圖顯示翅膀內有更細的亮暗節奏，翅脈仍可讀，未觀察到明顯外溢。fake camera 讓主色偏綠，因此自動截圖只能確認流程與保守高光方向，無法完整判斷真實照片下的裝飾色選擇。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/screenshots/rough-wing-accent-nmm-2026-05-11-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/screenshots/rough-wing-accent-nmm-2026-05-11-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 兩主色差異大時，裝飾色不會讓畫面變髒
+- [ ] 兩主色接近或偏灰時，裝飾色能增加層次
+- [ ] NMM 高光有金屬反射感，但不蓋掉翅脈
+- [ ] 新增少量 stroke 後 Result 生成速度仍可接受
+
+### 備註 / 風險
+本次自動測試使用 fake camera，主色高度偏綠，不能代表真實照片下的配色決策。新增的 accent 與高光層目前刻意偏保守；若真實手機上效果太弱，可微增高光數量或 alpha。landscape Start page 仍回報 `startVisible=false`，此為既有版面風險。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough wing 參考實際蝴蝶影像後新增的 pattern layer：深色外緣、邊緣點列、放射色帶與少量眼斑。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 應比上一輪更明顯具有蝴蝶翅膀 pattern，包含深色外緣、邊緣淺色點列、放射色帶或少量眼斑。翅脈應仍可讀。Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-butterfly-pattern-2026-05-11` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 91,947 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。compact Result 截圖可清楚看到深色外緣與白點列，辨識度比上一輪提高。portrait Result 中昆蟲位置偏低，被儲存 / 返回按鈕遮住部分翅膀，需另行評估 Result spawn 位置。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/screenshots/rough-wing-butterfly-pattern-2026-05-11-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/screenshots/rough-wing-butterfly-pattern-2026-05-11-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實照片下深色外緣不會過重
+- [ ] 邊緣白點列在高 DPR 手機上仍清楚
+- [ ] 放射色帶與翅脈不互相打架
+- [ ] Result 昆蟲不會被儲存 / 返回按鈕遮住
+- [ ] 新增 pattern layer 後 Result 生成速度仍可接受
+
+### 備註 / 風險
+pattern layer 明顯增加畫面資訊，下載 PNG 大小也從上一輪約 63KB 增加到約 92KB。fake camera 背景與主色偏綠，不能代表真實照片下的配色自然度。portrait 截圖出現按鈕遮擋翅膀，這可能是 Result spawn 位置或隨機生成風險，後續可獨立處理。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough wing pattern layer 收斂為乾淨內縮版本，降低深色髒邊、過大白點與出界風險。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 fake camera stream
+- 是否可測試 AR：只能測試 fake camera UI 流程，不能取代真實手機 AR 測試
+
+### 預期行為
+rough wing 應保留蝴蝶翅膀 pattern 的方向，但不再出現上一版的深黑髒邊、大白點列與明顯外溢。圖案應更內縮、較淡，並保留翅脈可讀性。Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+`rough-wing-clean-pattern-2026-05-11` 測試中，`portrait-390x844` 與 `compact-360x740` 均完成 `START → SCANNING → RESULT`。portrait 儲存後下載 `FlutterLens-result.png`，大小 76,871 bytes，返回後狀態為 `SCANNING` 且 `backCleared=true`。截圖顯示黑色髒邊與大白點明顯退掉，圖案變成更淡的蝶翼紋理；出界感較上一版降低。compact Result 仍可見儲存 / 返回按鈕遮擋昆蟲，需後續另行處理 Result spawn 安全區域。
+
+### 截圖
+- `docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/screenshots/rough-wing-clean-pattern-2026-05-11-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/screenshots/rough-wing-clean-pattern-2026-05-11-compact-360x740-result.png`
+- 其他 Start / Scanning / after-back 截圖同樣位於 `docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/screenshots/`
+- 下載驗證：`docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/downloads/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次 CDP 測試相同，未阻止 p5.js、fake camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] clean pattern 在真實照片上不會太淡
+- [ ] 筆觸在高 DPR 手機上不會外溢成髒邊
+- [ ] Result 昆蟲不會被儲存 / 返回按鈕遮住
+- [ ] 新增圖案層後 Result 生成速度仍可接受
+
+### 備註 / 風險
+本版將 pattern 從高辨識度改為較乾淨的淡紋理，可能在真實照片上顯得偏弱。若需要再加強，建議只微增 radial band alpha 或 count，不建議恢復深色 rim band。CDP fake camera 無法取代真實手機色彩與效能測試。

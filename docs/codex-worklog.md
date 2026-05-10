@@ -738,3 +738,191 @@ fake camera 的第一主色與第二主色都偏綠，因此自動截圖無法�
 
 #### 建議的下一步
 用真實手機和多色背景測試雙主色漸變是否自然。若仍不夠滿，優先略增 brushWeight；若手機卡頓，優先降低第二層 count 或改用低成本 p5 native 筆觸。
+
+---
+
+### 2026-05-11 — 為 Rough Wing 加入雙主色關係判斷、裝飾色與 NMM 高光
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者提出的兩個方向，調整 `drawRoughWingColor()`：加入類 NMM 的亮暗高光層，並用第一主色與第二主色的個別屬性與差異分數決定是否需要額外裝飾色。
+
+#### 使用者需求
+使用者希望讓 `RoughInsectWings.js` 的 `drawRoughWingColor()` 生成結果更具視覺吸引力。提出兩個方向：一是蝴蝶翅膀可能有金屬反射感，可用 NMM 上色技法，以多層高光模擬金屬光澤；二是根據第一與第二主色的彩度、明度與色相來決定額外裝飾色。使用者也提醒：不能只取兩色平均，因為兩個主色差異大時本身可能已足夠明顯，平均值反而會造成誤判。
+
+#### 實作前理解
+目前 rough wing 已是前幾輪收斂後的版本：主上色由 `drawRoughWingParticleStrokes()` 使用兩層 `marker1` 小筆觸完成，顏色主要由 `getRoughWingGradientColor()` 在 `color1` 與 `color2` 間混合，並以 `keepRoughParticlePointInsideWing()` 控制筆觸中心線待在翅膀輪廓內。`docs/llms.txt` 顯示本專案使用 p5.brush 的 p5 build，因此不需要 `brush.render()`；大量 `fillBleed()` / `fillTexture()` 有效能風險，較適合用少量 stroke 疊出質感。
+
+#### 實作方案
+保留既有兩層主色小筆觸，不重寫主填色。新增 `analyzeRoughWingColorPair()`，分別讀取兩個主色的 hue、saturation、brightness，計算 `hueDistance`、`saturationDistance`、`brightnessDistance` 與 `contrastScore`。若兩色已經有高色相差或高明度差，裝飾色會大幅減量；若兩色接近、偏灰或對比不足，才提高裝飾色強度。接著疊加少量 `drawRoughWingAccentStrokes()` 與 `drawRoughWingSpecularStrokes()`，用短筆觸製造裝飾色與 NMM 式暗反射 / 亮高光。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `docs/visual-test-log.md`
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+採用混合方案：主色漸變作底，智慧裝飾色作節奏，NMM 高光作光澤。沒有使用兩色平均作主要判斷，而是先看兩色之間的差異；主色差異越大，accent 越少。沒有恢復 watercolor wash，避免出界與手機效能風險。新高光與裝飾色都使用既有 `marker1` 短筆觸與輪廓內縮 helper，避免新增依賴或大改筆刷設定。
+
+#### 遇到的問題
+CDP fake camera 的照片色彩高度偏綠，導致第一與第二主色在測試中也接近綠色系，因此截圖無法完整代表真實照片下「兩主色差異大」或「互補色裝飾」的效果。landscape Start page 的 Start button 仍不可見，屬於前次已知版面風險，與本次 rough wing 上色無關。
+
+#### 嘗試過的解法
+先閱讀 `AGENTS.md`、工作日誌、`docs/llms.txt` 與目前 rough wing 實作，確認前人已完成的一幀式小筆觸與輪廓內縮策略。接著只在 `drawRoughWingColor()` 後段疊加新層，並新增色彩分析與 glint helper。修改後用 `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 檢查語法，再執行 `scripts/run-cdp-visual-test.ps1 -RunId rough-wing-accent-nmm-2026-05-11` 做視覺驗證。
+
+#### 最終解法
+`drawRoughWingColor()` 現在會先建立 `colorProfile`，再依序繪製主色粒子、裝飾色短筆觸、NMM 式暗反射與亮高光。新增 helper 包含 `analyzeRoughWingColorPair()`、`makeRoughWingColorStats()`、`getHueDistance()`、`wrapHue()`、`drawRoughWingAccentStrokes()`、`drawRoughWingSpecularStrokes()`、`drawRoughWingGlintStroke()`。裝飾色強度由 `contrastScore` 控制，避免在兩主色本來就強烈時過度加色。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 保留主色漸變與輪廓內小筆觸，並新增少量裝飾色與亮暗高光；翅脈仍可讀，Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 63,654 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。Result 截圖顯示翅膀內有更細的亮暗節奏，未明顯蓋掉翅脈或外溢。fake camera 主色偏綠，無法完整判斷真實照片下的裝飾色自然度
+- 手機 / AR 後續確認事項：真實手機相機、多色背景、兩主色差異大時 accent 是否足夠克制、NMM 高光是否自然、生成速度與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+自動測試只能使用 fake camera，無法代表真實照片色彩。高光與裝飾色目前偏保守，若真實手機上仍不夠明顯，可微增 `drawRoughWingSpecularStrokes()` 的 count 或 highlight alpha；若色彩過度突兀，優先降低 `accentStrength` 上限。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者接受混合方案，但指出兩主色不能只用平均判斷。本次已依此修正為先分析兩色個別屬性與差異，再決定是否需要裝飾色。
+
+#### 建議的下一步
+請使用者用真實手機拍攝多色背景測試 rough wing。特別觀察：兩主色本來差異大時是否保持乾淨；兩主色接近時裝飾色是否能增加層次；NMM 高光是否有金屬感但不蓋掉翅脈。
+
+---
+
+### 2026-05-11 — 參考實際蝴蝶影像加入 Rough Wing 圖案語法
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者提供的 `butterfly.jpg` 參考圖，將 rough wing 從單純筆觸與高光推進到更像蝴蝶翅膀的 pattern layer，包含深色外緣、邊緣點列、放射色帶與少量眼斑。
+
+#### 使用者需求
+使用者覺得上一輪結果不夠明顯，希望參考實際翅膀影像，學習或模仿其中的 pattern。使用者提供 `C:\Users\ja120\Downloads\butterfly.jpg`，圖中可見多種蝴蝶翅膀語法：黑色外緣、白點列、眼斑、放射色帶、翅尖深色 patch 與高對比色塊。
+
+#### 實作前理解
+上一輪已加入雙主色關係判斷、裝飾色與 NMM 高光，但視覺仍偏細微。參考圖顯示真正讓蝴蝶翅膀易辨識的不是單一高光，而是明確圖案結構。因 `drawRoughWingColor()` 在 Voronoi 翅脈之前執行，新增圖案層會被後續翅脈壓在上方，視覺上接近真實蝶翼的「底色圖案 + 翅脈線」。
+
+#### 實作方案
+新增 `drawRoughWingButterflyPattern()`，在主色粒子填色後、accent 與 specular 前執行。此函式依 `colorProfile` 與隨機 seed 選擇圖案語法：固定加入深色 rim band 與 rim spots；視主色對比加入 radial bands；主色不高對比時才加入 occasional eye spots。色彩仍延續 `analyzeRoughWingColorPair()`，新增 `rimPaint`、`spotPaint` 與 `bandPaint`，避免只靠平均值判斷。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\butterfly.jpg`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇先實作最常見且辨識度高的 pattern：外緣深框與邊緣白點列。眼斑只在非高對比主色時出現，避免所有翅膀都變成同一類花紋。沒有直接複製參考圖中的任何特定蝴蝶，而是抽象成可生成的 pattern archetypes。所有圖案仍使用 p5.brush 的 `marker1` stroke 或小型 `brush.circle()`，避免新增依賴。
+
+#### 遇到的問題
+CDP fake camera 下主色仍偏綠，能檢查 pattern 是否明顯，但不能完整檢查多色真實照片下的配色自然度。portrait 截圖中昆蟲生成位置偏低，翅膀被儲存 / 返回按鈕遮住一部分；這與 Result spawn 位置或隨機生成有關，不是本次 pattern layer 直接造成，但會影響視覺評估。
+
+#### 嘗試過的解法
+先觀察參考圖，整理出外緣黑框、白點列、眼斑、放射色帶、外半部 patch 等重複語法。實作時先建立 `drawRoughWingRimBand()`、`drawRoughWingRimSpots()`、`drawRoughWingRadialBands()`、`drawRoughWingEyeSpots()`，再用 `drawRoughWingPatternDot()` 與 `drawRoughWingPatternStroke()` 統一繪製。修改後使用 `node --check` 與 CDP 視覺測試驗證。
+
+#### 最終解法
+`drawRoughWingColor()` 現在流程為：主色粒子填色 → butterfly pattern layer → 裝飾色短筆觸 → NMM 高光。`analyzeRoughWingColorPair()` 也新增 `rimPaint`、`spotPaint`、`bandPaint`。新增圖案層會固定提供深色輪廓與點列，並依主色對比選擇放射色帶與眼斑，使結果比單純 accent / highligts 更明顯。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 應更明顯出現實際蝴蝶翅膀常見 pattern，例如深外框、白點列、放射色帶或眼斑；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 91,947 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。compact Result 截圖可清楚看到深色外緣與白點列，辨識度比上一輪提高。portrait Result 中昆蟲位置偏低，被按鈕遮住部分翅膀，需後續另評估 spawn 位置
+- 手機 / AR 後續確認事項：真實手機相機、多色背景、pattern 強度、按鈕遮擋、生成時間與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+新增 pattern layer 讓 PNG 大小從上一輪約 63KB 增加到約 92KB，表示畫面資訊與筆觸數增加，手機效能需實測。黑框與白點列在 fake camera 下非常明顯，真實照片上可能需要依背景調整 alpha 或 count。portrait spawn 位置偏低造成按鈕遮擋，可能需要未來修正 Result page 的生成位置限制。
+
+#### 使用者回饋或修正
+使用者指出上一版不夠明顯，並提供實際蝴蝶影像作為 pattern 參考。本次已依參考圖抽象出 pattern archetypes 並實作。
+
+#### 建議的下一步
+請使用者檢視 `rough-wing-butterfly-pattern-2026-05-11` 截圖。如果方向正確，下一步建議用真實手機拍攝多色背景測試；若覺得黑框太重，可降低 `drawRoughWingRimBand()` 的 `strokeWeight` 或 alpha；若希望更像孔雀蝶，可提高 `drawRoughWingEyeSpots()` 出現率。
+
+---
+
+### 2026-05-11 — 收斂 Rough Wing Pattern 為乾淨內縮版本
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者回饋，將上一版過於明顯且髒的蝴蝶圖案層收斂為較乾淨、低透明、內縮的版本，降低深色筆觸、外溢與髒邊問題。
+
+#### 使用者需求
+使用者指出上一版雖然效果明顯，但視覺上不好看：過於明顯的筆觸、明顯出界、很深的顏色讓畫面看起來很髒。使用者同意改為 clean pattern 方向：弱化深外框、縮小點列、讓圖案更內縮且更淡。
+
+#### 實作前理解
+上一版髒感主要來自 `rimPaint` 太接近黑色且 alpha 高、`drawRoughWingRimBand()` 連續閉合畫兩層粗線、邊緣白點帶深色 ring、以及 pattern 點位太靠近輪廓。p5.brush 筆刷有寬度，即使中心線在輪廓內，視覺上仍可能外溢。
+
+#### 實作方案
+保留 pattern layer 的結構，但全面收斂參數：降低 `rimPaint` 明暗對比與 alpha；`drawRoughWingRimBand()` 改為單層、不閉合、低透明、較細且更內縮的斷續線；`drawRoughWingRimSpots()` 減少數量、縮小半徑、移除深色 ring 並更內縮；`drawRoughWingRadialBands()` 減少數量、降低 alpha、縮小 strokeWeight 並把外緣端點往內縮；眼斑降為低機率且更小。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不移除 pattern layer，因它提供蝴蝶辨識度；但將「黑框白點」從主視覺改成背景性的淡紋理。重點從「明顯」改為「乾淨且不出界」。目前不引入真正 polygon clipping，仍使用內縮點位與降低筆刷粗度來控制外溢。
+
+#### 遇到的問題
+fake camera 仍使主色偏綠，對真實照片下的配色自然度判斷有限。compact 截圖中 Result 昆蟲仍可能被儲存 / 返回按鈕遮住，這是既有 Result spawn 位置風險，與本次 clean pattern 參數收斂無直接關係。
+
+#### 嘗試過的解法
+先定位髒感來源，再用小範圍 patch 調整 color profile 與 pattern drawing 參數。使用 `node --check` 檢查語法，並執行 `scripts/run-cdp-visual-test.ps1 -RunId rough-wing-clean-pattern-2026-05-11` 驗證 Result 流程與截圖。
+
+#### 最終解法
+`rimPaint` 由高 alpha 深黑改為較低明度但不接近黑的主色暗版，alpha 降到 132；`spotPaint` alpha 降到 168 且不再純白；`bandPaint` alpha 降低。rim band 改為單層斷續線，strokeWeight 降至約 1.15 到 2.05，內縮約 0.62 到 0.92 `insectBaseUnit`。白點列變少、變小、無深色外圈，色帶與眼斑也更小、更淡、更內縮。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：pattern 保留蝴蝶語法但不再以深黑髒邊和大白點為主；筆觸更淡、更內縮，外溢減少；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 76,871 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。截圖中黑色髒邊與大白點明顯退掉，畫面較乾淨；pattern 變成較淡的蝶翼紋理。compact 仍有按鈕遮擋昆蟲的既有問題
+- 手機 / AR 後續確認事項：真實手機、多色背景、clean pattern 是否太淡、Result spawn 安全區域與效能仍需人工確認
+
+#### 尚未解決的風險
+目前仍沒有真正 mask clipping，若手機高 DPR 或特定 seed 產生較寬筆觸，仍可能有少量出界。clean pattern 比上一版乾淨但辨識度下降，需要使用者判斷是否達到想要的平衡。按鈕遮擋昆蟲的問題仍建議另開任務處理。
+
+#### 使用者回饋或修正
+使用者指出上一版過髒、過黑、筆觸與出界太明顯。本次依此將 pattern 收斂為低透明、內縮、無深色 ring 的版本。
+
+後續使用者補充回饋：clean pattern 版中，白點的點綴效果很好，之後或許可以從白點這個方向發展；但放射色帶看起來有點怪。使用者推測問題不只是筆觸強弱，而是放射色帶的位置過於隨機，且左右翅膀不對稱，導致整體 pattern 缺乏像真實蝴蝶那樣的結構一致性。
+
+#### 建議的下一步
+請使用者比較 `rough-wing-butterfly-pattern-2026-05-11` 與 `rough-wing-clean-pattern-2026-05-11`。若 clean 版太淡，可只微增 radial band alpha，不建議恢復深色 rim band；若仍嫌髒，下一步應暫停 rim band，只保留主色粒子與少量內縮色帶。
+
+依使用者最新回饋，下一次處理 pattern 時應優先保留並發展白點點綴，但重新設計放射色帶。建議新增類似 `createRoughWingPatternPlan()` 的事前參數計算流程：像翅膀大輪廓與 Voronoi 網格一樣，先用共同 seed 決定左右翅膀共享的額外紋理配置，例如白點數量、點列位置、放射色帶起訖 progress、色帶寬度與對稱關係；左右翅膀繪製時再各自加入手繪 jitter、筆壓與微小偏移。這樣可以保留手繪差異，但避免 pattern 結構本身左右不協調或太隨機。
