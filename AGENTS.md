@@ -138,6 +138,25 @@ After code changes, Codex should verify by one or more of the following:
 
 If actual AR camera testing is not possible in the current environment, Codex must clearly state that limitation and provide a manual mobile test checklist.
 
+## Aesthetic review requirements
+
+Visual verification must include both functional correctness and aesthetic judgment.
+
+After taking screenshots or otherwise visually inspecting a change, Codex must not stop at confirming that elements appeared on screen. Codex should also perform an explicit aesthetic review, especially for generated insects, hand-drawn graphics, AR overlays, layout, color, motion, and composition.
+
+The aesthetic review should include:
+
+- a short aesthetic score, recommended scale `1–10`
+- a concise critique of what works visually
+- a concise critique of what feels weak, awkward, generic, noisy, heavy, unbalanced, or inconsistent with the intended style
+- whether Codex made any visual adjustment after seeing the screenshot
+- if no adjustment was made, why Codex chose to stop
+- what kind of user feedback would be most useful next
+
+If Codex judges the result as functionally correct but visually weak, Codex should say so clearly and either make a small focused visual adjustment or record why further adjustment should wait for user direction.
+
+User aesthetic feedback is part of the project knowledge. When the user gives a score, critique, preference, or visual reaction, Codex must record it in `docs/codex-worklog.md` in Traditional Chinese, preserving the meaning of the user's wording. Over time, this should help future agents build a shared aesthetic standard with the user.
+
 ## Mobile-first constraints
 
 Assume the target device is a smartphone.
@@ -193,6 +212,8 @@ After each meaningful task, append an entry containing:
 - 嘗試過的解法
 - 最終解法
 - 視覺驗證紀錄
+- Codex 審美自評
+- 使用者審美回饋
 - 尚未解決的風險
 - 使用者回饋或修正
 - 建議的下一步
@@ -213,6 +234,8 @@ Include:
 - screenshots taken, if any
 - expected behavior
 - observed behavior
+- aesthetic score and critique
+- user aesthetic feedback, if available
 - console errors
 - mobile follow-up checklist
 

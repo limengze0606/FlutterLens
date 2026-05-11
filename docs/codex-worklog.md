@@ -1117,3 +1117,130 @@ CDP 截圖可確認目前測試 viewport，但真實手機可能因瀏覽器網�
 
 #### 建議的下一步
 優先處理 Result page 橫向模式：將 Save / Back 移到右側或底部安全區，並讓昆蟲生成位置避開按鈕區域。之後再用同一個 `landscape-fixtures-all` 矩陣回歸測試。
+
+---
+
+### 2026-05-11 — 為 Rough Butterfly 加入極簡符號式身體
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+為 `drawRoughInsect()` 中的 `insectType === 0` 加入新的 rough butterfly body。新身體不沿用 `drawInsectBody()` 的寫實頭、胸、腹，而是用細長弧線、短線 / 小點與柔軟觸角暗示蝴蝶身體，並讓 rough wings 依身體參照點定位。
+
+#### 使用者需求
+使用者希望開始為 `drawRoughInsect()` 加上身體繪製，但邏輯不同於 `drawInsect()`。風格需接近參考圖：極簡線條式、符號化、輕盈、飄逸、有裝飾感。身體是一條細直線或微彎弧線，從兩片翅膀交會處往下延伸；中間可用小點或短線表示頭部 / 胸部；觸角用兩條柔軟外彎細線，自然收尾，不必畫圓。使用者確認本階段先只針對 `insectType === 0`。
+
+#### 實作前理解
+`drawInsect()` 會依昆蟲類型安排寫實 body 與 wings；`drawRoughInsect()` 目前只畫 rough wings，body 呼叫被註解。`drawRoughInsectWings()` 原本固定以 `0.5 * insectBaseUnit` 作為 wing pair 的 y offset，左右 wing root 使用全域 `bodyHalfWidth`。若未先建立 body anchor，未來要支援不同角度或更清楚的身體 / 翅膀比例會比較困難。
+
+#### 實作方案
+新增 `RoughInsectBody.js`，提供 `createRoughInsectBodyPlan()` 與 `drawRoughInsectBody()`。`drawRoughInsect()` 在 `insectType === 0` 時先建立 body plan，再把 `wingRootY` 與 `wingRootHalfWidth` 傳給 `drawRoughInsectWings()`。身體繪製順序放在 wings 之後，讓細線 body 與 antenna 能壓在翅膀交會處上方。其他 `insectType` 暫時維持只有 rough wings。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/InsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `index.html`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本次沒有修改 `drawInsectBody()`，避免寫實 body 與 rough body 的視覺語彙混在一起。body plan 先只支援 `insectType === 0`，但資料結構保留 `wingRootY`、`wingRootHalfWidth`、`headY`、`bottomY`、`curveX`，之後可擴充不同角度與姿態。`drawRoughInsectWings()` 保留既有預設值，沒有 body plan 時仍使用原本的 rough wing 位置。
+
+#### 遇到的問題
+第一次視覺驗證時，主身體線條太厚，畫面讀起來像紅色柱狀筆畫，不符合「幾筆細長弧線」與輕盈感。橫向 Result page 仍有既有風險：Save / Back 按鈕在短高度 landscape 中會遮擋或壓近昆蟲。
+
+#### 嘗試過的解法
+先新增 body plan 與 rough body 線條，再執行 `node --check` 與 CDP 視覺驗證。看到第一版主軸過厚後，將 body axis 與 antenna 的 stroke weight 大幅降低，小點與短線也同步收細，再重新跑 CDP。
+
+#### 最終解法
+`RoughInsectBody.js` 會為 butterfly 產生一組穩定 body plan，包含翅膀交會點、細長 body 主軸、頭部小點、胸部短線與兩條自然外彎觸角。`drawRoughInsect()` 只在 `insectType === 0` 傳入此 plan 並繪製 body；其他 rough insect 類型不變。`RoughInsectWings.js` 接受可選 body plan，讓 wing pair 根據 `wingRootY` 與 `wingRootHalfWidth` 定位。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：`insectType === 0` 的 rough butterfly 應在翅膀交會處出現細長符號式 body 與柔軟觸角，body 不應變成寫實頭胸腹或厚重主體
+- 實際觀察：portrait / compact / landscape 均完成 `START → SCANNING → RESULT`。第二輪收細後，portrait Result 中 body 主軸變成細線，觸角自然外彎並壓在 wing root 上方，整體比第一版輕。portrait Save 下載 `FlutterLens-result.png`，大小 775,803 bytes；Back 回到 `SCANNING` 且 `backCleared=true`
+- 手機 / AR 後續確認事項：真實手機相機、不同背景、不同 seed 下 body 是否太淡或被 wing pattern 吃掉仍需人工確認
+
+#### 尚未解決的風險
+目前 CDP 測到的 seed 顯示 body 位置可接受，但不同隨機翅膀尺寸與背景亮度下，細 body 可能過淡或與 pattern 混在一起。橫向 Result page 的按鈕遮擋昆蟲仍是既有問題，本次未處理。未來若要做不同角度，body plan 需要加入 pose / side view 資訊，並讓 wings 根據該姿態改變根部與旋轉比例。
+
+#### 使用者回饋或修正
+使用者確認本階段先針對 `insectType === 0` 實作 rough butterfly body，其他類型暫不處理。
+
+#### 建議的下一步
+請使用者檢視 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/rough-butterfly-body-thin-2026-05-11-greenPlants-portrait-390x844-result.png` 的 body 線條感。如果方向正確，下一步可用 `-CameraFixture all` 跑全部照片，確認深色 / 淺色背景下 body 的可讀性；若覺得 body 太淡，可只微增 alpha，不建議回到第一版的厚主軸。
+
+---
+
+### 2026-05-11 — 新增視覺截圖後的審美自評流程
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+將使用者提出的「截圖測試後需進行審美判斷」納入專案協作流程，補充到 `AGENTS.md`，並記錄本次 rough butterfly body 的使用者審美回饋。
+
+#### 使用者需求
+使用者確認前一版 rough butterfly body 功能上確實有畫出身體，也符合「比較抽象的線條符號」描述，但視覺上並不吸引人。使用者希望在工作流程內加入新機制：完成截圖測試後，Codex 不只確認畫面是否正確呈現，也要自己進行審美判斷，可以主動修正調整，或是評分並給予評語；使用者也會給出評分及評語，這些內容都要記錄進工作日誌，讓專案逐漸形成美學共識。
+
+#### 實作前理解
+既有流程強調語法檢查、CDP 截圖、console、viewport 與功能流程，但對「視覺是否真的好看」的要求不夠明確。前一輪 rough butterfly body 正是典型例子：功能與描述皆通過，但結果缺少吸引力；若只記錄「已出現、已通過」，未來 agent 會難以理解使用者真正的視覺標準。
+
+#### 實作方案
+在 `AGENTS.md` 新增 `Aesthetic review requirements`，要求截圖或視覺檢查後必須包含審美分數、優點、弱點、是否自行調整、若未調整則說明原因，以及下一步需要的使用者回饋。同步補充 worklog 與 visual test log 應記錄 Codex 審美自評與使用者審美回饋。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將審美自評放入 `AGENTS.md`，使它成為未來 agent 必須遵守的固定流程，而不是只存在於某次對話。使用 `1–10` 分數作為建議量尺，但重點不是分數本身，而是留下具體評語、修正判斷與使用者回饋。
+
+#### 遇到的問題
+本次沒有重新修改 rough butterfly body 視覺本身，因使用者的主要需求是先把新的評估機制納入流程。前一版 body 的審美問題仍需另行設計調整。
+
+#### 嘗試過的解法
+直接補強流程文件，讓「功能正確但視覺弱」能被明確記錄，而不是被視為完成。
+
+#### 最終解法
+`AGENTS.md` 已新增截圖後的審美自評要求，並要求把 Codex 自評與使用者審美回饋記錄進工作日誌。`docs/codex-worklog.md` 已記錄使用者對 rough butterfly body 的最新評語。
+
+#### 視覺驗證紀錄
+本次為流程文件更新，未進行新的瀏覽器截圖。前一輪 rough butterfly body 的 CDP 截圖仍位於 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/`。
+
+#### Codex 審美自評
+回看前一輪 rough butterfly body，功能分可接受，但審美分約 `4/10`。優點是已建立符號化 body 與 wing root anchor，線條比第一版輕；弱點是整體太像「補上的中心線」，缺少參考圖中的書寫感、節奏、裝飾性與姿態。觸角與身體的關係偏機械，body 沒有成為畫面中有魅力的筆勢。
+
+#### 使用者審美回饋
+使用者回饋：結果功能上確實有畫出身體，也符合比較抽象的線條符號描述，但視覺上並不吸引人。使用者希望未來 Codex 在截圖後加入審美判斷、主動修正或評分評語，並將 Codex 與使用者的評分及評語都記錄進工作日誌，逐漸形成美學共識。
+
+#### 尚未解決的風險
+審美分數可能因 agent 主觀標準不同而波動，因此未來每次自評都應搭配具體畫面描述與使用者回饋，而不是只留下數字。rough butterfly body 本身仍需要下一輪視覺設計改善。
+
+#### 使用者回饋或修正
+使用者明確要求新增工作流程機制，而不只是針對單次畫面修正。
+
+#### 建議的下一步
+下一次調整 rough butterfly body 時，應先把目標審美拆成更具體的準則：例如線條要有書寫起伏、身體與觸角要形成一個優雅手勢、body 不能只是垂直中心線、與翅膀根部需要更自然地融合。完成截圖後需留下 Codex 自評分數與評語，再等待或整合使用者評分。

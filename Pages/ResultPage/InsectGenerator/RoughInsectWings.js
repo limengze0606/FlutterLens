@@ -31,12 +31,14 @@ function roughRandom(g, minValue, maxValue) {
     : random(minValue, maxValue);
 }
 
-function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType = 0, wingColorLineType = 0) {
+function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType = 0, wingColorLineType = 0, wingLineColorSet = 0, bodyPlan = null) {
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
   
   let wingStyle = (insectType === 1) ? 1 : 0; 
-  drawRoughWingPair(g, seedValue, 0.5 * insectBaseUnit, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType);
+  let wingRootY = bodyPlan && typeof bodyPlan.wingRootY === "number" ? bodyPlan.wingRootY : 0.5 * insectBaseUnit;
+  let wingRootHalfWidth = bodyPlan && typeof bodyPlan.wingRootHalfWidth === "number" ? bodyPlan.wingRootHalfWidth : bodyHalfWidth;
+  drawRoughWingPair(g, seedValue, wingRootY, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType, wingRootHalfWidth);
 
   g.pop(); 
 }
@@ -44,7 +46,7 @@ function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color
 /**
  * 繪製一對手繪翅膀 (確保大結構對稱，但筆觸獨立)
  */
-function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle, fillType, wingColorLineType) {
+function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle, fillType, wingColorLineType, rootHalfWidth = bodyHalfWidth) {
   // 1. 先用原本的 seedValue 設定隨機種子，確保每次生成的「整體尺寸」固定不變
   setRoughSeed(g, seedValue);
 
@@ -65,7 +67,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
 
   // 3. 畫右翅膀 (使用原始種子)
   g.push();
-  g.translate(bodyHalfWidth, yOff); 
+  g.translate(rootHalfWidth, yOff); 
   g.rotate(rot); 
   g.scale(s);
   drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern);
@@ -73,7 +75,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
 
   // 4. 畫左翅膀 (給予一個截然不同的種子，打破筆觸的鏡像對稱！)
   g.push();
-  g.translate(-bodyHalfWidth, yOff); 
+  g.translate(-rootHalfWidth, yOff); 
   g.rotate(-rot); 
   g.scale(-s, s);
   // 【關鍵】：把 seedValue 加上一個大數字，讓它的隨機軌跡完全改變

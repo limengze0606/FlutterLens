@@ -720,3 +720,51 @@ CDP 截圖確認 layout 與互動流程已改善，但仍需真實手機檢查 S
 
 ### 備註 / 風險
 本次確認橫向流程已可搭配所有 fixture 跑到 Result。下一個橫向視覺風險是 Result page 的操作按鈕與生成昆蟲可能重疊，尤其在短高度 landscape viewport 中更明顯。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 `drawRoughInsect()` 中 `insectType === 0` 的 rough butterfly 極簡符號式身體。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+
+### 預期行為
+rough butterfly 應在翅膀交會處出現極簡 body：一條細長直線或微彎弧線向下延伸，小點或短線暗示頭部 / 胸部，兩條柔軟外彎觸角自然收尾。body 應只套用於 `insectType === 0`，且不應讓其他 rough insect 類型改變。
+
+### 實際觀察
+第一輪 `rough-butterfly-body-2026-05-11` 的 body 主軸太厚，視覺上像紅色柱狀筆畫。收細後執行 `rough-butterfly-body-thin-2026-05-11`，`portrait-390x844`、`compact-360x740`、`landscape-844x390` 都完成 `START → SCANNING → RESULT`，且 `videoReady=true`、`hasResultPhoto=true`。portrait Result 中可見細線 body 與外彎觸角，位置接近翅膀交會處，整體比第一版輕盈。
+
+### 截圖
+- `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/rough-butterfly-body-thin-2026-05-11-greenPlants-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/rough-butterfly-body-thin-2026-05-11-greenPlants-compact-360x740-result.png`
+- `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/rough-butterfly-body-thin-2026-05-11-greenPlants-landscape-844x390-result.png`
+- 第一輪對照：`docs/cdp-runs/rough-butterfly-body-2026-05-11/screenshots/rough-butterfly-body-2026-05-11-greenPlants-portrait-390x844-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機上 body 線條在亮 / 暗背景都可讀
+- [ ] 不同 seed 下 body 與翅膀交會點保持自然
+- [ ] 橫向 Result page 的按鈕不應遮住主要昆蟲視覺
+
+### 備註 / 風險
+CDP fixture camera 可確認 body 大方向與流程未壞，但不能代表真實手機鏡頭曝光、對焦、噪訊與效能。細線 body 可能在深色或複雜背景下被 wing pattern 吃掉；後續建議用 `-CameraFixture all` 跑完整照片矩陣。橫向 Result page 的 Save / Back 按鈕遮擋風險仍存在，本次未處理。
