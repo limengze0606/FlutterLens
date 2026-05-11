@@ -38,9 +38,85 @@ function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color
   let wingStyle = (insectType === 1) ? 1 : 0; 
   let wingRootY = bodyPlan && typeof bodyPlan.wingRootY === "number" ? bodyPlan.wingRootY : 0.5 * insectBaseUnit;
   let wingRootHalfWidth = bodyPlan && typeof bodyPlan.wingRootHalfWidth === "number" ? bodyPlan.wingRootHalfWidth : bodyHalfWidth;
-  drawRoughWingPair(g, seedValue, wingRootY, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType, wingRootHalfWidth);
+
+  if (insectType === 0 && bodyPlan) {
+    drawRoughButterflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
+  } else {
+    drawRoughWingPair(g, seedValue, wingRootY, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType, wingRootHalfWidth);
+  }
 
   g.pop(); 
+}
+
+function drawRoughButterflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, color2, fillType, wingColorLineType) {
+  setRoughSeed(g, seedValue + 1207);
+
+  let wingStylePlan = createRoughButterflyWingStylePlan(g, color1, color2);
+  let wingSets = createRoughButterflyWingPairPlans(g, bodyPlan);
+
+  // Hindwings are placed first so the forewings and body can sit naturally above them.
+  drawRoughWingPairFromPlan(g, seedValue + 2719, wingSets.hind, flapAngle - 0.04, color1, color2, 0, fillType, wingColorLineType, wingStylePlan);
+  drawRoughWingPairFromPlan(g, seedValue + 151, wingSets.fore, flapAngle + 0.02, color1, color2, 0, fillType, wingColorLineType, wingStylePlan);
+}
+
+function createRoughButterflyWingPairPlans(g, bodyPlan) {
+  let u = insectBaseUnit;
+  let screenMax = max(width, height);
+  let screenMin = min(width, height);
+  let wingBaseLen = (screenMax * 0.15 + screenMin * 0.4) * 0.01;
+  let rootY = bodyPlan.wingRootY;
+  let rootHalfWidth = bodyPlan.wingRootHalfWidth;
+
+  let foreLength = roughRandom(g, 18.5 * wingBaseLen, 27.5 * wingBaseLen);
+  let foreWidth = roughRandom(g, 9.2 * u, 14.5 * u);
+  let foreTipY = roughRandom(g, -7.2 * u, -2.4 * u);
+  let hindLength = foreLength * roughRandom(g, 0.62, 0.78);
+  let hindWidth = foreWidth * roughRandom(g, 0.94, 1.18);
+  let hindTipY = roughRandom(g, 4.8 * u, 8.4 * u);
+
+  return {
+    fore: {
+      yOff: rootY - roughRandom(g, 0.28 * u, 0.52 * u),
+      rootHalfWidth: rootHalfWidth * roughRandom(g, 0.88, 1.08),
+      rotation: roughRandom(g, -0.13, -0.02),
+      scaleX: 1,
+      scaleY: roughRandom(g, 0.72, 0.82),
+      params: {
+        length: foreLength,
+        width: foreWidth,
+        tipY: foreTipY,
+        noiseStrength: roughRandom(g, 2.5, 7.0)
+      }
+    },
+    hind: {
+      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u),
+      rootHalfWidth: rootHalfWidth * roughRandom(g, 0.58, 0.76),
+      rotation: roughRandom(g, 0.22, 0.38),
+      scaleX: roughRandom(g, 0.9, 1.02),
+      scaleY: roughRandom(g, 0.88, 1.06),
+      params: {
+        length: hindLength,
+        width: hindWidth,
+        tipY: hindTipY,
+        noiseStrength: roughRandom(g, 2.0, 5.8)
+      }
+    }
+  };
+}
+
+function createRoughButterflyWingStylePlan(g, color1, color2) {
+  let colorProfile = analyzeRoughWingColorPair(g, color1, color2);
+  let archetypeRoll = roughRandom(g, 0, 1);
+  let highContrast = colorProfile.contrastScore > 0.5 || colorProfile.hueDistance > 82 || colorProfile.brightnessDistance > 32;
+
+  return {
+    colorProfile,
+    pattern: {
+      highContrast,
+      useEyeSpots: !highContrast && archetypeRoll > 0.78,
+      useRadialBands: highContrast || archetypeRoll < 0.72
+    }
+  };
 }
 
 /**
@@ -62,24 +138,38 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
     tipY: roughRandom(g, -8 * insectBaseUnit, 8 * insectBaseUnit),
     noiseStrength: roughRandom(g, 2, 10)
   };
+  drawRoughWingPairFromPlan(g, seedValue, {
+    yOff,
+    rootHalfWidth,
+    rotation: 0,
+    scale: s,
+    params: wingParams
+  }, rot, color1, color2, wingStyle, fillType, wingColorLineType);
+}
+
+function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, wingStyle, fillType, wingColorLineType, wingStylePlan = null) {
+  let pairRot = (pairPlan.rotation || 0) + rot;
+  let pairScaleX = pairPlan.scaleX || pairPlan.scale || 1;
+  let pairScaleY = pairPlan.scaleY || pairPlan.scale || 1;
+  let wingParams = pairPlan.params;
   let baseOutline = generateWingOutline(wingParams.length, wingParams.width, wingParams.tipY, wingParams.noiseStrength, wingStyle);
   let roughPattern = createRoughVoronoiPattern(g, wingParams.length, wingParams.width, wingParams.tipY, baseOutline);
 
   // 3. 畫右翅膀 (使用原始種子)
   g.push();
-  g.translate(rootHalfWidth, yOff); 
-  g.rotate(rot); 
-  g.scale(s);
-  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern);
+  g.translate(pairPlan.rootHalfWidth, pairPlan.yOff); 
+  g.rotate(pairRot); 
+  g.scale(pairScaleX, pairScaleY);
+  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
   g.pop();
 
   // 4. 畫左翅膀 (給予一個截然不同的種子，打破筆觸的鏡像對稱！)
   g.push();
-  g.translate(-rootHalfWidth, yOff); 
-  g.rotate(-rot); 
-  g.scale(-s, s);
+  g.translate(-pairPlan.rootHalfWidth, pairPlan.yOff); 
+  g.rotate(-pairRot); 
+  g.scale(-pairScaleX, pairScaleY);
   // 【關鍵】：把 seedValue 加上一個大數字，讓它的隨機軌跡完全改變
-  drawRoughWing(g, seedValue + 9999, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern);
+  drawRoughWing(g, seedValue + 9999, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
   g.pop();
 }
 
@@ -87,7 +177,7 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
  * 全新的單邊手繪翅膀 (接收預先算好的輪廓參數)
  */
 // 【修改點】：新增 wingParams 參數
-function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillType, wingColorLineType, baseOutline, roughPattern) {
+function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan = null) {
   // 這裡設定的種子，只會影響接下來「手繪線條」的偏移跟彎曲
   setRoughSeed(g, strokeSeed);
 
@@ -109,7 +199,7 @@ function drawRoughWing(g, strokeSeed, color1, color2, wingStyle, params, fillTyp
   for (let p of baseOutline) g.vertex(p.x, p.y);
   g.endShape(g.CLOSE);
   
-  drawRoughWingColor(g, color1, color2, fillType, baseOutline);
+  drawRoughWingColor(g, color1, color2, fillType, baseOutline, wingStylePlan);
   drawRoughVoronoiPattern(g, wLength, roughPattern, wingColorLineType, baseOutline);
 
   // (這裡未來會放你的 Voronoi 繪製邏輯)
@@ -745,7 +835,7 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
   return { top: topPoints, bottom: bottomPoints };
 }
 
-function drawRoughWingColor(g, color1, color2, fillType, baseOutline){
+function drawRoughWingColor(g, color1, color2, fillType, baseOutline, wingStylePlan = null){
   if (typeof brush === "undefined" || !baseOutline || baseOutline.length < 3) return;
 
   let bounds = getOutlineBounds(baseOutline, insectBaseUnit * 1.25);
@@ -757,9 +847,11 @@ function drawRoughWingColor(g, color1, color2, fillType, baseOutline){
   brush.noFill();
   brush.noStroke();
 
-  let colorProfile = analyzeRoughWingColorPair(g, color1, color2);
+  let colorProfile = wingStylePlan && wingStylePlan.colorProfile
+    ? wingStylePlan.colorProfile
+    : analyzeRoughWingColorPair(g, color1, color2);
   drawRoughWingParticleStrokes(g, root, center, baseOutline, bounds, fillType, color1, color2);
-  drawRoughWingButterflyPattern(g, root, center, baseOutline, bounds, colorProfile);
+  drawRoughWingButterflyPattern(g, root, center, baseOutline, bounds, colorProfile, wingStylePlan && wingStylePlan.pattern);
   drawRoughWingAccentStrokes(g, root, center, baseOutline, bounds, colorProfile);
   drawRoughWingSpecularStrokes(g, root, center, baseOutline, bounds, colorProfile);
 }
@@ -1001,13 +1093,18 @@ function wrapHue(hueValue) {
   return ((hueValue % 360) + 360) % 360;
 }
 
-function drawRoughWingButterflyPattern(g, root, center, outline, bounds, colorProfile) {
+function drawRoughWingButterflyPattern(g, root, center, outline, bounds, colorProfile, patternPlan = null) {
   if (!colorProfile) return;
 
-  let archetypeRoll = roughRandom(g, 0, 1);
-  let highContrast = colorProfile.contrastScore > 0.5 || colorProfile.hueDistance > 82 || colorProfile.brightnessDistance > 32;
-  let useEyeSpots = !highContrast && archetypeRoll > 0.78;
-  let useRadialBands = highContrast || archetypeRoll < 0.72;
+  let highContrast = patternPlan && typeof patternPlan.highContrast === "boolean"
+    ? patternPlan.highContrast
+    : colorProfile.contrastScore > 0.5 || colorProfile.hueDistance > 82 || colorProfile.brightnessDistance > 32;
+  let useEyeSpots = patternPlan && typeof patternPlan.useEyeSpots === "boolean"
+    ? patternPlan.useEyeSpots
+    : !highContrast && roughRandom(g, 0, 1) > 0.78;
+  let useRadialBands = patternPlan && typeof patternPlan.useRadialBands === "boolean"
+    ? patternPlan.useRadialBands
+    : highContrast || roughRandom(g, 0, 1) < 0.72;
 
   drawRoughWingRimBand(g, center, outline, colorProfile);
   if (useRadialBands) drawRoughWingRadialBands(g, root, center, outline, bounds, colorProfile, highContrast);

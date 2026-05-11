@@ -1376,3 +1376,75 @@ CDP 截圖可確認目前測試 viewport，但真實手機可能因瀏覽器網�
 
 #### 建議的下一步
 下一輪若繼續調 body，應先保留使用者已修改的顏色與筆刷粗細，再針對比例大幅調整：縮短 body length、加寬或增加胸部節奏筆，讓身體相對翅膀更穩。視覺迭代時最多做三輪自評調整，且每輪要有明顯差異；若第一輪就暴露方向問題，應停下來請使用者判斷，而不是小幅反覆微調。
+
+---
+
+### 2026-05-11 — Rough Butterfly 新增第二對翅膀
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+在 `drawRoughInsect()` 的 `insectType === 0` rough butterfly 中新增第二對翅膀，讓蝴蝶從 body plan 的不同對照點長出前翅與後翅，並讓同一隻昆蟲的兩對翅膀共用顏色與 pattern 選用。
+
+#### 使用者需求
+使用者想先看畫上蝴蝶第二對翅膀時的效果。第二對翅膀一樣要從身體的對照點長出，可以使用不同於第一對翅膀的位置；兩對翅膀要盡量靠近貼合但不要重疊，模擬真實蝴蝶輪廓，因此可以修改翅膀輪廓決定邏輯。同一隻昆蟲的兩對翅膀要使用相同的顏色選用或紋路 pattern。
+
+#### 實作前理解
+`drawRoughInsect()` 目前只在 `insectType === 0` 建立 `roughBodyPlan`，並將 `wingRootY` 與 `wingRootHalfWidth` 傳入 `drawRoughInsectWings()`。既有 `drawRoughWingPair()` 只畫一對左右對稱的大翅膀；左右翅膀共用 `wingParams`、`baseOutline` 與 `roughPattern`，但 pattern archetype 會在上色時重新隨機判斷。前次使用者已自行調整 body 顏色與筆刷粗細，本次不應覆蓋 body。
+
+#### 實作方案
+在 `RoughInsectWings.js` 中新增 butterfly 專用的雙 wing pair 流程：`fore` 前翅較上、較長，`hind` 後翅較低、較短且更圓。先畫後翅，再畫前翅，最後仍由既有 body 繪製壓在根部上方。另新增 `wingStylePlan`，把 `colorProfile`、`highContrast`、`useEyeSpots`、`useRadialBands` 等 pattern 選用固定為同一份，讓前翅與後翅使用同一套顏色與紋路決策，但保留不同 stroke seed 以維持手繪自然感。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+雙翅邏輯只套用於 `insectType === 0 && bodyPlan`，其他 rough insect 類型維持原本一對翅膀。前後翅共用 pattern 選用，但不強制複製完全相同的筆觸路徑，因為完全相同會太機械；目前保留左右與前後翅各自的 stroke seed，使材質自然但視覺語彙一致。
+
+#### 遇到的問題
+第一版 `rough-butterfly-double-wings-v1-2026-05-11` 功能上有畫後翅，但後翅幾乎被前翅吃掉，畫面仍像單一長翅，只有少量下方暗線可見。這不符合「想先看第二對翅膀效果」的需求。
+
+#### 嘗試過的解法
+第一輪先加入 `drawRoughButterflyWingPairs()`、`createRoughButterflyWingPairPlans()` 與共享 `wingStylePlan`，並跑 CDP 截圖。看到後翅不夠明顯後，第二輪做大幅視覺調整：壓扁前翅下緣、把後翅根點往下移、增加後翅圓度與下垂感，讓第二對翅膀在 silhouette 中讀得出來。
+
+#### 最終解法
+`drawRoughInsectWings()` 會在 rough butterfly 且有 body plan 時呼叫 `drawRoughButterflyWingPairs()`。此函式建立共享 `wingStylePlan` 與 `fore/hind` 兩組 pair plan。`drawRoughWingPairFromPlan()` 支援每對翅膀自己的 `rootHalfWidth`、`yOff`、`rotation`、`scaleX`、`scaleY` 與輪廓參數。`drawRoughWingColor()` 與 `drawRoughWingButterflyPattern()` 現在可接收共享 style / pattern plan。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-double-wings-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：rough butterfly 應出現前翅與後翅，兩對翅膀靠近貼合但輪廓可辨，且前後翅共享同一套顏色與 pattern 選用
+- 實際觀察：第二輪中後翅已明顯成為下方翅瓣，與前翅貼近，整體更像四翅蝴蝶。pattern 色系一致。portrait 與 compact 可讀性較好；landscape 中 Result UI 仍靠近昆蟲，是既有版面風險。
+
+#### Codex 審美自評
+最終第二輪約 `7/10`。優點是四翅輪廓終於讀得出來，前翅與後翅的貼合比第一輪自然，且同一套綠色系 pattern 沒有前後翅風格分裂。弱點是後翅仍有點像被前翅拉長的尾瓣，還不是非常精準的真實蝶翼比例；在植物背景上綠色翅膀與背景融合，輪廓主要靠黑線支撐。第一輪後我做了一次大幅調整；第二輪已足以讓使用者判斷方向，因此停止自我迭代，未做第三輪。
+
+#### 使用者審美回饋
+使用者針對本次改動本身給 `8/10`，不是只針對美觀程度。使用者認為 Codex 這次判斷準確，包含正確辨認第一次繪製的問題、後續改動能明顯看出差異，並且適當地收手給使用者看。使用者觀察到橫向時的翅膀輪廓比例較自然，問題可能出在翅膀輪廓會參照螢幕或畫布的長或寬；直向畫面時翅膀太向下延伸而不自然，橫向時比例比較剛好。
+
+#### 尚未解決的風險
+CDP fake camera 不能代表真實手機相機環境；真實照片下的顏色對比、pattern 可讀性與手機效能仍需實機確認。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，可能影響穩定審美比較。Result spawn 與 Save / Back 按鈕在部分 viewport 中仍可能遮擋或壓近昆蟲。
+
+#### 使用者回饋或修正
+使用者確認「Go!」後允許依實作方案修改程式。本次完成後，使用者補充評分與診斷：本次改動本身 `8/10`，流程判斷與收手時機正確；下一個問題應優先檢查直向 viewport 下 wingBaseLen 或翅膀輪廓參照螢幕長寬造成的垂直延伸。本次沒有要求 commit 或 push。
+
+#### 建議的下一步
+下一輪建議先處理直向比例：檢查 `createRoughButterflyWingPairPlans()` 中 `wingBaseLen`、`foreLength`、`hindTipY`、`hind yOff` 與 `scaleY` 是否過度受 `max(width, height)` 或畫布長邊影響；可讓 butterfly wing size 主要參照短邊或加入 portrait-specific vertical compression。調整時以橫向截圖作為較自然比例的參考，讓直向結果接近橫向的前後翅比例，再用 `-ForcedFinalPitch 0` 跑 portrait / compact / landscape 對照。

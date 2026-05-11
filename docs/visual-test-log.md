@@ -822,3 +822,63 @@ Codex 自評：`6/10`。優點是紅墨 body 比前版更有存在感，主軸�
 
 ### 備註 / 風險
 `-ForcedFinalPitch` 解決了測特定 insect type 的可重現性問題。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，會讓審美比較不穩定。Result page 的 spawn safe area 仍需處理，否則 body 美感會被按鈕遮擋干擾。下一輪 body 調整應優先處理比例平衡，並採用更大幅、少輪次的審美迭代。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 `drawRoughInsect()` 中 `insectType === 0` rough butterfly 新增第二對翅膀，並確認前後翅共用顏色與 pattern 選用。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示 `resultFinalPitch=0`
+
+### 預期行為
+rough butterfly 應出現前翅與後翅兩對翅膀。兩對翅膀都從 body plan 的對照點附近長出，可使用不同根點；前後翅應靠近貼合但輪廓可辨，不應完全重疊成單一翅形。同一隻昆蟲的前後翅需共享顏色與 pattern archetype 選用。
+
+### 實際觀察
+第一輪 `rough-butterfly-double-wings-v1-2026-05-11` 三個 viewport 都完成 `START → SCANNING → RESULT`，portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且 `backCleared=true`。但後翅幾乎被前翅吃掉，視覺上仍像單一長翅。
+
+第二輪 `rough-butterfly-double-wings-v2-2026-05-11` 調整前後翅比例、根點與 scale 後，後翅已明顯成為下方翅瓣，與前翅貼近但可辨識。三個 viewport 都完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 772,128 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。三個 viewport 的 consoleCount 皆為 1，仍是既有 404 resource event，未觀察到新增 JavaScript exception。
+
+### 截圖
+- 最終第二輪 portrait：`docs/cdp-runs/rough-butterfly-double-wings-v2-2026-05-11/screenshots/rough-butterfly-double-wings-v2-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 最終第二輪 compact：`docs/cdp-runs/rough-butterfly-double-wings-v2-2026-05-11/screenshots/rough-butterfly-double-wings-v2-2026-05-11-greenPlants-compact-360x740-result.png`
+- 最終第二輪 landscape：`docs/cdp-runs/rough-butterfly-double-wings-v2-2026-05-11/screenshots/rough-butterfly-double-wings-v2-2026-05-11-greenPlants-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-butterfly-double-wings-v1-2026-05-11/screenshots/rough-butterfly-double-wings-v1-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-butterfly-double-wings-v1-2026-05-11/screenshots/rough-butterfly-double-wings-v1-2026-05-11-greenPlants-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-butterfly-double-wings-v1-2026-05-11/screenshots/rough-butterfly-double-wings-v1-2026-05-11-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7/10`。優點是第二輪的四翅 silhouette 已可辨識，後翅像從 body 下方對照點長出，和前翅貼近但不再完全消失；前後翅的綠色系上色與紋路選用一致，沒有同一隻昆蟲內部風格分裂。弱點是後翅仍稍微尾狀，還可以更圓鈍、更像真實蝴蝶後翅；在 `greenPlants` 背景上，翅膀綠色與植物背景接近，主要靠黑色外輪廓維持可讀性。第一輪截圖後做了一次大幅調整；第二輪已足夠提供使用者判斷，因此沒有進行第三輪私下調整。
+
+### 使用者審美回饋
+使用者針對本次改動本身給 `8/10`，不是只針對美觀程度。使用者認為本次 Codex 判斷準確：有正確辨認第一次繪製出現的問題，後續改動也能明顯看出差異，並且適當地收手給使用者看。使用者觀察到橫向時的翅膀輪廓比例較自然，問題可能出在翅膀輪廓參照螢幕或畫布的長或寬；直向時翅膀太向下延伸而不自然，橫向時比較剛好。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機上前後翅在亮 / 暗背景都可讀
+- [ ] 不同 seed 下前後翅貼合但不完全重疊
+- [ ] Result spawn 不被 Save / Back 按鈕遮擋
+- [ ] 多種相機 fixture 下前後翅 pattern 選用維持一致
+
+### 備註 / 風險
+CDP fake camera 可確認流程、截圖與基本視覺方向，但不能代表真實手機鏡頭曝光、背景色彩與效能。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，會影響審美比較穩定性。Result page 的按鈕與生成位置仍可能干擾昆蟲觀察，尤其 landscape 或生成位置偏低時。使用者指出下一個比例風險：portrait / compact 中翅膀可能因參照螢幕或畫布長寬而過度向下延伸；下一輪應以 landscape 較自然的輪廓作為比例參考，修正直向 viewport 的雙翅高度與後翅下垂量。
