@@ -1244,3 +1244,135 @@ CDP 截圖可確認目前測試 viewport，但真實手機可能因瀏覽器網�
 
 #### 建議的下一步
 下一次調整 rough butterfly body 時，應先把目標審美拆成更具體的準則：例如線條要有書寫起伏、身體與觸角要形成一個優雅手勢、body 不能只是垂直中心線、與翅膀根部需要更自然地融合。完成截圖後需留下 Codex 自評分數與評語，再等待或整合使用者評分。
+
+---
+
+### 2026-05-11 — 記錄 p5.brush 運筆美學提示
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+記錄使用者對 p5.brush 使用方式與 Codex 創作角色的美學提示，並補充到 `AGENTS.md` 的審美流程中。
+
+#### 使用者需求
+使用者提示：`p5.brush` 是可以自由運用的畫筆。當 Codex 能思考並決定好每筆的位置及方向後，效果可能會更自然。Codex 應思考人類會如何運筆，包括下筆時的壓力、轉折等，最後將其設計為一套系統。在這個過程中，Codex 不只是寫程式，也可以是畫面的共同創作者。
+
+#### 實作前理解
+前一版 rough butterfly body 雖然功能上成立，但像是把線條放到畫面上，缺少真正的手繪運筆邏輯。使用者這次指出，問題不只是 brush 種類或 jitter，而是每一筆需要有意圖：起筆、方向、轉折、壓力與收筆都要像人類畫圖一樣被設計。
+
+#### 實作方案
+將這段提示寫入 `AGENTS.md` 的 `Aesthetic review requirements`，使未來使用 p5.brush 實作 rough body、rough wings、pattern 或其他手繪視覺時，都要先思考運筆意圖，再把它系統化成程式。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將「Codex 是畫面的共同創作者」寫入流程脈絡，避免未來 agent 把 p5.brush 當作單純產生線條材質的 API。之後的視覺演算法應描述筆勢與人類運筆邏輯，再寫成可重複的生成系統。
+
+#### 遇到的問題
+本次是流程與美學提示記錄，尚未重新設計 rough butterfly body。
+
+#### 嘗試過的解法
+直接更新 `AGENTS.md` 與工作日誌，保留使用者提示的核心意義。
+
+#### 最終解法
+`AGENTS.md` 已新增 p5.brush 運筆準則：使用 brush 前應決定每筆的起點、轉折、終點、壓力變化與人類下筆理由，再用受控隨機系統化，而不是只靠任意 jitter。工作日誌已記錄使用者提示，作為後續 rough butterfly body 改善的美學基礎。
+
+#### 視覺驗證紀錄
+本次未修改視覺程式，未執行瀏覽器截圖。
+
+#### Codex 審美自評
+這個提示指出了目前 rough body 最大缺口：線條有了，但沒有足夠「運筆意圖」。若以這個標準回看上一版 body，視覺分仍約 `4/10`；下一版應先設計筆勢，再實作 brush stroke。
+
+#### 使用者審美回饋
+使用者明確表示，希望 Codex 能把 p5.brush 當成自由畫筆，思考人類如何運筆，包括每筆的位置、方向、壓力、轉折，並把這些設計成系統；Codex 在此過程中不只是寫程式，也是畫面的共同創作者。
+
+#### 尚未解決的風險
+若只把這段提示寫入文件而不在下一輪實作中具體落地，rough body 仍可能停留在功能正確但美感不足的狀態。下一輪需要把「運筆」拆成可實作的 stroke grammar。
+
+#### 使用者回饋或修正
+使用者提供了未來審美與實作方向：從人類運筆出發，而不是從隨機線條出發。
+
+#### 建議的下一步
+下一輪 rough butterfly body 應先設計 `stroke grammar`：例如 body 主軸是一筆由 wing root 下壓、微彎、收尖的筆；觸角是從頭部輕起筆、外翻、末端減壓收筆的兩筆；胸部短線或小點是節奏點而非結構標籤。完成後再用 CDP 截圖、Codex 審美自評與使用者評分共同迭代。
+
+---
+
+### 2026-05-11 — 以 p5.brush 運筆系統重畫 Rough Butterfly Body
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者「把 p5.brush 當作自由畫筆、思考人類運筆」的提示，重畫 `insectType === 0` 的 rough butterfly body，並擴充 CDP 視覺測試腳本，讓測試可強制 `finalPitch` 以穩定截到指定昆蟲類型。
+
+#### 使用者需求
+使用者要求「那就試試看再畫一次昆蟲身體吧」。脈絡是前一版 body 功能正確但不吸引人；使用者希望 Codex 不只是寫程式，而是作為畫面的共同創作者，設計每一筆的位置、方向、壓力、轉折與系統化規則。
+
+#### 實作前理解
+前一版 `RoughInsectBody.js` 主要用 p5 原生 `bezier()` 畫細線，雖抽象但缺少筆勢。要改善，不能只改線寬，而要把 body 拆成 stroke grammar：主軸、胸部節奏筆、頭部點、兩條觸角各自有起筆、轉折、收筆與壓力設計。另發現既有 CDP 測試不一定穩定截到 `insectType === 0`，因 scanning page 會依 `rotationX` 更新 `finalPitch`，桌機 headless 下可能落到其他類型，導致 body 審美判讀失準。
+
+#### 實作方案
+改寫 `RoughInsectBody.js`：body plan 產生更接近 wing root 的 head / root / bottom 與 `gestureSide`；繪製端改為 `drawHumanBrushStroke()`，用 `pencil1`、紅墨色、受控 jitter 與分段壓力設計主軸、echo stroke、collar rhythm mark、antennae。由於 `brush.vertex(..., pressure)` 在本次截圖中讓主軸不穩定可見，最後改成 brush 主線搭配 native pressure hints，用分段 stroke weight 補出可讀的壓力節奏。同步在 `scripts/run-cdp-visual-test.ps1` 新增 `-ForcedFinalPitch`，測特定 insect type 時可穩定截圖。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ScanningPage/GyroManager.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/llms.txt`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+保留「只針對 `insectType === 0`」的功能範圍。測試工具新增 `-ForcedFinalPitch`，而不是把測試邏輯寫進 app production code。body stroke 使用 brush 作為主要筆觸，但為了穩定可見與表現壓力，額外疊加 native segmented pressure hints；這是目前比純 `brush.vertex(..., pressure)` 更穩定的折衷。
+
+#### 遇到的問題
+第一次重畫後 CDP 截圖其實不是穩定 butterfly，因 `finalPitch` 在 headless scanning 中可能變成其他類型。加入 `-ForcedFinalPitch` 的第一版 PowerShell 參數使用 nullable double，執行時出現 `You cannot call a method on a null-valued expression`，修正為預設 `NaN` 的普通 double 後可用。第二版 brush stroke 一開始仍只有頭部點明顯，主軸幾乎消失；推測 `brush.vertex()` 的 pressure 參數與目前筆刷 / 權重組合不夠穩定，因此改為 brush 線條不傳 pressure，再疊 native 壓力提示。
+
+#### 嘗試過的解法
+先改成 p5.brush stroke grammar，執行 `node --check` 與 CDP。發現非 type0 截圖後，搜尋 `finalPitch` 與 `GyroManager.js`，確認測試需強制 pitch。接著修改 CDP 腳本加入 `-ForcedFinalPitch 0`，重跑後確認 summary 中 `resultFinalPitch=0`。最後調整 brush stroke 的可見度與壓力提示，再重跑 `rough-butterfly-body-forced-type0-visible-2026-05-11`。
+
+#### 最終解法
+`RoughInsectBody.js` 現在以 `gestureSide` 產生一組手勢方向，主軸由 wing root 下壓後微彎並收尖；可選 echo stroke 增加手繪感；collar rhythm mark 與 head dot 作為節奏點；antennae 從頭部輕起筆向外翻。CDP 腳本新增 `-ForcedFinalPitch`，可用 `-ForcedFinalPitch 0` 穩定測 butterfly body。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`scripts/run-cdp-visual-test.ps1` PowerShell parser 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-butterfly-body-forced-type0-visible-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍只有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：butterfly body 應以紅墨手勢線條出現在翅膀交會處，較前版更有筆勢與存在感
+- 實際觀察：body 主軸、頭部點與觸角在 forced type0 截圖中可見，尤其 compact result 較清楚；portrait result 因生成位置落在 Save / Back 附近，按鈕遮擋影響審美判讀。整體比上一版更像一組有意圖的紅墨筆勢，但主軸仍偏直，與翅膀根部融合還可以再優化
+
+#### Codex 審美自評
+本次最終版約 `6/10`。比前一版 `4/10` 明顯進步：紅墨存在感更好，主軸不再只是極細中心線，也開始有下壓、轉折、收筆的意識。弱點是線條仍略像「程式化折線」而非真正一氣呵成的書寫筆勢；body 與 wings 的視覺融合不足，尤其胸部節奏點還沒有漂亮地把兩片翅膀串起來。按鈕遮擋讓 portrait 截圖難以公平評估美感。
+
+#### 使用者審美回饋
+使用者後續評分為 `5/10`，認為結果「還可以」。主要建議是整體平衡：目前結果中身體比例相較於翅膀過於細長。使用者也觀察到 Codex 在截圖自評後做了多次調整，但每次間效果差距不夠明顯，因此建議未來調整參數或繪圖邏輯時可以更大膽，像射箭調整準心一樣，若調過頭反而能看出適當範圍。使用者也希望 Codex 自行重複調整的次數最好不要超過三次，因為使用者也能提供意見。使用者另外說明，已在 Codex 完成後自行修改了身體顏色及筆刷粗細。
+
+#### 尚未解決的風險
+`drawRoughInsect()` 目前每次 draw 都會重新 random seed，Result 可能有幀間變化；這是既有生成邏輯風險，會影響穩定審美比較。Result spawn 與 Save / Back 按鈕遮擋仍干擾評估。`brush.vertex(..., pressure)` 在本環境下不如預期穩定，後續若要更純粹使用 p5.brush 壓力，需要另外做小型筆觸實驗。
+
+#### 使用者回饋或修正
+使用者要求重新嘗試畫 body，並提供「人類運筆」作為核心方向。本次依該方向做第二版。完成後，使用者給出 `5/10`，指出身體比例相對翅膀過細長，並要求未來視覺調整幅度更大、迭代不超過三次；使用者已自行調整 body 顏色與筆刷粗細，未來 agent 不應覆蓋這些手動修改。
+
+#### 建議的下一步
+下一輪若繼續調 body，應先保留使用者已修改的顏色與筆刷粗細，再針對比例大幅調整：縮短 body length、加寬或增加胸部節奏筆，讓身體相對翅膀更穩。視覺迭代時最多做三輪自評調整，且每輪要有明顯差異；若第一輪就暴露方向問題，應停下來請使用者判斷，而不是小幅反覆微調。

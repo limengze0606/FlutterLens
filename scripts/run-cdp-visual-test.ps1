@@ -10,6 +10,7 @@ param(
   [string]$CameraFixtureDir = "tests\fixtures\camera",
   [int]$CameraWidth = 720,
   [int]$CameraHeight = 1280,
+  [double]$ForcedFinalPitch = [double]::NaN,
   [switch]$KeepProfiles
 )
 
@@ -484,12 +485,26 @@ try {
         Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning")
 
         if ($scan.state -eq "SCANNING") {
+          if (-not [double]::IsNaN($ForcedFinalPitch)) {
+            $pitchLiteral = [Globalization.CultureInfo]::InvariantCulture.NumberFormat
+            $pitchValue = $ForcedFinalPitch.ToString($pitchLiteral)
+            Invoke-CdpEval -Socket $socket -Events $events -Expression "(() => { finalPitch = $pitchValue; return finalPitch; })()" | Out-Null
+          }
+
           Invoke-CdpClick -Socket $socket -Events $events -X $scan.shutter.x -Y $scan.shutter.y
           Start-Sleep -Seconds 4
+
+          if (-not [double]::IsNaN($ForcedFinalPitch)) {
+            $pitchLiteral = [Globalization.CultureInfo]::InvariantCulture.NumberFormat
+            $pitchValue = $ForcedFinalPitch.ToString($pitchLiteral)
+            Invoke-CdpEval -Socket $socket -Events $events -Expression "(() => { finalPitch = $pitchValue; return finalPitch; })()" | Out-Null
+            Start-Sleep -Milliseconds 250
+          }
 
           $result = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
 (() => ({
   state: currentPagesState,
+  finalPitch: typeof finalPitch !== 'undefined' ? finalPitch : null,
   hasResultPhoto: !!resultPhoto,
   runtimeWidth: width,
   runtimeHeight: height,
@@ -556,6 +571,8 @@ try {
         initialState = $initial.state
         scanState = if ($scan) { $scan.state } else { $null }
         resultState = if ($result) { $result.state } else { $null }
+        forcedFinalPitch = if (-not [double]::IsNaN($ForcedFinalPitch)) { $ForcedFinalPitch } else { $null }
+        resultFinalPitch = if ($result) { $result.finalPitch } else { $null }
         videoReady = if ($scan) { [bool]$scan.videoReady } else { $null }
         hasResultPhoto = if ($result) { [bool]$result.hasResultPhoto } else { $null }
         saveState = if ($saveResult) { $saveResult.state } else { $null }

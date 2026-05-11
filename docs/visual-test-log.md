@@ -768,3 +768,57 @@ rough butterfly 應在翅膀交會處出現極簡 body：一條細長直線或�
 
 ### 備註 / 風險
 CDP fixture camera 可確認 body 大方向與流程未壞，但不能代表真實手機鏡頭曝光、對焦、噪訊與效能。細線 body 可能在深色或複雜背景下被 wing pattern 吃掉；後續建議用 `-CameraFixture all` 跑完整照片矩陣。橫向 Result page 的 Save / Back 按鈕遮擋風險仍存在，本次未處理。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證以 p5.brush 運筆系統重畫的 `insectType === 0` rough butterfly body，並驗證 CDP `-ForcedFinalPitch` 可穩定截取 butterfly。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示 `resultFinalPitch=0`
+
+### 預期行為
+Result 應穩定生成 `insectType === 0` butterfly，body 應以紅墨色 brush gesture 出現在翅膀交會處，具備起筆、轉折、收筆與裝飾性節奏，而不是只有一條機械中心線。
+
+### 實際觀察
+`portrait-390x844`、`compact-360x740`、`landscape-844x390` 都完成 `START → SCANNING → RESULT`。portrait Save 下載 `FlutterLens-result.png`，大小 781,165 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。body 在 forced type0 截圖中可見，compact result 較容易判讀；portrait result 的生成位置接近 Save / Back，按鈕遮擋影響美感評估。整體比上一版更有紅墨筆勢，但還未達到參考圖那種自然書寫感。
+
+### 截圖
+- `docs/cdp-runs/rough-butterfly-body-forced-type0-visible-2026-05-11/screenshots/rough-butterfly-body-forced-type0-visible-2026-05-11-greenPlants-portrait-390x844-result.png`
+- `docs/cdp-runs/rough-butterfly-body-forced-type0-visible-2026-05-11/screenshots/rough-butterfly-body-forced-type0-visible-2026-05-11-greenPlants-compact-360x740-result.png`
+- `docs/cdp-runs/rough-butterfly-body-forced-type0-visible-2026-05-11/screenshots/rough-butterfly-body-forced-type0-visible-2026-05-11-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`6/10`。優點是紅墨 body 比前版更有存在感，主軸開始有下壓、轉折、收筆概念，觸角也較像從頭部長出的筆勢。弱點是線條仍偏程式化，胸部節奏筆與翅膀根部融合不足；portrait 截圖又被按鈕遮擋，降低整體觀感。下一輪應讓 body 成為更流暢的一筆，而不是分段可見的折線。
+
+### 使用者審美回饋
+使用者評分為 `5/10`，認為結果「還可以」。主要問題是整體平衡：目前身體比例相較於翅膀過於細長。使用者建議未來截圖後的自我調整要更大膽，讓每次調整差異明顯，必要時可故意調過頭來找到適當範圍；但 Codex 自行重複調整最好不要超過三次，之後應交給使用者提供意見。使用者也已自行修改身體顏色與筆刷粗細。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機上 body 線條在亮 / 暗背景都可讀
+- [ ] 不同 seed 下 body 與翅膀交會點保持自然
+- [ ] Result spawn 不被 Save / Back 按鈕遮擋
+
+### 備註 / 風險
+`-ForcedFinalPitch` 解決了測特定 insect type 的可重現性問題。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，會讓審美比較不穩定。Result page 的 spawn safe area 仍需處理，否則 body 美感會被按鈕遮擋干擾。下一輪 body 調整應優先處理比例平衡，並採用更大幅、少輪次的審美迭代。

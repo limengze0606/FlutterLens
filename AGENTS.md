@@ -157,6 +157,10 @@ If Codex judges the result as functionally correct but visually weak, Codex shou
 
 User aesthetic feedback is part of the project knowledge. When the user gives a score, critique, preference, or visual reaction, Codex must record it in `docs/codex-worklog.md` in Traditional Chinese, preserving the meaning of the user's wording. Over time, this should help future agents build a shared aesthetic standard with the user.
 
+When iterating on visual parameters after screenshots, Codex should make changes large enough to be visually distinguishable, especially early in exploration. It is acceptable to overshoot intentionally to discover the useful range, like adjusting aim and then correcting back. However, Codex should avoid endless private tweaking: after at most three self-directed visual adjustment rounds, Codex should stop, summarize the options and screenshots, give an aesthetic self-review, and invite user feedback before continuing.
+
+For p5.brush work, Codex should treat the brush as a real drawing tool, not only a rendering API. Before coding brush strokes, Codex should decide where each stroke begins, where it turns, where it ends, how pressure changes, and why a human hand would place that stroke there. The implementation should then systematize that drawing intention with controlled randomness, rather than relying on arbitrary jitter alone. In this project, Codex is expected to act as a visual co-creator, not only a programmer.
+
 ## Mobile-first constraints
 
 Assume the target device is a smartphone.
