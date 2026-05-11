@@ -6,6 +6,10 @@ param(
   [int]$DebugPortBase = 9330,
   [string]$ChromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe",
   [string]$PythonPath = "C:\Program Files\Python311\python.exe",
+  [string]$CameraFixture = "default",
+  [string]$CameraFixtureDir = "tests\fixtures\camera",
+  [int]$CameraWidth = 720,
+  [int]$CameraHeight = 1280,
   [switch]$KeepProfiles
 )
 
@@ -25,9 +29,9 @@ $ProfileRoot = Join-Path $RunDir "profiles"
 New-Item -ItemType Directory -Force -Path $ScreenshotDir, $DownloadRoot, $ProfileRoot | Out-Null
 
 # 產物命名規則：
-# - 截圖：<runId>-<viewportLabel>-<stage>.png
+# - 截圖：<runId>-<cameraLabel>-<viewportLabel>-<stage>.png
 # - stage 固定使用 start / scanning / result / after-back
-# - 下載：downloads/<viewportLabel>/FlutterLens-result.png
+# - 下載：downloads/<cameraLabel>/<viewportLabel>/FlutterLens-result.png
 # - 摘要：<runId>-summary.json
 # - Console：<runId>-console.json
 $Viewports = @(
@@ -36,9 +40,177 @@ $Viewports = @(
   @{ label = "landscape-844x390"; width = 844; height = 390; testButtons = $false }
 )
 
+function Get-SafeLabel {
+  param([string]$Value)
+
+  $label = [IO.Path]::GetFileNameWithoutExtension($Value)
+  $label = $label -replace "[^A-Za-z0-9_-]", "-"
+  $label = $label.Trim("-")
+  if ([string]::IsNullOrWhiteSpace($label)) {
+    return "camera"
+  }
+  return $label
+}
+
+function ConvertTo-RelativeUrlPath {
+  param([string]$FullPath)
+
+  $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd("\", "/")
+  $fileFull = [IO.Path]::GetFullPath($FullPath)
+  if (-not $fileFull.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Camera fixture must be inside project root: $FullPath"
+  }
+
+  $relative = $fileFull.Substring($rootFull.Length).TrimStart("\", "/")
+  return ($relative -replace "\\", "/")
+}
+
+function Resolve-CameraFixtures {
+  $fixtureRoot = if ([IO.Path]::IsPathRooted($CameraFixtureDir)) {
+    $CameraFixtureDir
+  } else {
+    Join-Path $Root $CameraFixtureDir
+  }
+
+  if ($CameraFixture -in @("", "default", "chrome", "fake")) {
+    return @([pscustomobject]@{
+      label = "default"
+      mode = "chrome-fake"
+      path = $null
+      url = $null
+    })
+  }
+
+  if (-not (Test-Path $fixtureRoot)) {
+    throw "Camera fixture directory not found: $fixtureRoot"
+  }
+
+  $files = @()
+  if ($CameraFixture -eq "all") {
+    $files = @(Get-ChildItem -Path $fixtureRoot -File |
+      Where-Object { $_.Extension -match "^\.(jpg|jpeg|png|webp)$" } |
+      Sort-Object Name)
+  } else {
+    $candidate = if ([IO.Path]::IsPathRooted($CameraFixture)) {
+      $CameraFixture
+    } else {
+      Join-Path $fixtureRoot $CameraFixture
+    }
+
+    if (-not (Test-Path $candidate)) {
+      $matches = @(Get-ChildItem -Path $fixtureRoot -File |
+        Where-Object {
+          $_.BaseName -eq $CameraFixture -or
+          $_.Name -eq $CameraFixture -or
+          $_.Name -eq "$CameraFixture.jpg" -or
+          $_.Name -eq "$CameraFixture.jpeg" -or
+          $_.Name -eq "$CameraFixture.png" -or
+          $_.Name -eq "$CameraFixture.webp"
+        })
+      if ($matches.Count -eq 0) {
+        throw "Camera fixture not found: $CameraFixture"
+      }
+      $candidate = $matches[0].FullName
+    }
+
+    $files = @(Get-Item -LiteralPath $candidate)
+  }
+
+  if ($files.Count -eq 0) {
+    throw "No camera fixture images found in $fixtureRoot"
+  }
+
+  return @($files | ForEach-Object {
+    [pscustomobject]@{
+      label = Get-SafeLabel $_.Name
+      mode = "canvas-fixture"
+      path = $_.FullName
+      url = ConvertTo-RelativeUrlPath $_.FullName
+    }
+  })
+}
+
+function New-MockCameraScript {
+  param(
+    [string]$ImageUrl,
+    [string]$CameraLabel
+  )
+
+  $imageUrlJson = $ImageUrl | ConvertTo-Json -Compress
+  $cameraLabelJson = $CameraLabel | ConvertTo-Json -Compress
+
+  return @"
+(() => {
+  const fixtureUrl = $imageUrlJson;
+  const cameraLabel = $cameraLabelJson;
+  const cameraWidth = $CameraWidth;
+  const cameraHeight = $CameraHeight;
+  const frameRate = 30;
+  const canvas = document.createElement("canvas");
+  canvas.width = cameraWidth;
+  canvas.height = cameraHeight;
+  const context = canvas.getContext("2d", { alpha: false });
+  let imagePromise = null;
+
+  function drawCover(image) {
+    const scale = Math.max(cameraWidth / image.naturalWidth, cameraHeight / image.naturalHeight);
+    const drawWidth = image.naturalWidth * scale;
+    const drawHeight = image.naturalHeight * scale;
+    const drawX = (cameraWidth - drawWidth) / 2;
+    const drawY = (cameraHeight - drawHeight) / 2;
+    context.fillStyle = "#111";
+    context.fillRect(0, 0, cameraWidth, cameraHeight);
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+  }
+
+  function loadFixtureImage() {
+    if (imagePromise) {
+      return imagePromise;
+    }
+    imagePromise = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Failed to load mock camera fixture: " + fixtureUrl));
+      image.src = fixtureUrl;
+    });
+    return imagePromise;
+  }
+
+  if (!navigator.mediaDevices) {
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: {},
+      configurable: true
+    });
+  }
+
+  navigator.mediaDevices.getUserMedia = async () => {
+    const image = await loadFixtureImage();
+    drawCover(image);
+    const interval = window.setInterval(() => drawCover(image), Math.max(33, Math.round(1000 / frameRate)));
+    const stream = canvas.captureStream(frameRate);
+    for (const track of stream.getVideoTracks()) {
+      const originalStop = track.stop.bind(track);
+      track.stop = () => {
+        window.clearInterval(interval);
+        originalStop();
+      };
+    }
+    window.__flutterLensMockCamera = {
+      label: cameraLabel,
+      fixtureUrl,
+      width: cameraWidth,
+      height: cameraHeight,
+      mode: "canvas-fixture"
+    };
+    return stream;
+  };
+})();
+"@
+}
+
 function New-ScreenshotPath {
-  param([string]$ViewportLabel, [string]$Stage)
-  return (Join-Path $ScreenshotDir "$RunId-$ViewportLabel-$Stage.png")
+  param([string]$CameraLabel, [string]$ViewportLabel, [string]$Stage)
+  return (Join-Path $ScreenshotDir "$RunId-$CameraLabel-$ViewportLabel-$Stage.png")
 }
 
 function Receive-CdpMessage {
@@ -181,6 +353,8 @@ function Remove-TestChromeProcesses {
 $summary = @()
 $allEvents = @()
 $serverJob = $null
+$cameraConfigs = Resolve-CameraFixtures
+$testCaseIndex = 0
 
 try {
   $serverJob = Start-Job -ScriptBlock {
@@ -191,12 +365,15 @@ try {
 
   Start-Sleep -Seconds 2
 
+  foreach ($camera in $cameraConfigs) {
   for ($index = 0; $index -lt $Viewports.Count; $index++) {
     $viewport = $Viewports[$index]
     $label = $viewport.label
-    $debugPort = $DebugPortBase + $index
-    $profile = Join-Path $ProfileRoot $label
-    $downloadDir = Join-Path $DownloadRoot $label
+    $cameraLabel = $camera.label
+    $debugPort = $DebugPortBase + $testCaseIndex
+    $testCaseIndex += 1
+    $profile = Join-Path $ProfileRoot "$cameraLabel-$label"
+    $downloadDir = Join-Path (Join-Path $DownloadRoot $cameraLabel) $label
     New-Item -ItemType Directory -Force -Path $profile, $downloadDir | Out-Null
 
     $chromeArgs = @(
@@ -208,10 +385,24 @@ try {
       "--remote-debugging-port=$debugPort",
       "--user-data-dir=$profile",
       "--window-size=$($viewport.width),$($viewport.height)",
-      "--use-fake-device-for-media-stream",
       "--use-fake-ui-for-media-stream",
-      "http://127.0.0.1:$ServerPort/"
+      "about:blank"
     )
+    if ($camera.mode -eq "chrome-fake") {
+      $chromeArgs = @(
+        "--headless=new",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--disable-crash-reporter",
+        "--disable-breakpad",
+        "--remote-debugging-port=$debugPort",
+        "--user-data-dir=$profile",
+        "--window-size=$($viewport.width),$($viewport.height)",
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+        "about:blank"
+      )
+    }
 
     $chrome = $null
     $socket = $null
@@ -222,9 +413,9 @@ try {
       Start-Sleep -Seconds 8
 
       $tabs = Invoke-RestMethod "http://127.0.0.1:$debugPort/json"
-      $tab = @($tabs | Where-Object { $_.url -like "http://127.0.0.1:$ServerPort/*" })[0]
+      $tab = @($tabs | Where-Object { $_.type -eq "page" })[0]
       if (-not $tab) {
-        throw "CDP tab not found for $label"
+        throw "CDP tab not found for $cameraLabel / $label"
       }
 
       $socket = [System.Net.WebSockets.ClientWebSocket]::new()
@@ -234,6 +425,16 @@ try {
       Send-Cdp -Socket $socket -Events $events -Method "Runtime.enable" | Out-Null
       Send-Cdp -Socket $socket -Events $events -Method "Log.enable" | Out-Null
       Send-Cdp -Socket $socket -Events $events -Method "Page.enable" | Out-Null
+      if ($camera.mode -eq "canvas-fixture") {
+        $fixtureUrl = "http://127.0.0.1:$ServerPort/$($camera.url)"
+        Send-Cdp -Socket $socket -Events $events -Method "Page.addScriptToEvaluateOnNewDocument" -Params @{
+          source = New-MockCameraScript -ImageUrl $fixtureUrl -CameraLabel $cameraLabel
+        } | Out-Null
+      }
+      Send-Cdp -Socket $socket -Events $events -Method "Page.navigate" -Params @{
+        url = "http://127.0.0.1:$ServerPort/"
+      } | Out-Null
+      Start-Sleep -Seconds 8
       Send-Cdp -Socket $socket -Events $events -Method "Browser.setDownloadBehavior" -Params @{
         behavior = "allow"
         downloadPath = $downloadDir
@@ -245,6 +446,7 @@ try {
   hasP5: typeof p5 !== 'undefined',
   runtimeWidth: typeof width !== 'undefined' ? width : null,
   runtimeHeight: typeof height !== 'undefined' ? height : null,
+  mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null,
   start: typeof StartButton !== 'undefined' && StartButton
     ? {
         x: StartButton.ButtonX,
@@ -256,7 +458,7 @@ try {
     : null
 }))()
 "@
-      Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -ViewportLabel $label -Stage "start")
+      Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "start")
 
       $scan = $null
       $result = $null
@@ -275,10 +477,11 @@ try {
   runtimeWidth: width,
   runtimeHeight: height,
   shutter: { x: shutterX, y: shutterY, r: shutterR },
-  cam: camLayout
+  cam: camLayout,
+  mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null
 }))()
 "@
-        Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -ViewportLabel $label -Stage "scanning")
+        Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning")
 
         if ($scan.state -eq "SCANNING") {
           Invoke-CdpClick -Socket $socket -Events $events -X $scan.shutter.x -Y $scan.shutter.y
@@ -292,11 +495,12 @@ try {
   runtimeHeight: height,
   save: { x: width / 2, y: height - 145 },
   back: { x: width / 2, y: height - 80 },
+  mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null,
   spawnPosition,
   spawnPositionRatio
 }))()
 "@
-          Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -ViewportLabel $label -Stage "result")
+          Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "result")
 
           if ($viewport.testButtons -and $result.state -eq "RESULT") {
             Invoke-CdpClick -Socket $socket -Events $events -X $result.save.x -Y $result.save.y
@@ -325,13 +529,14 @@ try {
   spawnPositionRatio: typeof spawnPositionRatio !== 'undefined' ? spawnPositionRatio : null
 }))()
 "@
-            Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -ViewportLabel $label -Stage "after-back")
+            Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "after-back")
           }
         }
       }
 
       foreach ($event in $events) {
         $allEvents += [pscustomobject]@{
+          camera = $cameraLabel
           viewport = $label
           source = $event.source
           type = $event.type
@@ -340,6 +545,10 @@ try {
       }
 
       $summary += [pscustomobject]@{
+        camera = $cameraLabel
+        cameraMode = $camera.mode
+        cameraFixture = $camera.path
+        cameraSize = if ($camera.mode -eq "canvas-fixture") { "$($CameraWidth)x$($CameraHeight)" } else { $null }
         viewport = $label
         requested = "$($viewport.width)x$($viewport.height)"
         runtime = if ($initial.runtimeWidth) { "$($initial.runtimeWidth)x$($initial.runtimeHeight)" } else { $null }
@@ -357,6 +566,9 @@ try {
       }
     } catch {
       $summary += [pscustomobject]@{
+        camera = $cameraLabel
+        cameraMode = $camera.mode
+        cameraFixture = $camera.path
         viewport = $label
         requested = "$($viewport.width)x$($viewport.height)"
         error = $_.Exception.Message
@@ -373,6 +585,7 @@ try {
         Remove-Item -LiteralPath $profile -Recurse -Force -ErrorAction SilentlyContinue
       }
     }
+  }
   }
 } finally {
   if ($serverJob) {

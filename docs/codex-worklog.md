@@ -926,3 +926,69 @@ fake camera 仍使主色偏綠，對真實照片下的配色自然度判斷有�
 請使用者比較 `rough-wing-butterfly-pattern-2026-05-11` 與 `rough-wing-clean-pattern-2026-05-11`。若 clean 版太淡，可只微增 radial band alpha，不建議恢復深色 rim band；若仍嫌髒，下一步應暫停 rim band，只保留主色粒子與少量內縮色帶。
 
 依使用者最新回饋，下一次處理 pattern 時應優先保留並發展白點點綴，但重新設計放射色帶。建議新增類似 `createRoughWingPatternPlan()` 的事前參數計算流程：像翅膀大輪廓與 Voronoi 網格一樣，先用共同 seed 決定左右翅膀共享的額外紋理配置，例如白點數量、點列位置、放射色帶起訖 progress、色帶寬度與對稱關係；左右翅膀繪製時再各自加入手繪 jitter、筆壓與微小偏移。這樣可以保留手繪差異，但避免 pattern 結構本身左右不協調或太隨機。
+
+---
+
+### 2026-05-11 — CDP 視覺測試支援本機照片假相機
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+擴充 `scripts/run-cdp-visual-test.ps1`，讓 CDP 視覺測試可用 `tests/fixtures/camera/` 裡的本機照片產生 canvas fake camera stream，取代 Chrome 預設綠色 fake camera。
+
+#### 使用者需求
+使用者詢問 Chrome fake camera 永遠是綠色時，如何確認不同背景下的視覺效果。經討論後同意採用 CDP 注入 mock `getUserMedia()` 的方案，並已在 `tests/fixtures/camera/` 放入五張不同大小照片：`cementWall.jpg`、`colorfulToys.jpg`、`darkWood.jpg`、`greenPlants.jpg`、`streets.jpg`。使用者也已在 `.gitignore` 新增 `tests/`，避免本機照片進入版本控制。
+
+#### 實作前理解
+既有 CDP 腳本能穩定操作 Start → Scanning → Result、Save / Back 與多 viewport，但使用 `--use-fake-device-for-media-stream` 時相機畫面固定偏綠，只能驗流程，無法驗真實背景對取色、rough wing、pattern 與 Result 視覺的影響。若改用 `canvas.captureStream()`，可以在不修改正式 app 的前提下，讓 app 仍透過 `navigator.mediaDevices.getUserMedia()` 取得 video stream。
+
+#### 實作方案
+保留預設 Chrome fake camera 行為；當使用 `-CameraFixture` 時，腳本改為先開 `about:blank`、透過 `Page.addScriptToEvaluateOnNewDocument` 注入 mock camera，再 `Page.navigate` 到本機頁面。mock camera 會載入指定 fixture 圖片，以 cover 方式畫到 `CameraWidth x CameraHeight` canvas，並用 `canvas.captureStream(30)` 回傳假相機影像。產物命名加入 camera label，避免不同 fixture 截圖互相覆蓋。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/visual-test-log.md`
+- `scripts/run-cdp-visual-test.ps1`
+- `.gitignore`
+- `tests/fixtures/camera/` 中的五張 fixture 圖片清單與尺寸
+
+#### 修改過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇腳本注入 mock camera，而不是把測試模式寫進正式 app，避免 production code 因測試 fixture 增加分支。預設仍保留原本 Chrome fake camera，讓舊流程可用；指定 `-CameraFixture` 才進入 canvas fixture camera。camera stream 解析度與 browser viewport 分開設定，因真實手機上相機影像尺寸與螢幕 viewport 本來就不同。
+
+#### 遇到的問題
+需要確保注入發生在 app 呼叫 `getUserMedia()` 前，因此不能直接讓 Chrome 啟動到首頁；腳本改為先開 `about:blank`，建立 CDP 連線並注入，再導向首頁。fixture 圖片在本機 server 下提供，必須確認路徑位於專案根目錄內。landscape Start button 不可見的既有問題仍存在。
+
+#### 嘗試過的解法
+先檢查 fixture 檔案與 `.gitignore`，確認五張圖片都在 `tests/fixtures/camera/`，尺寸皆為直式高解析。接著用 PowerShell parser 檢查腳本語法，再執行 `.\scripts\run-cdp-visual-test.ps1 -RunId cdp-fixture-greenPlants-2026-05-11 -CameraFixture greenPlants -CameraWidth 720 -CameraHeight 1280` 驗證完整流程。
+
+#### 最終解法
+腳本新增 `-CameraFixture`、`-CameraFixtureDir`、`-CameraWidth`、`-CameraHeight`。`-CameraFixture default` 使用舊的 Chrome fake camera；指定檔名或 basename 時使用 canvas fixture camera；指定 `all` 時會依檔名排序跑資料夾內的 `jpg`、`jpeg`、`png`、`webp`。截圖命名改為 `<runId>-<cameraLabel>-<viewportLabel>-<stage>.png`，下載路徑改為 `downloads/<cameraLabel>/<viewportLabel>/FlutterLens-result.png`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：Scanning / Result 背景應為植物照片，不再是預設綠色 fake camera
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 772,584 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。截圖確認 Scanning 與 Result 背景為 `greenPlants.jpg`。landscape 仍停在 `START`，`startVisible=false`
+- 手機 / AR 後續確認事項：真實手機相機、後鏡頭曝光 / 對焦、權限流程、DeviceOrientation、觸控手感與效能仍需實機確認
+
+#### 尚未解決的風險
+canvas fixture camera 改善自動化視覺回歸，但仍不能代表真實手機鏡頭的曝光、噪訊、對焦、廣角畸變與效能。`-CameraFixture all` 尚未實際跑完整五張，若一次跑全部 fixture 與三個 viewport，測試時間會明顯增加。landscape Start page 按鈕不可見仍是既有版面風險。
+
+#### 使用者回饋或修正
+使用者同意實作方案 2，並提供五張本機測試照片與 `.gitignore` 設定。本次實作依此保留照片在本機、不納入版本控制。
+
+#### 建議的下一步
+用 `-CameraFixture all` 跑完整五張 fixture，比較 `greenPlants`、`darkWood`、`cementWall`、`colorfulToys`、`streets` 下 rough wing 與 Result UI 是否穩定。若測試時間太長，可先針對正在調整的視覺功能指定單張 fixture。後續也建議修正 landscape Start button 不可見與 Result 昆蟲可能被按鈕遮擋的既有問題。

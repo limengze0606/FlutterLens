@@ -8,3 +8,5 @@ node_modules/
 docs/cdp-runs/
 docs/cdp-downloads-*/
 docs/chrome-profile*/
+
+tests/

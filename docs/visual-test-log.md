@@ -580,3 +580,50 @@ rough wing 應保留蝴蝶翅膀 pattern 的方向，但不再出現上一版的
 
 ### 備註 / 風險
 本版將 pattern 從高辨識度改為較乾淨的淡紋理，可能在真實照片上顯得偏弱。若需要再加強，建議只微增 radial band alpha 或 count，不建議恢復深色 rim band。CDP fake camera 無法取代真實手機色彩與效能測試。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 CDP 視覺測試腳本新增 canvas fixture camera，可用本機照片取代 Chrome 預設綠色 fake camera。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測試不同背景照片下的 UI 與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+
+### 預期行為
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId cdp-fixture-greenPlants-2026-05-11 -CameraFixture greenPlants -CameraWidth 720 -CameraHeight 1280` 時，Scanning 與 Result 背景應顯示 `greenPlants.jpg`，不再是 Chrome 預設綠色 fake camera。portrait / compact 應完成 Start → Scanning → Result；portrait 應完成 Save / Back。
+
+### 實際觀察
+`portrait-390x844` 完成 `START → SCANNING → RESULT`，`videoReady=true`，`hasResultPhoto=true`，Save 下載 `FlutterLens-result.png`，大小 772,584 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。`compact-360x740` 完成 `START → SCANNING → RESULT`。`landscape-844x390` 仍因 Start button 不可見停在 `START`，這是既有橫向版面風險。截圖確認 Scanning 與 Result 背景為真實植物照片。
+
+### 截圖
+- `docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/screenshots/cdp-fixture-greenPlants-2026-05-11-greenPlants-portrait-390x844-scanning.png`
+- `docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/screenshots/cdp-fixture-greenPlants-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 其他 Start / compact / landscape 截圖同樣位於 `docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/screenshots/`
+- 下載驗證：`docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆 console event，與前次已知的非阻斷 404 resource 訊息一致，未阻止 p5.js、mock camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機相機下的取色與 fixture 測試結果趨勢一致
+- [ ] 用其他 fixture，如 `darkWood`、`cementWall`、`colorfulToys`、`streets`，檢查 rough wing 與 Result UI 的穩定性
+
+### 備註 / 風險
+canvas fixture camera 可以改善「永遠綠色 fake camera」造成的視覺判斷盲點，也能分開測 viewport 與 camera stream 解析度。但它仍是合成 video stream，不能代表手機鏡頭曝光、對焦、噪訊、權限流程與裝置效能。`tests/` 已被 `.gitignore` 忽略，fixture 圖片保留為本機測試資產。
