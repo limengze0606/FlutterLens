@@ -1649,3 +1649,77 @@ CDP fake camera 不能取代真實手機 AR / camera 測試。Result spawn 與 S
 
 #### 建議的下一步
 下一輪建議先修正測試與目標判讀：確認 CDP 截圖能穩定取到真正的 rough butterfly，且畫面中必須清楚出現 body。實作上應讓 body axis 直接讀取 posePlan，做出更明顯的側飛 / 俯仰身體姿態，並讓翅根、前翅、後翅以 body 為主軸連動。若 body 不可見或仍像無身體蛾形模板，應視為本輪失敗而不是通過。
+
+---
+
+### 2026-05-11 — 強化 Rough Butterfly Body Axis 姿態
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者回饋，調整 rough butterfly 的 body axis，讓身體本身讀取 `posePlan` 並以更清楚的頭、胸、腹主軸帶動全身姿態。
+
+#### 使用者需求
+使用者要求調整 body axis。上一輪使用者給 `6.5/10`，指出有變化但不夠明顯；身體本身需要有更大的角度變化來帶動全身。使用者也指出前一輪截圖更像沒有身體的蛾模板，因此下一輪必須確認截圖中的 body 清楚可見。
+
+#### 實作前理解
+前一輪 `posePlan` 主要作用在翅膀與整體 layer transform；`RoughInsectBody.js` 的 body axis 還是固定細長筆勢，沒有直接讀取 yaw / pitch / flap phase。這會造成翅膀雖然有近遠側變化，但 body 不夠像整隻昆蟲的骨架。另有測試問題：Result spawn 常靠近 Save / Back 按鈕，會遮住 body，使視覺判讀不可靠。
+
+#### 實作方案
+修改 `drawRoughBodyGestureAxis()`、`drawRoughBodyRhythmMarks()`、`drawRoughBodyGestureAntennae()`，讓 body 點位由 `getRoughPoseBodyPoint()` 產生，並依 `posePlan.yaw`、`posePlan.pitch`、`posePlan.phase.lift`、`posePlan.nearSide` 做頭、胸、腰、腹、尾的明顯偏移。加強主軸 stroke weight、頭部 pressure dot 與胸部量感。同步在 CDP 測試腳本新增 `-ForcedSpawnRatioX` / `-ForcedSpawnRatioY`，讓視覺驗證可把昆蟲固定在較不會被按鈕遮擋的位置。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/ResultPage.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本輪不再調翅膀 silhouette，而是把 body 視為通過條件。CDP forced spawn 只屬於測試工具，不改 production Result page；目的為避免按鈕遮擋造成錯誤審美判讀。Body 顏色仍保留既有黑色，不覆蓋使用者先前可能調過的色彩方向。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-body-axis-pose-v1-2026-05-11` 中，compact 可看出 body 變清楚，但 portrait / landscape 仍受 Save / Back 按鈕遮擋。這證明單靠原本 shutter 位置產生的 spawn 不適合評估 body axis。
+
+#### 嘗試過的解法
+先改 body axis，再跑 `node --check` 與 CDP。看到按鈕遮擋後，修改 `scripts/run-cdp-visual-test.ps1`，新增 forced spawn ratio。第二輪用 `-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36` 重跑，使昆蟲固定在畫面上方偏左，三個 viewport 都能看到 body。
+
+#### 最終解法
+`RoughInsectBody.js` 現在會用 pose-aware points 畫 head、thorax、waist、abdomen、tail，並用較粗的 pencil stroke、native pressure hints、胸部橢圓量感與較大的頭部點強化可讀性。觸角也會依 pose yaw 做些微 skew。`scripts/run-cdp-visual-test.ps1` 支援 `-ForcedSpawnRatioX` / `-ForcedSpawnRatioY`，方便視覺測試固定昆蟲位置。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：第二輪 `-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-body-axis-pose-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：body 清楚可見，且不再像無身體蛾模板
+- 實際觀察：portrait / compact / landscape 都能看到 body；compact 最清楚，portrait 也能辨識觸角、頭部、胸腹軸線與左右翅。整體已不再是無身體模板，但身體角度仍偏正面。
+
+#### Codex 審美自評
+本輪約 `7/10`。優點是 body 真的成為骨架，頭、觸角、胸部與腹部可讀性都比前版好，CDP forced spawn 也讓評圖可靠許多。弱點是姿態還偏正面與對稱，沒有達到參考圖中側飛、俯仰、翻轉那些更戲劇性的角度。這輪完成「body 可見且能帶動全身」的基礎，但下一輪需要改成更明確的 pose preset。
+
+#### 使用者審美回饋
+尚未收到本輪 body axis 調整後回饋。上一輪使用者指出變化不夠明顯，且前一輪像無身體蛾模板。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。Body 在深綠背景上仍可能依賴黑線可讀，真實背景更暗時可能被吃掉。姿態仍由 random 連續值產生，可能缺乏一眼可辨的多姿態差異。
+
+#### 使用者回饋或修正
+使用者回饋：Codex 對 `rough-butterfly-body-axis-pose-v2-2026-05-11` 的自評準確，提出的下一步修改方向也合理。這表示目前「body 已較清楚，但姿態仍偏正面；下一輪應改做離散 pose preset 讓差異更明顯」的判斷可作為後續方向。
+
+#### 建議的下一步
+下一輪建議從 random pose 改成離散 pose preset，例如：正面展翅、三分之二側飛、側身上拍、俯視下拍、仰角半收。每個 preset 明確指定 body lean、近遠側翅膀大小、遮擋順序與 flap phase，才能更接近參考圖中多個不同角度的蝴蝶。

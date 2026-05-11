@@ -50,31 +50,42 @@ function drawRoughInsectBody(g, bodyPlan, seedValue) {
 function drawRoughBodyGestureAxis(g, plan, ink, u) {
   let x = plan.centerX;
   let side = plan.gestureSide || 1;
+  let pose = plan.posePlan || null;
   let rootY = plan.rootY;
   let bottomY = plan.bottomY;
+  let poseLean = pose ? pose.yaw * 1.45 * u + pose.pitch * 0.45 * u : 0;
+  let flapLean = pose ? pose.phase.lift * 0.58 * u : 0;
+  let bellySwing = pose ? pose.nearSide * Math.abs(pose.yaw) * 1.15 * u : 0;
+  let head = getRoughPoseBodyPoint(plan, -0.16, -side * 0.12 * u + poseLean * 0.18, -0.22 * u + flapLean * 0.22);
+  let thorax = getRoughPoseBodyPoint(plan, 0.08, poseLean * 0.38, 0);
+  let waist = getRoughPoseBodyPoint(plan, 0.34, poseLean * 0.7 + bellySwing * 0.22, 0.06 * u);
+  let abdomen = getRoughPoseBodyPoint(plan, 0.68, poseLean + bellySwing * 0.45, 0.12 * u);
+  let tail = getRoughPoseBodyPoint(plan, 1.0, poseLean * 1.2 + bellySwing, pose && pose.pitch > 0 ? 0.5 * u : 0);
 
   let points = [
-    [x - side * 0.08 * u, rootY - 0.38 * u, 0.18],
-    [x + side * 0.03 * u, rootY + 0.68 * u, 0.72],
-    [x + plan.curveX * 0.58, rootY + 2.15 * u, 0.9],
-    [x + plan.curveX * 0.78, rootY + 4.1 * u, 0.56],
-    [x + plan.curveX * 0.28, bottomY, 0.1]
+    [head.x, head.y, 0.22],
+    [thorax.x, thorax.y, 0.86],
+    [waist.x, waist.y, 1.0],
+    [abdomen.x, abdomen.y, 0.66],
+    [tail.x, tail.y, 0.16]
   ];
 
   drawHumanBrushStroke(g, points, {
     brushName: "pencil1",
     color: ink,
-    brushWeight: roughRandom(g, 0.58, 0.82),
-    strokeWeight: roughRandom(g, 1.3, 2),
-    curvature: 0.18,
+    brushWeight: roughRandom(g, 0.72, 0.98),
+    strokeWeight: roughRandom(g, 2.0, 2.85),
+    curvature: 0.22,
     jitter: 0.035 * u
   });
 
+  drawRoughThoraxMass(g, thorax.x, thorax.y, waist.x, waist.y, ink, u, pose);
+
   if (roughRandom(g, 0, 1) < 0.55) {
     let echoPoints = [
-      [x - side * 0.18 * u, rootY + 0.28 * u, 0.08],
-      [x - side * 0.34 * u, rootY + 1.25 * u, 0.28],
-      [x - side * 0.18 * u + plan.curveX * 0.2, rootY + 2.45 * u, 0.16]
+      [thorax.x - side * 0.28 * u, thorax.y + 0.1 * u, 0.1],
+      [waist.x - side * 0.42 * u, waist.y + 0.2 * u, 0.32],
+      [abdomen.x - side * 0.24 * u, abdomen.y + 0.08 * u, 0.18]
     ];
     drawHumanBrushStroke(g, echoPoints, {
       brushName: "pencil1",
@@ -89,38 +100,45 @@ function drawRoughBodyGestureAxis(g, plan, ink, u) {
 
 function drawRoughBodyRhythmMarks(g, plan, ink, softInk, u) {
   let side = plan.gestureSide || 1;
-  let collarY = plan.rootY + roughRandom(g, -0.18 * u, 0.06 * u);
-  let collarLen = roughRandom(g, 0.62 * u, 0.92 * u);
+  let pose = plan.posePlan || null;
+  let poseLean = pose ? pose.yaw * 0.68 * u + pose.phase.lift * 0.22 * u : 0;
+  let collar = getRoughPoseBodyPoint(plan, 0.04, poseLean, roughRandom(g, -0.18 * u, 0.06 * u));
+  let collarLen = roughRandom(g, 0.92 * u, 1.32 * u);
 
   drawHumanBrushStroke(g, [
-    [plan.centerX - side * collarLen * 0.5, collarY + 0.08 * u, 0.1],
-    [plan.centerX - side * collarLen * 0.1, collarY - 0.08 * u, 0.42],
-    [plan.centerX + side * collarLen * 0.42, collarY + 0.02 * u, 0.16]
+    [collar.x - side * collarLen * 0.5, collar.y + 0.08 * u, 0.12],
+    [collar.x - side * collarLen * 0.1, collar.y - 0.08 * u, 0.48],
+    [collar.x + side * collarLen * 0.42, collar.y + 0.02 * u, 0.18]
   ], {
     brushName: "pencil1",
     color: softInk,
-    brushWeight: roughRandom(g, 0.26, 0.4),
-    strokeWeight: roughRandom(g, 0.34, 0.52),
+    brushWeight: roughRandom(g, 0.34, 0.52),
+    strokeWeight: roughRandom(g, 0.68, 1.05),
     curvature: 0.2,
     jitter: 0.02 * u
   });
 
-  drawRoughPressureDot(g, plan.centerX, plan.headY, ink, roughRandom(g, 0.22 * u, 0.34 * u));
+  let head = getRoughPoseBodyPoint(plan, -0.18, poseLean * 0.26, -0.2 * u);
+  drawRoughPressureDot(g, head.x, head.y, ink, roughRandom(g, 0.36 * u, 0.52 * u));
 }
 
 function drawRoughBodyGestureAntennae(g, plan, ink, u) {
-  let baseX = plan.centerX;
-  let baseY = plan.headY - 0.12 * u;
+  let pose = plan.posePlan || null;
+  let lean = pose ? pose.yaw * 0.52 * u + pose.phase.lift * 0.16 * u : 0;
+  let head = getRoughPoseBodyPoint(plan, -0.2, lean, -0.22 * u);
+  let baseX = head.x;
+  let baseY = head.y - 0.12 * u;
   let spread = plan.antennaSpread;
-  let len = plan.antennaLength;
+  let len = plan.antennaLength * (pose ? 1 + Math.abs(pose.yaw) * 0.16 : 1);
   let lift = roughRandom(g, 0.22 * u, 0.58 * u);
   let curl = roughRandom(g, 0.08 * u, 0.28 * u);
+  let antennaSkew = pose ? pose.yaw * 0.38 * u : 0;
 
   drawHumanBrushStroke(g, [
     [baseX - 0.04 * u, baseY, 0.08],
-    [baseX - spread * 0.28, baseY - len * 0.32, 0.32],
-    [baseX - spread * 0.78, baseY - len * 0.72, 0.2],
-    [baseX - spread - curl, baseY - len + lift, 0.04]
+    [baseX - spread * 0.28 + antennaSkew * 0.3, baseY - len * 0.32, 0.32],
+    [baseX - spread * 0.78 + antennaSkew * 0.62, baseY - len * 0.72, 0.2],
+    [baseX - spread - curl + antennaSkew, baseY - len + lift, 0.04]
   ], {
     brushName: "pencil1",
     color: ink,
@@ -132,9 +150,9 @@ function drawRoughBodyGestureAntennae(g, plan, ink, u) {
 
   drawHumanBrushStroke(g, [
     [baseX + 0.04 * u, baseY, 0.08],
-    [baseX + spread * 0.28, baseY - len * 0.32, 0.32],
-    [baseX + spread * 0.78, baseY - len * 0.72, 0.2],
-    [baseX + spread + curl, baseY - len + lift, 0.04]
+    [baseX + spread * 0.28 + antennaSkew * 0.3, baseY - len * 0.32, 0.32],
+    [baseX + spread * 0.78 + antennaSkew * 0.62, baseY - len * 0.72, 0.2],
+    [baseX + spread + curl + antennaSkew, baseY - len + lift, 0.04]
   ], {
     brushName: "pencil1",
     color: ink,
@@ -143,6 +161,36 @@ function drawRoughBodyGestureAntennae(g, plan, ink, u) {
     curvature: 0.28,
     jitter: 0.018 * u
   });
+}
+
+function getRoughPoseBodyPoint(plan, t, xOffset = 0, yOffset = 0) {
+  let rootY = plan.rootY;
+  let bodyLen = plan.bottomY - rootY;
+  let curve = plan.curveX || 0;
+  let tClamped = Math.max(-0.35, Math.min(1.15, t));
+  let arc = Math.sin(Math.max(0, Math.min(1, tClamped)) * Math.PI);
+
+  return {
+    x: plan.centerX + curve * arc + xOffset,
+    y: rootY + bodyLen * tClamped + yOffset
+  };
+}
+
+function drawRoughThoraxMass(g, x1, y1, x2, y2, ink, u, pose) {
+  g.push();
+  g.noFill();
+  g.stroke(ink);
+  g.strokeCap(ROUND);
+  g.strokeJoin(ROUND);
+  g.strokeWeight(Math.max(1.2, u * 0.22));
+
+  let angle = Math.atan2(y2 - y1, x2 - x1);
+  let rx = u * (pose ? 0.62 + Math.abs(pose.yaw) * 0.18 : 0.62);
+  let ry = u * 0.38;
+  g.translate((x1 + x2) * 0.5, (y1 + y2) * 0.5);
+  g.rotate(angle);
+  g.ellipse(0, 0, rx, ry);
+  g.pop();
 }
 
 function drawHumanBrushStroke(g, points, options) {

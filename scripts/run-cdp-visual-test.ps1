@@ -11,6 +11,8 @@ param(
   [int]$CameraWidth = 720,
   [int]$CameraHeight = 1280,
   [double]$ForcedFinalPitch = [double]::NaN,
+  [double]$ForcedSpawnRatioX = [double]::NaN,
+  [double]$ForcedSpawnRatioY = [double]::NaN,
   [switch]$KeepProfiles
 )
 
@@ -499,6 +501,23 @@ try {
             $pitchValue = $ForcedFinalPitch.ToString($pitchLiteral)
             Invoke-CdpEval -Socket $socket -Events $events -Expression "(() => { finalPitch = $pitchValue; return finalPitch; })()" | Out-Null
             Start-Sleep -Milliseconds 250
+          }
+
+          if (-not [double]::IsNaN($ForcedSpawnRatioX) -and -not [double]::IsNaN($ForcedSpawnRatioY)) {
+            $ratioFormat = [Globalization.CultureInfo]::InvariantCulture.NumberFormat
+            $ratioX = $ForcedSpawnRatioX.ToString($ratioFormat)
+            $ratioY = $ForcedSpawnRatioY.ToString($ratioFormat)
+            Invoke-CdpEval -Socket $socket -Events $events -Expression @"
+(() => {
+  spawnPositionRatio = { x: $ratioX, y: $ratioY };
+  updateSpawnPositionForViewport();
+  resultSceneFinalized = false;
+  if (typeof loop === 'function') loop();
+  if (typeof redraw === 'function') redraw();
+  return { spawnPosition, spawnPositionRatio };
+})()
+"@ | Out-Null
+            Start-Sleep -Milliseconds 700
           }
 
           $result = Invoke-CdpEval -Socket $socket -Events $events -Expression @"

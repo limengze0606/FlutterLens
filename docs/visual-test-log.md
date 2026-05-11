@@ -997,3 +997,61 @@ Codex 自評：`6.5/10`。優點是姿態系統已經開始工作，昆蟲不再
 
 ### 備註 / 風險
 目前只完成第一版偽 3D pose，不是真正透視投影。使用者回饋顯示本次結果不能只看翅膀 silhouette，還必須確認 body 是否存在且足以帶動全身姿態。下一步應讓 body stroke 直接讀取 posePlan 做更明顯的軸線彎折，並改善 Result spawn 與按鈕遮擋；若截圖中 body 不清楚，該截圖不應作為成功視覺驗證。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough butterfly body axis 讀取 `posePlan` 後，身體是否能清楚可見並帶動翅膀姿態。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：第二輪使用 `-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`，避免 Save / Back 按鈕遮住昆蟲
+
+### 預期行為
+body 不應只是細線或消失在翅膀中，而應作為清楚的黑色主軸出現。身體的頭、胸、腰、腹、尾應依 `posePlan` 產生可見的偏移與角度，翅根、前翅、後翅應像是被 body axis 帶動，而不是單獨變形成無身體的蛾模板。
+
+### 實際觀察
+第一輪 `rough-butterfly-body-axis-pose-v1-2026-05-11` 中，compact 的 body 已比前版清楚，但 portrait / landscape 仍被 Save / Back 按鈕遮擋，無法公平評估。第二輪在 CDP 腳本新增 forced spawn ratio 後，`rough-butterfly-body-axis-pose-v2-2026-05-11` 的三個 viewport 都能清楚看到 body；portrait 與 compact 可讀出頭部、觸角、胸部與腹部主軸，已不再像無身體模板。landscape 仍靠近按鈕，但昆蟲本體位於上方，body 可見。
+
+### 截圖
+- 最終第二輪 portrait：`docs/cdp-runs/rough-butterfly-body-axis-pose-v2-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v2-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 最終第二輪 compact：`docs/cdp-runs/rough-butterfly-body-axis-pose-v2-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v2-2026-05-11-greenPlants-compact-360x740-result.png`
+- 最終第二輪 landscape：`docs/cdp-runs/rough-butterfly-body-axis-pose-v2-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v2-2026-05-11-greenPlants-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-butterfly-body-axis-pose-v1-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v1-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-butterfly-body-axis-pose-v1-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v1-2026-05-11-greenPlants-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-butterfly-body-axis-pose-v1-2026-05-11/screenshots/rough-butterfly-body-axis-pose-v1-2026-05-11-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7/10`。優點是 body 真的成為視覺骨架，頭部、觸角、胸腹主軸都能讀出來，蝴蝶不再像無身體的蛾模板；CDP forced spawn 也讓截圖評估更可靠。弱點是 body 的角度變化仍偏正面，尚未出現參考圖中那種明顯側飛、俯仰或翻轉的姿態差異；翅膀的近遠側投影也還偏保守。下一輪若繼續，應用更明確的 pose preset，而不是只靠連續 random。
+
+### 使用者審美回饋
+使用者回饋：Codex 的自評準確，提出的修改方向也合理。也就是目前 `7/10` 的判斷可沿用：body 已清楚可見，但姿態仍偏正面，下一輪應以離散 pose preset 做出更明顯的側飛、俯仰、翻轉差異。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後姿態不會每幀抖動
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機上 body 不會被背景吃掉
+- [ ] 真實手機上 body 與翅膀角度連動可讀
+- [ ] 多個 seed 中能出現明顯側飛 / 俯仰 / 翻轉差異
+
+### 備註 / 風險
+本輪改善了 body 可見度與測試截圖位置，但仍未解決「姿態差異要更大」的核心美術目標。若下一輪繼續，應設計離散 pose preset，例如正面展翅、三分之二側飛、側身上拍、俯視下拍，而不是只靠 random yaw / pitch 小幅變化。

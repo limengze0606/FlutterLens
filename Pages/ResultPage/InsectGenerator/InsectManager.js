@@ -94,7 +94,6 @@ function drawRoughInsect(insectLayer, x, y) {
     else {
         insectType = 1;
     }
-    insectType = 0;
     //flapAngle =random(-PI / 4, PI / 4);
     flapAngle = 0;
     wingColorFillType = floor(random(3)); // 0, 1, 或 2
