@@ -1516,3 +1516,136 @@ CDP fake camera 不能取代真實手機 AR / camera 測試。不同 seed、不�
 
 #### 建議的下一步
 下一步不要再只靠 `portraitAmount` 壓縮比例；應設計後翅專屬的 rounder outline，讓後翅有自己的上緣、外緣與圓鈍下緣，而不是沿用前翅輪廓再縮放。目標是讓後翅更像真實蝴蝶的下翅瓣，並用較明顯的輪廓差異解決「改善但不大」的問題。
+
+---
+
+### 2026-05-11 — 規劃昆蟲姿態矩陣與振翅階段
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+閱讀專案規則、工作紀錄與 rough insect 相關程式，評估是否可讓生成昆蟲像參考圖一樣呈現不同姿態、角度與振翅階段。
+
+#### 使用者需求
+使用者提供一張紅色線稿蝴蝶參考圖，希望畫出來的昆蟲能有不同姿態或角度。期待透過類似矩陣轉換的方式，讓身體有不同角度，翅膀隨身體角度變化，並加入模擬振翅的不同階段，呈現昆蟲在立體空間中以不同角度飛行的樣子。
+
+#### 實作前理解
+目前 rough butterfly 已有雙翅與 body plan。`drawRoughInsect()` 會先 translate 到生成位置，再給整隻昆蟲一個 2D 隨機旋轉；`createRoughInsectBodyPlan()` 產生 body 軸線、wing root 與 gestureSide；`createRoughButterflyWingPairPlans()` 產生 fore / hind 兩對翅膀，但翅膀姿態主要仍是 2D 平面輪廓與左右鏡像縮放。若要做參考圖那種不同角度，適合在 body plan 與 wing pair plan 之間新增一層 `posePlan`，用偽 3D 投影控制 body yaw / pitch / roll、左右翅膀開合與振翅 phase。
+
+#### 實作方案
+先不直接改程式，先提出分階段方案：第一階段建立 `posePlan` 與 2D affine / pseudo-3D 投影工具，讓 body 與 wing root 共用同一姿態座標；第二階段讓 fore / hind wings 依 posePlan 改變左右縮放、旋轉、垂直 offset 與遮擋順序；第三階段加入 `flapPhase`，用 3 到 5 個離散振翅階段產生上拍、平展、下拍等 silhouette；第四階段用 CDP `-ForcedFinalPitch 0` 截圖比較多個 pose seed，進行審美自評。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+此需求可行，但建議先做「偽 3D 姿態系統」而不導入真正 3D renderer。原因是目前專案的強項是 p5.brush 手繪線稿與 2D compositing；若直接改成 3D mesh，會破壞既有筆觸系統。姿態矩陣應成為生成計畫的一層資料，而不是散落在各個 draw function 的臨時 rotate / scale。
+
+#### 遇到的問題
+目前 `flapAngle` 在 rough insect 路徑中固定為 `0`；整體 `randomRot` 只有平面旋轉，不能表現立體飛行角度。雙翅雖已有 fore / hind，但 wing outline 還沒有真正針對不同視角改變輪廓與遮擋。
+
+#### 嘗試過的解法
+本階段只做閱讀與方案設計，未修改功能程式。已確認最適合接入點是 `drawRoughInsect()` 建立 `currentSeed` 與 `roughBodyPlan` 之後、呼叫 `drawRoughInsectWings()` 與 `drawRoughInsectBody()` 之前。
+
+#### 最終解法
+尚未實作。建議下一步在使用者同意後新增 `RoughInsectPose.js` 或在現有 rough generator 中加入小型 pose helpers，先完成 6 到 9 種可辨識的靜態姿態，而不是一開始追求連續動畫。
+
+#### 視覺驗證紀錄
+本階段未修改視覺功能，因此未執行瀏覽器截圖。若進入實作，需用既有 CDP 流程測 `portrait-390x844`、`compact-360x740`、`landscape-844x390`，並固定 rough butterfly 類型做多 pose 對照。
+
+#### Codex 審美自評
+目前僅評估方向，暫不給成品分數。參考圖的重點不是精確透視，而是「每隻蝴蝶像一筆畫出不同瞬間」：有的側飛、有的翻轉、有的展平、有的翅膀半收。實作時姿態差異要大到一眼可辨，不能只做微小 scale 差異。
+
+#### 使用者審美回饋
+使用者希望昆蟲能像參考圖一樣有不同姿態或角度，身體與翅膀能透過類似矩陣轉換連動，並加入振翅階段，模擬立體空間中不同角度飛行。
+
+#### 尚未解決的風險
+若每幀重新 random，振翅與姿態可能抖動，後續可能需要先讓 result insect 的 seed / pose 穩定。偽 3D 投影過強時可能讓手繪線稿變得機械；投影過弱則看不出差異。實作後仍需真實手機檢查可讀性與按鈕遮擋。
+
+#### 使用者回饋或修正
+等待使用者確認是否採用此分階段方案，以及第一輪要優先做靜態姿態、振翅階段，或兩者一起做最小版本。
+
+#### 建議的下一步
+若使用者同意，第一輪建議做靜態姿態系統：建立 `posePlan`，用 6 個 pose preset 測試 body axis、wing root、左右 fore / hind wings 的連動與遮擋。通過後第二輪再加入 `flapPhase`。
+
+---
+
+### 2026-05-11 — 實作 Rough Butterfly 偽 3D 姿態與振翅 phase
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+在 rough butterfly 中加入第一版 `posePlan`，讓昆蟲不只平面旋轉，而能依 yaw / pitch / roll、近遠側與離散振翅 phase 產生不同飛行姿態。
+
+#### 使用者需求
+使用者確認可以開始實作與測試，希望昆蟲能像參考圖一樣有不同姿態或角度：身體角度能透過類似矩陣轉換改變，翅膀跟著身體連動，並加入模擬振翅的不同階段，呈現立體空間中不同角度飛行的感覺。
+
+#### 實作前理解
+目前 rough butterfly 已有 body plan 與 fore / hind 雙翅，但主要仍靠整體 `rotate()` 與左右鏡像翅膀呈現。`flapAngle` 固定為 `0`，沒有實際振翅階段。最合適的第一輪不是導入真正 3D renderer，而是在既有 p5.brush 2D 手繪座標上加一層偽 3D pose：讓整隻昆蟲有 roll 與縮放投影，讓左右翅有近遠側差異與不同繪製順序。
+
+#### 實作方案
+新增 `createRoughInsectPosePlan()`，由 seed 產生 `yaw`、`pitch`、`roll`、`phaseIndex`、`nearSide`、近遠側 scale / y offset / root skew / depth tilt。`drawRoughInsect()` 在 rough butterfly 時建立 posePlan，套用整體 roll 與 body scale，並把 posePlan 掛到 bodyPlan。`createRoughButterflyWingPairPlans()` 依 phase 改變 fore / hind 的 length、tipY、yOff 與 rotation。`drawRoughWingPairFromPlan()` 改為依 nearSide 決定左右翅繪製順序，並在 `drawRoughWingSideFromPlan()` 中套用近遠側縮放、位移與旋轉。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `scripts/run-cdp-visual-test.ps1`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本輪只改 rough butterfly，避免影響其他 insect type。未新增外部依賴，也未改 p5.brush、body 顏色或使用者先前自行調整的 body 筆刷粗細。第一輪截圖顯示姿態過度折疊，因此第二輪降低 phase fold / spread 的極端程度、近遠側縮放與 depth tilt，讓視角差異保留但 silhouette 不至於變成兩片直立葉。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-pose-flap-v1-2026-05-11` 的功能流程通過，但 visual 上 portrait / compact 太像兩片直立葉片，四翅與身體不易讀出。差異檢查時也發現一次 patch 誤動到一般 `drawInsect()` 的隨機旋轉區塊，已補回，避免影響非 rough 路徑。
+
+#### 嘗試過的解法
+先建立 `posePlan` 與 near/far wing transform，跑 `node --check` 與 CDP。看到第一輪折翅太強後，第二輪大幅調低最極端振翅 phase、近遠側 scale、root skew 與 depth tilt，再重跑語法檢查與 CDP 視覺測試。第二輪後已能看出半收翅飛行姿態，因此依使用者先前偏好停止自我迭代。
+
+#### 最終解法
+`RoughInsectWings.js` 新增 `createRoughInsectPosePlan()` 與 `drawRoughWingSideFromPlan()`。rough butterfly 現在會以 seed 產生 5 種離散振翅 phase，並讓 fore / hind wings 隨 phase 改變展開長度、上下拍位置與旋轉；左右翅依 yaw 分近遠側，近側稍大、遠側稍小且先畫，形成簡單遮擋與立體感。`InsectManager.js` 只在 rough butterfly 時套用 posePlan；其他 rough 類型維持原本平面隨機旋轉。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過；`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-pose-flap-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：rough butterfly 應呈現非平面旋轉的飛行姿態，左右翅膀有近遠側差異，振翅 phase 造成可辨的半收 / 平展 / 下拍 silhouette
+- 實際觀察：第二輪比第一輪自然，compact / landscape 的半收翅輪廓較穩定；portrait 被 Save / Back 按鈕遮擋，身體與後翅仍偏弱
+
+#### Codex 審美自評
+本輪約 `6.5/10`。優點是姿態系統已開始工作，蝴蝶不再只是平面旋轉，第二輪也比第一輪更像半收翅飛行狀態。弱點是身體軸線還沒有足夠參與 pose，後翅也容易被前翅與背景吃掉；參考圖的輕盈、多角度線稿感只做到骨架，還沒完全到位。本輪做了一次明顯視覺修正後停止，等待使用者評圖。
+
+#### 使用者審美回饋
+尚未收到本輪成品回饋。使用者本輪指示是可以開始做測試。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。Result spawn 與 Save / Back 按鈕遮擋仍會干擾 portrait 評圖。`drawRoughInsect()` 既有每次 draw 重新 random 的風險仍可能造成姿態或種子不穩。若要更接近參考圖，下一步需要讓 body stroke 本身也依 posePlan 變形，而不只是整體縮放與旋轉。
+
+#### 使用者回饋或修正
+使用者針對 `rough-butterfly-pose-flap-v2-2026-05-11` 給 `6.5/10`。使用者認為確實有變化，但變化還不夠明顯；身體本身也需要有更大的角度變化來帶動全身。使用者也指出目前截圖流程或判讀沒有成功取到真正的蝴蝶部分，因為剛才看到的結果更像沒有身體的蛾模板，而不是有身體姿態帶動的蝴蝶。
+
+#### 建議的下一步
+下一輪建議先修正測試與目標判讀：確認 CDP 截圖能穩定取到真正的 rough butterfly，且畫面中必須清楚出現 body。實作上應讓 body axis 直接讀取 posePlan，做出更明顯的側飛 / 俯仰身體姿態，並讓翅根、前翅、後翅以 body 為主軸連動。若 body 不可見或仍像無身體蛾形模板，應視為本輪失敗而不是通過。

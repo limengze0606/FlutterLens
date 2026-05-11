@@ -31,6 +31,44 @@ function roughRandom(g, minValue, maxValue) {
     : random(minValue, maxValue);
 }
 
+function createRoughInsectPosePlan(g, seedValue) {
+  setRoughSeed(g, seedValue + 4517);
+
+  let yaw = roughRandom(g, -0.78, 0.78);
+  let pitch = roughRandom(g, -0.48, 0.58);
+  let roll = roughRandom(g, -0.82, 0.82);
+  let phaseIndex = Math.floor(roughRandom(g, 0, 5));
+  let phaseSet = [
+    { lift: -0.46, spread: 0.86, fold: 0.72, rot: -0.14 },
+    { lift: -0.24, spread: 0.94, fold: 0.84, rot: -0.06 },
+    { lift: 0.0, spread: 1.04, fold: 1.0, rot: 0.02 },
+    { lift: 0.28, spread: 0.96, fold: 0.86, rot: 0.1 },
+    { lift: 0.46, spread: 0.86, fold: 0.74, rot: 0.16 }
+  ];
+  let phase = phaseSet[phaseIndex];
+  let yawAmount = Math.abs(yaw);
+  let pitchAmount = Math.abs(pitch);
+  let nearSide = yaw >= 0 ? 1 : -1;
+
+  return {
+    yaw,
+    pitch,
+    roll,
+    phaseIndex,
+    phase,
+    nearSide,
+    bodyScaleX: 1 - yawAmount * 0.14,
+    bodyScaleY: 1 - pitchAmount * 0.12,
+    nearScale: 1 + yawAmount * 0.18,
+    farScale: 1 - yawAmount * 0.22,
+    nearYOffset: insectBaseUnit * (pitch * 0.55 + phase.lift * 0.12),
+    farYOffset: insectBaseUnit * (-pitch * 0.45 - phase.lift * 0.18),
+    rootSkew: insectBaseUnit * yaw * 0.52,
+    depthTilt: yaw * 0.16 + pitch * 0.08,
+    topWingCompression: 1 - pitchAmount * 0.1
+  };
+}
+
 function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType = 0, wingColorLineType = 0, wingLineColorSet = 0, bodyPlan = null) {
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
@@ -53,10 +91,11 @@ function drawRoughButterflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, 
 
   let wingStylePlan = createRoughButterflyWingStylePlan(g, color1, color2);
   let wingSets = createRoughButterflyWingPairPlans(g, bodyPlan);
+  let posePlan = bodyPlan.posePlan || null;
 
   // Hindwings are placed first so the forewings and body can sit naturally above them.
-  drawRoughWingPairFromPlan(g, seedValue + 2719, wingSets.hind, flapAngle - 0.04, color1, color2, 0, fillType, wingColorLineType, wingStylePlan);
-  drawRoughWingPairFromPlan(g, seedValue + 151, wingSets.fore, flapAngle + 0.02, color1, color2, 0, fillType, wingColorLineType, wingStylePlan);
+  drawRoughWingPairFromPlan(g, seedValue + 2719, wingSets.hind, flapAngle - 0.04, color1, color2, 0, fillType, wingColorLineType, wingStylePlan, posePlan);
+  drawRoughWingPairFromPlan(g, seedValue + 151, wingSets.fore, flapAngle + 0.02, color1, color2, 0, fillType, wingColorLineType, wingStylePlan, posePlan);
 }
 
 function createRoughButterflyWingPairPlans(g, bodyPlan) {
@@ -73,18 +112,23 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
   let rootY = bodyPlan.wingRootY;
   let rootHalfWidth = bodyPlan.wingRootHalfWidth;
 
-  let foreLength = roughRandom(g, 18.5 * wingBaseLen, 27.5 * wingBaseLen);
+  let posePlan = bodyPlan.posePlan || null;
+  let phase = posePlan ? posePlan.phase : { lift: 0, spread: 1, fold: 1, rot: 0 };
+  let poseLengthScale = posePlan ? phase.spread * (1 - Math.abs(posePlan.pitch) * 0.06) : 1;
+  let poseHeightScale = posePlan ? phase.fold * posePlan.topWingCompression : 1;
+
+  let foreLength = roughRandom(g, 18.5 * wingBaseLen, 27.5 * wingBaseLen) * poseLengthScale;
   let foreWidth = roughRandom(g, 9.2 * u, 14.5 * u);
-  let foreTipY = roughRandom(g, -7.2 * u, -2.4 * u) * verticalCompression;
+  let foreTipY = (roughRandom(g, -7.2 * u, -2.4 * u) + phase.lift * 2.4 * u) * verticalCompression * poseHeightScale;
   let hindLength = foreLength * roughRandom(g, 0.58, 0.72);
   let hindWidth = foreWidth * roughRandom(g, 0.94, 1.18);
-  let hindTipY = roughRandom(g, 4.8 * u, 8.4 * u) * verticalCompression;
+  let hindTipY = (roughRandom(g, 4.8 * u, 8.4 * u) + phase.lift * 1.4 * u) * verticalCompression * (0.92 + poseHeightScale * 0.08);
 
   return {
     fore: {
-      yOff: rootY - roughRandom(g, 0.28 * u, 0.52 * u),
+      yOff: rootY - roughRandom(g, 0.28 * u, 0.52 * u) + phase.lift * 0.28 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.88, 1.08),
-      rotation: roughRandom(g, -0.13, -0.02),
+      rotation: roughRandom(g, -0.13, -0.02) + phase.rot,
       scaleX: 1,
       scaleY: roughRandom(g, 0.72, 0.82) * (1 - portraitAmount * 0.1),
       params: {
@@ -95,9 +139,9 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
       }
     },
     hind: {
-      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u) * hindDropCompression,
+      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u) * hindDropCompression + phase.lift * 0.16 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.58, 0.76),
-      rotation: roughRandom(g, 0.22, 0.38),
+      rotation: roughRandom(g, 0.22, 0.38) + phase.rot * 0.62,
       scaleX: roughRandom(g, 0.9, 1.02),
       scaleY: roughRandom(g, 0.88, 1.06) * (1 - portraitAmount * 0.22),
       params: {
@@ -153,29 +197,51 @@ function drawRoughWingPair(g, seedValue, yOff, rot, s, color1, color2, wingStyle
   }, rot, color1, color2, wingStyle, fillType, wingColorLineType);
 }
 
-function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, wingStyle, fillType, wingColorLineType, wingStylePlan = null) {
+function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, wingStyle, fillType, wingColorLineType, wingStylePlan = null, posePlan = null) {
   let pairRot = (pairPlan.rotation || 0) + rot;
   let pairScaleX = pairPlan.scaleX || pairPlan.scale || 1;
   let pairScaleY = pairPlan.scaleY || pairPlan.scale || 1;
   let wingParams = pairPlan.params;
   let baseOutline = generateWingOutline(wingParams.length, wingParams.width, wingParams.tipY, wingParams.noiseStrength, wingStyle);
   let roughPattern = createRoughVoronoiPattern(g, wingParams.length, wingParams.width, wingParams.tipY, baseOutline);
+  let sideOrder = posePlan && posePlan.nearSide < 0 ? [1, -1] : [-1, 1];
 
-  // 3. 畫右翅膀 (使用原始種子)
-  g.push();
-  g.translate(pairPlan.rootHalfWidth, pairPlan.yOff); 
-  g.rotate(pairRot); 
-  g.scale(pairScaleX, pairScaleY);
-  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
-  g.pop();
+  for (let side of sideOrder) {
+    drawRoughWingSideFromPlan(
+      g,
+      seedValue,
+      side,
+      pairPlan,
+      pairRot,
+      pairScaleX,
+      pairScaleY,
+      color1,
+      color2,
+      wingStyle,
+      wingParams,
+      fillType,
+      wingColorLineType,
+      baseOutline,
+      roughPattern,
+      wingStylePlan,
+      posePlan
+    );
+  }
+}
 
-  // 4. 畫左翅膀 (給予一個截然不同的種子，打破筆觸的鏡像對稱！)
+function drawRoughWingSideFromPlan(g, seedValue, side, pairPlan, pairRot, pairScaleX, pairScaleY, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan, posePlan) {
+  let isNear = posePlan && side === posePlan.nearSide;
+  let depthScale = posePlan ? (isNear ? posePlan.nearScale : posePlan.farScale) : 1;
+  let depthY = posePlan ? (isNear ? posePlan.nearYOffset : posePlan.farYOffset) : 0;
+  let rootSkew = posePlan ? posePlan.rootSkew * (isNear ? 0.34 : -0.2) : 0;
+  let depthRot = posePlan ? posePlan.depthTilt * (isNear ? 1 : -0.7) : 0;
+  let strokeSeed = side > 0 ? seedValue : seedValue + 9999;
+
   g.push();
-  g.translate(-pairPlan.rootHalfWidth, pairPlan.yOff); 
-  g.rotate(-pairRot); 
-  g.scale(-pairScaleX, pairScaleY);
-  // 【關鍵】：把 seedValue 加上一個大數字，讓它的隨機軌跡完全改變
-  drawRoughWing(g, seedValue + 9999, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
+  g.translate(side * pairPlan.rootHalfWidth + rootSkew, pairPlan.yOff + depthY);
+  g.rotate(side * pairRot + depthRot);
+  g.scale(side * pairScaleX * depthScale, pairScaleY * (posePlan && !isNear ? 0.82 : 1));
+  drawRoughWing(g, strokeSeed, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
   g.pop();
 }
 

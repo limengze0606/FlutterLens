@@ -940,3 +940,60 @@ Codex 自評：`7.5/10`。優點是本輪直接回應使用者指出的 viewport
 
 ### 備註 / 風險
 本次用 `portraitAmount` 保護 landscape 並壓縮 portrait / compact，但使用者回饋顯示此方向雖有改善，幅度不夠大。下一輪應轉向後翅專屬的圓鈍輪廓設計，而不是繼續只靠 scale、tipY 或 yOff 壓縮。不同手機實際 viewport 與 DPR 仍可能讓壓縮曲線需要微調。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough butterfly 新增偽 3D 姿態矩陣與離散振翅 phase 後的視覺效果。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示 `resultFinalPitch=0`
+
+### 預期行為
+rough butterfly 應不再只有平面旋轉，而是透過 `posePlan` 呈現不同 roll / yaw / pitch 的飛行姿態。左右翅膀應有近遠側大小差、垂直位移、旋轉差與遮擋順序，振翅 phase 應讓翅膀出現半收、平展或下拍的 silhouette 差異。Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+第一輪 `rough-butterfly-pose-flap-v1-2026-05-11` 功能流程通過，但 portrait / compact 的蝴蝶太像兩片直立葉片，折翅幅度過大，四翅與身體不易讀出。第二輪 `rough-butterfly-pose-flap-v2-2026-05-11` 降低折翅與近遠側變形強度後，compact / landscape 的輪廓較穩定，能看出半收翅與飛行角度；portrait 仍被 Save / Back 按鈕遮到，身體與後翅可讀性偏弱。三個 viewport 都完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 770,028 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。
+
+### 截圖
+- 最終第二輪 portrait：`docs/cdp-runs/rough-butterfly-pose-flap-v2-2026-05-11/screenshots/rough-butterfly-pose-flap-v2-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 最終第二輪 compact：`docs/cdp-runs/rough-butterfly-pose-flap-v2-2026-05-11/screenshots/rough-butterfly-pose-flap-v2-2026-05-11-greenPlants-compact-360x740-result.png`
+- 最終第二輪 landscape：`docs/cdp-runs/rough-butterfly-pose-flap-v2-2026-05-11/screenshots/rough-butterfly-pose-flap-v2-2026-05-11-greenPlants-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-butterfly-pose-flap-v1-2026-05-11/screenshots/rough-butterfly-pose-flap-v1-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-butterfly-pose-flap-v1-2026-05-11/screenshots/rough-butterfly-pose-flap-v1-2026-05-11-greenPlants-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-butterfly-pose-flap-v1-2026-05-11/screenshots/rough-butterfly-pose-flap-v1-2026-05-11-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`6.5/10`。優點是姿態系統已經開始工作，昆蟲不再只是平面旋轉；第二輪也比第一輪更像半收翅飛行姿態。弱點是後翅與身體仍不夠明確，portrait 受按鈕遮擋很嚴重，參考圖中那種輕盈、多角度線稿感還只做到骨架，沒有完全到位。本次做了一次明顯調整後停止，因為第二輪已足以讓使用者判斷方向。
+
+### 使用者審美回饋
+使用者給 `6.5/10`。使用者認為有變化但還不夠明顯，且身體本身需要更大的角度變化來帶動全身。使用者也指出目前截圖流程或判讀沒有成功取到真正的蝴蝶部分，因為看到的是沒有身體的蛾模板；後續測試必須把「body 清楚可見並帶動翅膀」列為通過條件。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後姿態不會每幀抖動
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機上不同 seed 能看出不同姿態
+- [ ] 半收翅、平展、下拍階段都能清楚辨識
+- [ ] Result spawn 不被 Save / Back 按鈕遮擋
+
+### 備註 / 風險
+目前只完成第一版偽 3D pose，不是真正透視投影。使用者回饋顯示本次結果不能只看翅膀 silhouette，還必須確認 body 是否存在且足以帶動全身姿態。下一步應讓 body stroke 直接讀取 posePlan 做更明顯的軸線彎折，並改善 Result spawn 與按鈕遮擋；若截圖中 body 不清楚，該截圖不應作為成功視覺驗證。

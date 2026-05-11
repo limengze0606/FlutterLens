@@ -94,12 +94,23 @@ function drawRoughInsect(insectLayer, x, y) {
     else {
         insectType = 1;
     }
+    insectType = 0;
     //flapAngle =random(-PI / 4, PI / 4);
     flapAngle = 0;
     wingColorFillType = floor(random(3)); // 0, 1, 或 2
     wingColorLineType = floor(random(2)); // 0 或 1
     wingLineColorSet = floor(random(20)); // 調整稀有度
     let roughBodyPlan = (insectType === 0) ? createRoughInsectBodyPlan(insectLayer, currentSeed, insectType) : null;
+    let roughPosePlan = (insectType === 0) ? createRoughInsectPosePlan(insectLayer, currentSeed) : null;
+
+    if (roughPosePlan) {
+        insectLayer.rotate(roughPosePlan.roll);
+        insectLayer.scale(roughPosePlan.bodyScaleX, roughPosePlan.bodyScaleY);
+        roughBodyPlan.posePlan = roughPosePlan;
+    } else {
+        let randomRot = random(-PI/4, PI/4);
+        insectLayer.rotate(randomRot);
+    }
 
     if (insectType === 2) {
         // drawInsectBody(insectLayer, insectType, currentSeed);
