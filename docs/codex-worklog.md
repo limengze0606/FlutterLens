@@ -1,0 +1,1725 @@
+# Codex 工作日誌
+
+本文件用來記錄專案決策、agent 工作內容、視覺驗證結果，以及人機協作歷程。
+目標是讓未來沒有前備知識的 agent 能快速理解專案脈絡、接續工作，並避免重複踩坑。
+
+## 專案固定背景
+
+- 專案類型：以 p5.js 為主的手機優先 AR 專案
+- 部署目標：GitHub Pages
+- 開發環境：Visual Studio Code + Live Server
+- 版本控制：Git + GitHub branches
+- 最終確認權：由使用者保留
+- Agent 不得自行 commit 或 push
+- 視覺相關修改必須進行實際視覺驗證，不能只檢查語法
+
+---
+
+## 紀錄格式
+
+### YYYY-MM-DD — 任務標題
+
+#### 使用者需求
+記錄使用者原始需求，包含限制、偏好、補充說明。
+
+#### 檢視過的脈絡
+列出本次讀取或參考的檔案、資料夾、前次工作日誌段落。
+
+#### Agent 對目前狀態的理解
+說明目前架構、相關功能流程、重要限制。
+
+#### 實作前方案
+記錄在動手修改前提出的方案、步驟、風險與驗證方式。
+
+#### 使用者回饋與決策
+記錄使用者同意、否決、修正或補充的內容。
+
+#### 修改過的檔案
+- `path/to/file`
+
+#### 實作細節
+具體說明修改了什麼、為什麼這樣修改、和 p5.js / AR / 手機瀏覽器有什麼關係。
+
+#### 遇到的問題
+記錄錯誤、限制、視覺問題、架構不清楚之處。
+
+#### 嘗試過的解法
+說明嘗試了哪些方法、結果如何、為什麼採用或放棄。
+
+#### 最終解法
+說明最後採用的做法與原因。
+
+#### 視覺驗證
+- 測試環境：
+- 瀏覽器：
+- 裝置 / viewport：
+- 是否有截圖：
+- Console 錯誤：
+- 預期畫面：
+- 實際觀察：
+- 手機 / AR 後續確認事項：
+
+#### 尚未解決的風險
+列出尚未確認、需要人工測試、或可能影響 GitHub Pages / 手機 / AR 的問題。
+
+#### 建議下一步
+列出下一位 agent 或使用者可以接續處理的事項。
+
+---
+
+### 2026-05-10 — 修正編碼說明並記錄 headless 截圖流程
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+修正 `AGENTS.md` 中新增的 PowerShell UTF-8 設定區塊未關閉的 Markdown 格式問題，並補上目前可行的本機預覽與 headless 截圖流程。
+
+#### 使用者需求
+使用者希望修正 `AGENTS.md` 裡未結尾的 code block，並在適當位置補上截圖流程說明。使用者也提出疑問：雖然 Codex 已能執行專案並截圖，但是否能親自操作，例如按下開始按鈕進入下一頁，因為真正需要截圖驗證的內容在後續頁面。
+
+#### 實作前理解
+目前專案可用 Python static server 提供靜態檔案；Chrome / Edge headless 在沙盒內會被 Windows 權限阻擋，但在使用者允許沙盒外執行後可截圖。若未加入 `--virtual-time-budget=10000`，容易截到 p5.js 尚未完成繪製前的白畫面。
+
+#### 實作方案
+先修正 `AGENTS.md` 中 `powershell` code fence 的結尾，再加入本機預覽、headless 截圖流程、等待時間需求、沙盒外執行限制，以及 camera / AR 測試的限制說明。接著以工作日誌記錄本次文件更新與仍待確認的互動測試能力。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將長期協作規則放在 `AGENTS.md`，因為未來 agent 會優先讀取該檔案；將本次診斷與流程背景放在 `docs/codex-worklog.md`，方便追溯原因與限制。
+
+#### 遇到的問題
+`AGENTS.md` 原本新增的 `Terminal encoding note` 少了結尾的三個反引號，導致後續章節可能被 Markdown 視為同一段 code block。
+
+#### 嘗試過的解法
+使用 PowerShell 以 UTF-8 讀取檔案確認內容，再用小範圍 patch 修正 Markdown 格式並補充驗證流程，避免改動功能程式碼。
+
+#### 最終解法
+已在 `AGENTS.md` 補上 code fence 結尾，並新增 `Local preview and screenshot workflow`，記錄 `Start-Job` 啟動 Python server、Chrome headless mobile viewport、`--virtual-time-budget=10000`、以及沙盒外執行限制。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Chrome headless；Edge headless 也曾成功產生相近 Start page 截圖
+- 裝置 / viewport：Chrome 回報 viewport 約 478x690；截圖目標使用 mobile-like window size
+- 是否有截圖：有，`docs/chrome-headless-wait-test.png`、`docs/cdp-click-scanning-test.png`、`docs/cdp-click-result-test.png`
+- Console 錯誤：未完成完整 DevTools console 擷取；Chrome logging 未顯示頁面層級 fatal JS 錯誤
+- 預期畫面：p5.js Start page 黑底、中文說明文字、綠色開始按鈕；點擊後進入 Scanning page
+- 實際觀察：加上 `--virtual-time-budget=10000` 後可截到 Start page；使用 CDP `Input.dispatchMouseEvent` 點擊開始按鈕後，狀態由 `START` 變為 `SCANNING`，fake camera stream 可用，並截到掃描頁 UI；再點擊 shutter 後狀態變為 `RESULT`，`resultPhoto` 與 `spawnPosition` 均存在，並截到結果頁 UI
+- 手機 / AR 後續確認事項：真實相機權限、後鏡頭、裝置方向感測、觸控手感、結果頁生成流程仍需進一步自動化或實機測試
+
+#### 尚未解決的風險
+Browser Use / in-app browser 目前因 Node REPL `Access is denied` 無法使用。Chrome DevTools Protocol 已能模擬點擊開始按鈕、進入掃描頁、點擊 shutter、進入結果頁並截圖；但 fake camera 畫面不能取代真實手機 AR 測試，儲存流程與真實相機畫面仍需另行驗證。
+
+#### 使用者回饋或修正
+使用者指出真正需要截圖的內容在後續頁面，因此單純能截 Start page 不足以符合完整測試需求。
+
+#### 建議的下一步
+將 Chrome DevTools Protocol 操作流程整理成可重複執行的測試腳本，下一步測試返回 / 儲存按鈕、不同 viewport、以及真實手機上的 camera permission 與裝置方向感測。
+
+---
+
+### 2026-05-10 — 驗證前次 agent 留下的 CDP 視覺測試流程
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依照前一位 agent 在工作日誌中留下的本機預覽、headless Chrome、fake camera 與 Chrome DevTools Protocol 操作流程，重新驗證 Start → Scanning → Result 的自動化視覺測試是否可重現。
+
+#### 使用者需求
+使用者要求先閱讀 `AGENTS.md`，再閱讀 `docs/codex-worklog.md` 最近工作紀錄，並驗證前一位 agent 找出的工作流程。使用者特別提醒：工作日誌不是看過即可，而是重要提示與可運用的技能，應用來少走彎路。
+
+#### 實作前理解
+前次紀錄指出，單純 Chrome headless 截圖可能截到空白畫面；正確流程需要啟動本機 static server、使用 Chrome headless、加上 fake camera 參數，並透過 CDP 回讀 runtime 狀態與模擬點擊 Start button / shutter。因為 Start button 位置是在 `drawStartPage()` 內依 viewport 動態計算，驗證時不應硬猜座標，而應從頁面 runtime 讀取 `StartButton.ButtonX` 與 `StartButton.ButtonY`。
+
+#### 實作方案
+先以 UTF-8 讀取 `AGENTS.md` 與 `docs/codex-worklog.md`，確認專案規範與前次工作流程。接著檢查 `index.html`、`sketch.js`、`Pages/StartPage/StartPage.js`、`Pages/StartPage/StartPageSettings.js`、`Pages/ScanningPage/ShutterButton.js`，確認頁面狀態、Start button 與 shutter 的互動邏輯。最後啟動 Python static server 與 Chrome headless，使用 CDP 執行 runtime evaluate、mouse event 與 `Page.captureScreenshot`。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `sketch.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+- `Pages/ScanningPage/ShutterButton.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+採用前次 worklog 留下的 CDP 流程作為主要驗證方式，而不是只確認 headless Chrome 是否產生截圖檔。原因是本次重跑也觀察到：使用一般 `--screenshot` 搭配絕對路徑雖能輸出檔案，但畫面可能是白圖；必須回讀 runtime 狀態並實際點擊後續頁面，才能確認流程真的可用。
+
+#### 遇到的問題
+沙盒內 PowerShell 與 `rg` 在目前 Windows 環境中仍可能遇到 `Access is denied`，需要使用者允許沙盒外執行。第一次使用相對截圖路徑時沒有產生檔案；改成絕對路徑後可產生檔案，但該檔案是白圖，表示只檢查檔案存在不足以代表視覺驗證成功。
+
+#### 嘗試過的解法
+先嘗試基本 Chrome headless `--screenshot` 流程，確認相對路徑不可靠；再改用絕對路徑確認 Chrome 能輸出圖片。接著依前次 worklog 提示，改用 Chrome DevTools Protocol：透過 `Runtime.evaluate` 讀取 `currentPagesState`、`StartButton`、`video`、`shutterX/Y`、`resultPhoto` 與 `spawnPosition`，並用 `Input.dispatchMouseEvent` 模擬點擊。
+
+#### 最終解法
+CDP 自動化流程成功重現。初始狀態為 `START`，`hasP5=true`，viewport 內部尺寸約為 `478x694`，Start button 座標為 `(239, 537.6)`。點擊 Start button 後狀態變為 `SCANNING`，`videoReady=true`，shutter 座標為 `(239, 614)`。點擊 shutter 後狀態變為 `RESULT`，`hasResultPhoto=true`，並成功取得 `spawnPosition` 與 `spawnPositionRatio`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：Chrome window size `390x844`，p5 runtime 回報約 `478x694`
+- 是否有截圖：有，`docs/verify-cdp-start-2026-05-10.png`、`docs/verify-cdp-scanning-2026-05-10.png`、`docs/verify-cdp-result-2026-05-10.png`
+- Console 錯誤：本次未建立完整 console event 收集；Chrome 有輸出與 managed web app 相關的非頁面 fatal 訊息，未阻止頁面流程
+- 預期畫面：Start page 顯示黑底中文說明與綠色啟動按鈕；Scanning page 顯示 fake camera 綠色畫面、快門與 UI；Result page 顯示生成昆蟲、儲存與返回按鈕
+- 實際觀察：三張 CDP 截圖皆非白圖，Start / Scanning / Result 的視覺內容符合預期；fake camera 畫面可支撐自動化 UI 驗證
+- 手機 / AR 後續確認事項：真實手機相機、後鏡頭、HTTPS 權限、DeviceOrientation 權限、觸控手感與真實 AR 疊合仍需實機驗證
+
+#### 尚未解決的風險
+CDP + fake camera 可以驗證頁面狀態與 UI 流程，但不能取代真實手機的 camera permission、感測器權限、後鏡頭畫面與效能測試。`--screenshot` 單步流程仍可能產生白圖，因此未來應優先使用 CDP 回讀狀態與 `Page.captureScreenshot`。
+
+#### 使用者回饋或修正
+使用者提醒工作日誌應被視為重要提示與可運用技能，而不是只作為閱讀過的文件。本次驗證流程已依此修正，直接沿用前次紀錄中的 CDP 技術路線。
+
+#### 建議的下一步
+將本次使用的 CDP 驗證流程整理成可重複執行的腳本，並加入 console event 收集、不同 viewport 測試、返回 / 儲存按鈕驗證，以及真實手機手動測試清單。
+
+---
+
+### 2026-05-10 — 擴充 CDP 測試：console、viewport、儲存與返回
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+在已驗證的 CDP 自動化流程上加入 console event 收集、不同 viewport 測試，以及 Result page 的儲存 / 返回按鈕驗證。
+
+#### 使用者需求
+使用者確認前一階段完成後，要求測試加入 console event 收集、不同 viewport 測試、返回 / 儲存按鈕驗證。
+
+#### 實作前理解
+前次流程已可用 CDP 模擬 Start → Scanning → Result。本次需擴充同一套流程，不另開新的測試方向。`drawSaveButton()` 的按鈕中心為 `width / 2, height - 145`；`drawBackButton()` 的按鈕中心為 `width / 2, height - 80`。儲存會呼叫 `saveCanvas("FlutterLens-result", "png")`，因此 headless Chrome 需設定 download behavior 並檢查下載目錄。
+
+#### 實作方案
+啟動 Python static server 與 Chrome headless，透過 CDP 啟用 `Runtime.enable`、`Log.enable`、`Page.enable`、`Browser.setDownloadBehavior`。每個 viewport 讀取 Start button runtime 座標後點擊，進入 Scanning 後讀取 shutter 座標再點擊，最後截 Result。主要 portrait viewport 額外點擊儲存按鈕並檢查下載檔，再點擊返回按鈕並確認狀態回到 `SCANNING` 且 Result data 已清空。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+延續前次 worklog 中可重用的 CDP 技術路線，並將 console event 與 download behavior 加入同一次自動化流程。不同 viewport 先以 Chrome `--window-size` 測試，因目前環境下 CDP `Emulation.setDeviceMetricsOverride` 的重跑嘗試發生 timeout，暫不把它作為穩定流程。
+
+#### 遇到的問題
+三個 viewport 中，portrait 與 compact 可完成 Start → Scanning → Result；landscape `844x390` 未進入 Scanning。截圖顯示橫向高度下 Start page 的按鈕掉到畫面外，CDP runtime 也停留在 `START`，因此不是單純點擊座標錯誤，而是橫向版面可用性風險。console 收集到一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，推測為瀏覽器自動請求 favicon 或其他非必要資源，未阻止流程。精準 emulated viewport 測試曾嘗試使用 `Emulation.setDeviceMetricsOverride`，但該輪 CDP 命令 timeout，已清理殘留 headless Chrome profile。
+
+#### 嘗試過的解法
+先用現有穩定 CDP 流程加入 console event 收集與多 viewport。對於儲存流程，透過 `Browser.setDownloadBehavior` 指定下載目錄，點擊儲存後檢查檔案是否出現。對於返回流程，點擊返回後用 `Runtime.evaluate` 讀取 `currentPagesState`、`resultPhoto`、`spawnPosition` 與 `spawnPositionRatio`。另嘗試改用 CDP device metrics override 取得更精準 viewport，但本次在 PowerShell WebSocket 流程中 timeout，暫列為工具流程待改善。
+
+#### 最終解法
+擴充測試成功涵蓋 console、portrait / compact viewport、儲存與返回。`portrait-390x844` runtime 約 `478x694`，完成 `START → SCANNING → RESULT`，儲存後下載 `docs/cdp-downloads-2026-05-10/portrait-390x844/FlutterLens-result.png`，大小 43,501 bytes；返回後狀態為 `SCANNING`，且 `resultPhoto` 與 `spawnPosition` 已清空。`compact-360x740` runtime 約 `478x590`，完成 `START → SCANNING → RESULT`。`landscape-844x390` runtime 約 `822x240`，Start button 不可見，流程停在 `START`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`390x844`、`360x740`、`844x390` window size；runtime 分別約 `478x694`、`478x590`、`822x240`
+- 是否有截圖：有，`docs/extended-portrait-390x844-start.png`、`docs/extended-portrait-390x844-scanning.png`、`docs/extended-portrait-390x844-result.png`、`docs/extended-portrait-390x844-after-back.png`、`docs/extended-compact-360x740-start.png`、`docs/extended-compact-360x740-scanning.png`、`docs/extended-compact-360x740-result.png`、`docs/extended-landscape-844x390-start.png`、`docs/extended-landscape-844x390-scanning.png`、`docs/extended-landscape-844x390-result.png`
+- Console 錯誤：每個 viewport 收到 1 筆 404 resource 訊息，未阻止 p5.js 與互動流程；未觀察到 fatal JS exception
+- 預期畫面：portrait / compact 應完成 Start、Scanning、Result；portrait 的 Save 應產生 PNG，Back 應回到 Scanning。landscape 應至少可操作 Start button。
+- 實際觀察：portrait / compact 符合預期；portrait Save / Back 通過。landscape Start button 不在可視範圍，無法進入 Scanning。
+- 手機 / AR 後續確認事項：需在真實手機橫向與直向確認 viewport、高度、安全區域、權限彈窗與觸控手感。
+
+#### 尚未解決的風險
+landscape Start page 目前有明顯可用性風險：在短高度橫向 viewport 下按鈕不可見，使用者無法啟動流程。Chrome `--window-size` 與 runtime viewport 不完全相同，未來若要做可重複測試，應將 CDP script 獨立成檔案並修正 `Emulation.setDeviceMetricsOverride` timeout 問題。console 404 需進一步確認是否只是 favicon；若要讓 console 完全乾淨，可補 favicon 或過濾非頁面資源。
+
+#### 使用者回饋或修正
+使用者要求本階段直接測試 console 收集、多 viewport、返回與儲存按鈕。尚未提出對測試結果的修正意見。
+
+#### 建議的下一步
+優先修正 landscape Start page 的垂直配置，確保按鈕在橫向手機高度下可見；接著將 CDP 測試整理成可重跑腳本，加入穩定的 device metrics override、console 分級、download 檢查、返回 / 儲存按鈕斷言，以及 screenshots 產物命名規則。
+
+---
+
+### 2026-05-10 — 建立可重跑 CDP 視覺測試腳本與產物命名規則
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+將前幾輪手動 PowerShell / CDP 操作整理成可重跑的 `scripts/run-cdp-visual-test.ps1`，並新增 `docs/cdp-visual-test-workflow.md` 記錄執行方式與 screenshots / downloads / JSON 產物命名規則。
+
+#### 使用者需求
+使用者要求將 CDP 測試整理成可重跑腳本，並增加 screenshots 產物命名規則。
+
+#### 實作前理解
+前次 CDP 測試已驗證 Start → Scanning → Result、console event 收集、portrait / compact / landscape viewport、Save 與 Back。最需要固化的是可重跑性、產物位置、命名規則、summary / console 記錄，以及 headless Chrome profile 的清理。
+
+#### 實作方案
+新增 `scripts/run-cdp-visual-test.ps1`，預設從專案根目錄啟動 Python static server 與 Chrome headless，使用 fake camera 與 CDP 操作三個 viewport。產物集中輸出到 `docs/cdp-runs/<runId>/`，並用 `<runId>-<viewportLabel>-<stage>.png` 命名截圖。新增 `docs/cdp-visual-test-workflow.md` 以繁體中文說明執行方式、命名規則、判讀重點與已知限制。
+
+#### 檢視過的檔案
+- `.gitignore`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+腳本採用前次已穩定的 Chrome `--window-size` 流程，而不是預設使用 `Emulation.setDeviceMetricsOverride`，因後者前次在 PowerShell WebSocket 流程中發生 timeout。產物採用 run 目錄集中管理，避免 screenshots 散落在 `docs/` 根層。Chrome profile 預設放在 run 目錄下的 `profiles/`，測試結束後自動清除；只有指定 `-KeepProfiles` 時才保留。
+
+#### 遇到的問題
+需要避免測試腳本誤殺使用者日常 Chrome，因此清理程序只根據本次 profile path 篩選 Chrome process。landscape viewport 的 Start button 不可見問題仍存在，腳本會在 summary 中記錄 `startVisible=false`，不會硬點畫面外座標。
+
+#### 嘗試過的解法
+將前次手動 CDP 互動拆成 PowerShell functions：`Send-Cdp`、`Invoke-CdpEval`、`Save-CdpScreenshot`、`Invoke-CdpClick`、`Receive-CdpMessage`。用 `Browser.setDownloadBehavior` 驗證 Save，並將 console event 另存為 JSON。
+
+#### 最終解法
+腳本已可重跑。執行 `.\scripts\run-cdp-visual-test.ps1 -RunId "codex-script-smoke"` 成功產生 `docs/cdp-runs/codex-script-smoke/`，包含 screenshots、downloads、`codex-script-smoke-summary.json` 與 `codex-script-smoke-console.json`。Smoke run 結果：`portrait-390x844` 完成流程、Save 下載 `FlutterLens-result.png`、Back 回到 `SCANNING` 且清空 result data；`compact-360x740` 完成流程；`landscape-844x390` 記錄 `startVisible=false` 並停在 `START`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/codex-script-smoke/screenshots/`
+- Console 錯誤：summary 顯示每個 viewport 收到 1 筆 console event；詳細內容在 `docs/cdp-runs/codex-script-smoke/codex-script-smoke-console.json`
+- 預期畫面：portrait / compact 可完成流程；portrait 可 Save 與 Back；landscape 目前應被腳本標記為 Start 不可見風險
+- 實際觀察：符合預期，腳本回傳 JSON summary，且產物命名符合規則
+- 手機 / AR 後續確認事項：仍需真實手機確認 camera / orientation / touch / performance
+
+#### 尚未解決的風險
+CDP 腳本目前仍以 `--window-size` 為穩定模式，runtime viewport 與指定 window size 不完全相同。landscape Start page 的按鈕不可見是功能風險，需另行修正。Console 404 resource 訊息來源尚未追蹤到具體資源。
+
+#### 使用者回饋或修正
+使用者要求把已驗證的 CDP 測試流程產品化成可重跑腳本，並補上 screenshots 命名規則。本次已完成。
+
+#### 建議的下一步
+修正 landscape Start page 排版後，使用 `scripts/run-cdp-visual-test.ps1` 重跑並比較新的 `summary.json` 與 screenshots；接著可考慮把 CDP script 加入更正式的測試檢查流程，並補上 console 404 的來源確認。
+
+---
+
+### 2026-05-10 — 調整 RoughInsectWings 手繪上色筆觸
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+調整 `RoughInsectWings.js` 的 `drawRoughWingColor()`，讓 rough wing 上色從被輪廓裁切的少量 marker 線段，改成更自然、手繪、可略微出界的多層筆觸與色斑。
+
+#### 使用者需求
+使用者希望 `RoughInsectWings.js` 的 `drawRoughWingColor()` 能以自然、手繪的筆觸來上色，可以稍微出界，也不需要太依照翅膀的網格形狀，並參考示意圖中類似 ink on photo、水彩或 marker 色塊覆蓋在翅膀線稿下方的視覺。
+
+#### 實作前理解
+前次工作日誌指出本專案的視覺修改必須實際跑瀏覽器驗證，且已有可重跑的 CDP 視覺測試腳本。閱讀 `RoughInsectWings.js` 後確認：原本 `drawRoughWingColor()` 雖然會建立 `markerPaint`，但實際 `brush.set("marker1", "#0000FF", ...)` 硬寫成藍色，而且筆觸會經過 `trimPolylineToOutline()` 裁回 `baseOutline`，因此不容易產生參考圖中自然溢出、自由色塊、不貼齊 Voronoi 網格的感覺。
+
+#### 實作方案
+保留現有 rough wing 的輪廓、Voronoi 線稿與 p5.brush 架構，只改寫上色層。將上色改為多條鬆散 marker 筆觸，取樣點可來自翅膀內部或輪廓邊緣附近，端點加入 overshoot，並取消完全裁切回輪廓內的行為。同時新增少量不規則色斑，讓色彩不完全服從 Voronoi 網格。為了避免 fake camera 或真實照片取樣色太接近時畫面過淡，對筆觸色加入小幅 hue shift 與飽和度提升，但仍以 `color1` / `color2` 為基底。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `sketch.js`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有新增外部依賴，也沒有改動 GitHub Pages 載入路徑。保留 `marker1` brush，因為專案已經載入 `assets/brushTips/marker1.jpg` 並用於 rough wing 上色；本次只調整 stroke 生成方式、顏色使用方式與鬆散取樣策略。Voronoi 線稿仍在色彩層之後繪製，讓結果接近「先染色、再用墨線標註翅脈」的順序。
+
+#### 遇到的問題
+CDP 使用 fake camera 時背景與取樣色偏單一亮綠，因此自動截圖中的翅膀色彩主要呈現淡綠、白色水痕與邊緣暈染，無法完整代表真實照片下的多色效果。Console 仍出現每個 viewport 一筆 404 resource 訊息，與前次測試一致，未阻止流程。
+
+#### 嘗試過的解法
+第一版先將 `drawRoughWingColor()` 改成多條不裁切的 marker 筆觸與色斑，並真正套用 `getRoughWingMarkerColor()` 的結果。視覺截圖顯示已有溢出與暈染，但 fake camera 色彩偏淡；第二版加入 `tintRoughWingBrushColor()`，對照片主色做小幅色相偏移與飽和度補強，讓單色環境下仍能保留手繪色塊層次。
+
+#### 最終解法
+`drawRoughWingColor()` 現在會產生 9 到 14 條鬆散 marker 筆觸，以及 3 到 5 個不規則色斑。新增 `sampleLooseWingBrushPoint()`、`samplePointNearOutlineEdge()`、`tintRoughWingBrushColor()`、`drawLooseWingColorPatch()`，並擴充 `makeRoughMarkerStroke()` 支援 `allowOvershoot`。筆觸端點與取樣點可稍微超出 `baseOutline`，但仍會以輪廓附近範圍控制，避免色彩大幅飄離翅膀。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-color-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：Result page 的 rough wing 色彩應呈現自然 marker / watercolor 筆觸，可小幅出界，不完全貼合 Voronoi 網格；portrait / compact 應維持流程通過，portrait Save / Back 應正常
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 並清空 Result data。Result 截圖可看到翅膀周圍與內部有鬆散暈染、出界與淡色水痕，線稿仍在上層。因 fake camera 色彩單一，真實照片下的多色筆觸仍需實機或真實影像確認
+- 手機 / AR 後續確認事項：真實手機相機、GitHub Pages HTTPS、後鏡頭、觸控、效能與真實環境色彩仍需人工確認
+
+#### 尚未解決的風險
+fake camera 不能代表真實照片的色彩分布，因此需要用真實手機或至少真實照片背景確認色相偏移是否過強或過淡。landscape Start page 的按鈕不可見問題仍存在，非本次任務範圍。Console 404 resource 來源仍未追蹤。
+
+#### 使用者回饋或修正
+使用者核准先前提出的實作方案，指示「開始」。尚未針對本次視覺結果提出後續修正。
+
+#### 建議的下一步
+用真實手機拍攝多色自然背景，確認 rough wing 上色在真實照片中是否達到示意圖的水彩 / marker 手繪感；若顏色仍偏淡，可再提高 `marker1` 筆觸密度或建立專用 rough wash brush。另建議後續修正 landscape Start page 排版與 console 404 來源。
+
+---
+
+### 2026-05-10 — 將 Rough Wing 上色改為根部放射式筆觸
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依照使用者回饋，將 `drawRoughWingColor()` 從較隨機的補色筆觸，改為由翅膀根部往上緣、尖端與尾端延伸的放射狀上色結構，讓手繪色彩更接近真實翅膀的生長方向。
+
+#### 使用者需求
+使用者新增 `docs/llms.txt`，希望 agent 理解 p5.brush 更完整的使用方式，並指出上一版筆刷方向仍太隨機，像是隨便填幾筆。使用者提出希望上色能像真實蝴蝶翅膀一樣，從翅膀根部放射狀延伸到尖端與尾端，看起來更自然。
+
+#### 實作前理解
+`docs/llms.txt` 說明本專案使用的是 p5 build，已由 p5 的 `createCanvas(..., WEBGL)` 管理 canvas 與 frame flush；`brush.load()` 只需要在切換 target 時使用。文件也指出 `brush.fill()`、`brush.fillBleed()`、`brush.fillTexture()` 可用於 watercolor fill，`brush.beginShape()` / `vertex()` / `endShape()` 可支援 stroke 與 fill。這讓 rough wing 上色可以從單純 marker stroke 擴充為「淡水彩 wedge + 放射 marker stroke」。
+
+#### 實作方案
+以 `baseOutline[0]` 作為翅膀根部，建立 root-to-edge radial system。先畫 2 到 3 個從根部往外緣展開的淡色 wedge，使用 `brush.fill()`、`brush.fillBleed()` 與 `brush.fillTexture()` 製造水彩底色，再畫 16 到 22 條根部往外緣的 marker strokes。隨機性只用於端點 overshoot、線條彎曲、乾筆斷裂與邊緣 jitter，不再決定整體方向。
+
+#### 檢視過的檔案
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+採用 p5.brush 的 fill API 來試做水彩底色，但把 bleed 與 texture 控制得較低，避免 fake camera 下產生過大的亮綠外圈。保留 `marker1` 作為主要上色筆刷，因為它已存在於專案 setup，且能延續前一版手繪 marker 質感。
+
+#### 遇到的問題
+第一次 radial 版本的 watercolor wedge 在 fake camera 單一亮綠背景中產生偏大的發光暈染，內部放射筆觸不夠清楚。這不一定代表真實照片會同樣失敗，但自動截圖很難看出使用者期待的自然多色手繪感。
+
+#### 嘗試過的解法
+先實作 root-to-edge 的 watercolor wedge 與 marker strokes，跑 CDP 視覺測試後觀察到外圈偏亮。第二次微調降低 `brush.fill()` opacity、降低 `fillBleed()`、關閉 `fillTexture()` 的 scatter，並增加 marker stroke 數量與 alpha，使放射筆觸比外圈暈染更明確。
+
+#### 最終解法
+`drawRoughWingColor()` 現在先取得 root point，使用 `drawRadialWingWash()` 畫淡色放射 wedge，再以 `makeRadialWingMarkerStroke()` 畫從根部往外緣的 marker strokes。新增 helper 包含 `getRoughWingRootPoint()`、`getRadialWingProgress()`、`getWingOutlinePointAtProgress()`、`makeRadialWingStrokeStart()`、`makeRadialWingMarkerStroke()`、`drawRadialWingWash()`、`interpolatePoint()` 與 `jitterArrayPoint()`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-radial-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 色彩應沿翅膀根部往外放射，保留手繪筆觸與小幅 overshoot，不再像隨機補色
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且清空 Result data。Result 截圖可看到上色集中在翅膀周圍並有根部向外延伸的方向感，但 fake camera 單一亮綠仍讓色彩偏白、偏發光，真實照片效果需再確認
+- 手機 / AR 後續確認事項：真實手機相機、自然背景、多色照片下的色相表現、筆觸是否過亮、手機效能仍需人工測試
+
+#### 尚未解決的風險
+目前自動截圖使用 fake camera，無法可靠評估真實環境中的色彩與水彩透明度。若實機仍覺得像外圈發光，下一步應進一步降低 `brush.fillBleed()` 或改用純 radial marker strokes，不使用 fill wedge。landscape Start page 與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者指出上一版「筆刷方向還是太過於隨機，像是隨便填幾筆」，並提議改成像真實蝴蝶翅膀一樣從根部放射到尖端與尾端。本次已依該方向實作並驗證。
+
+#### 建議的下一步
+用真實手機拍攝自然環境，特別是包含多種綠、棕、天空或花色的背景，檢查 radial rough wing 是否比上一版自然。若色彩仍過白或過亮，優先降低 watercolor wedge 比重，讓 marker strokes 成為主體。
+
+---
+
+### 2026-05-10 — 研究 Rough Wing 手繪上色演算法方向
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+閱讀專案規範、前次工作紀錄、`docs/llms.txt` 與 `RoughInsectWings.js`，整理 `drawRoughWingColor()` 可用於自然手繪上色的演算法與實作邏輯。
+
+#### 使用者需求
+使用者要求先閱讀 `AGENTS.md`、`docs/codex-worklog.md`，吸收前人工作紀錄，再閱讀 `llms.txt` 學習 p5.brush，目標是思考 `RoughInsectWings.js` 的 `drawRoughWingColor()` 如何用自然、手繪的筆觸上色。
+
+#### 實作前理解
+目前專案使用 p5 build 的 p5.brush，主畫布由 p5 的 `createCanvas(..., WEBGL)` 管理，不需要呼叫 standalone build 的 `brush.render()`。前次已將 rough wing 上色從隨機補色筆觸改為根部放射式架構，包含淡水彩 wedge 與 marker strokes。使用者此輪仍在詢問演算法方向，因此本次不修改功能程式碼。
+
+#### 實作方案
+先閱讀現有文件與程式，確認目前 `drawRoughWingColor()` 的資料來源、筆觸方向、p5.brush API 使用方式，再提出可落地的演算法建議：根部放射流場、分層透明水彩、乾筆斷裂、邊界小幅溢出、局部色斑與與 Voronoi 線稿分離的筆觸邏輯。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本次只整理演算法與設計方向，不改 `RoughInsectWings.js`。後續若要實作，應先讓使用者確認採用哪一種視覺策略，再修改程式並重跑 CDP 視覺測試。
+
+#### 遇到的問題
+使用者提到 `llms.txt`，但專案根目錄沒有該檔案；依前次工作紀錄判斷實際位置為 `docs/llms.txt`，已改讀該檔案。
+
+#### 嘗試過的解法
+先以 UTF-8 讀取專案規範與工作紀錄，再用 `rg` 定位 `RoughInsectWings.js` 內相關函式行號，確認目前上色核心位於 `drawRoughWingColor()`、`drawRadialWingWash()`、`makeRadialWingMarkerStroke()` 等函式。
+
+#### 最終解法
+整理出後續可採用的演算法方向，核心建議是以「翅膀根部到外緣的放射流場」作為筆觸主方向，再疊加水彩 wash、marker 乾筆、邊界 overshoot、色相變化與少量非網格化色斑。
+
+#### 視覺驗證紀錄
+- 測試環境：未執行瀏覽器測試
+- 瀏覽器：未執行
+- 裝置 / viewport：未執行
+- 是否有截圖：無
+- Console 錯誤：未檢查
+- 預期畫面：本次為演算法討論，尚未改變視覺結果
+- 實際觀察：未產生新畫面
+- 手機 / AR 後續確認事項：若後續修改 `drawRoughWingColor()`，需重跑 CDP 視覺測試並以真實手機確認照片色彩與 AR 疊合效果
+
+#### 尚未解決的風險
+目前建議尚未實作與視覺驗證。fake camera 色彩單一，未來即使 CDP 通過，也仍需真實手機或真實照片背景判斷筆觸色彩是否自然。
+
+#### 使用者回饋或修正
+使用者目前要求先提出適合的演算法或邏輯，尚未指定要開始修改程式。
+
+#### 建議的下一步
+請使用者選擇偏好的上色策略：偏水彩暈染、偏 marker 乾筆、或偏真實蝶翼放射色帶。確認後再調整 `drawRoughWingColor()` 並執行視覺驗證。
+
+---
+
+### 2026-05-10 — 嘗試 Rough Wing 鮮艷乾筆上色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依使用者要求嘗試讓 `drawRoughWingColor()` 的 rough wing 上色更鮮艷，同時避免使用太多 watercolor 暈染造成目標手機裝置效能負擔。
+
+#### 使用者需求
+使用者希望 rough wing 顏色可以更鮮艷，但擔心使用太多暈染會讓目標裝置跑不動或變慢。使用者指示「試試看」。
+
+#### 實作前理解
+前次版本已使用根部放射式筆觸，但 fake camera 測試中水彩 wedge 容易偏白、偏發光。`docs/llms.txt` 指出 `brush.fillBleed()` 與 `fillTexture()` 可做 watercolor 效果，但這類 fill 模擬相對昂貴；若要顧及手機效能，應減少暈染與 texture，把主要色彩交給較少量的 stroke。
+
+#### 實作方案
+降低 `washCount`、`fillBleed()`、`fillTexture()` 與 wash alpha，減少 watercolor 成本。主色改用 `markerBrush` 而不是 image-based `marker1`，避免白霧感並降低對 image brush 的依賴。為了讓 fake camera 單色背景也能看出鮮艷色彩，`tintRoughWingBrushColor()` 改成產生較大幅度的色相偏移，並用手寫 HSB-to-RGB 轉換直接輸出 CSS RGB 顏料。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `docs/visual-test-log.md`
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+最終選擇「鮮艷乾筆放射」而不是增加 watercolor 暈染。`markerBrush` opacity 從 1 提高到 32，讓現有 p5.brush marker 型態可以真的承擔色彩。`marker1` 曾一度提高 opacity，但最終主上色不再使用 `marker1`，因此已收回原值，避免留下不必要的全域 brush 行為變化。
+
+#### 遇到的問題
+前幾輪只提高 saturation、alpha 或 `marker1` opacity 時，fake camera 截圖仍偏白或偏灰；改用 `default` brush 時顏色出來但變成顆粒噴濺；改用高 opacity `markerBrush` 時顏色過厚、蓋掉翅脈。最後確認 `colorToBrushPaint()` 直接讀 `p5.Color.levels` 在目前 HSB 流程下不夠可靠，因此改用明確的 CSS RGB 顏料輸出。
+
+#### 嘗試過的解法
+嘗試降低 wash、提高 marker alpha、提高 image brush opacity、加入大幅 hue shift、改用 `default` brush、改用 `markerBrush`，並多次跑 CDP 測試截圖觀察。最後保留 `markerBrush`，但把 opacity 與 strokeWeight 收斂到較輕的範圍。
+
+#### 最終解法
+`drawRoughWingColor()` 現在只產生 0 到 1 層極淡 wash，並將 marker stroke 數量降到 12 到 17 條。主筆觸使用 `markerBrush`，strokeWeight 降到 3.8 到 7.2，筆刷 weight multiplier 降到 0.32 到 0.5。`tintRoughWingBrushColor()` 改為輸出 `roughPaintColor`，並新增 `hsbToRgb()`，確保 p5.brush 收到明確 CSS RGB 色彩。`drawRadialWingWash()` 的 alpha、bleed 與 texture 也大幅降低。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-vivid-balanced-final-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 色彩更鮮艷，但不依賴大量暈染；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且清空 Result data。Result 截圖出現明顯紅、紫、藍綠與黃褐色筆觸，色彩比前版更鮮艷，但 fake camera 仍不能代表真實照片下的自然度
+- 手機 / AR 後續確認事項：真實手機相機、自然照片色彩、鮮艷色相是否突兀、手機效能與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+fake camera 單色綠背景無法可靠評估真實照片中的色彩自然度。新的 `markerBrush` 色塊在截圖中仍偏大塊，實機上可能需要再降低 opacity、strokeWeight 或改回較接近照片色的 hue shift。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者指出想要顏色更鮮艷，但也擔心暈染過多導致目標裝置效能不佳。本次已依此方向降低暈染、提高乾筆色彩。
+
+#### 建議的下一步
+用真實手機拍攝多色自然背景測試 rough wing，如果色彩過度突兀，優先縮小 hue shift；如果仍太厚，優先降低 `markerBrush` opacity 或 strokeWeight，而不是恢復大量 watercolor fill。
+
+---
+
+### 2026-05-10 — 分析參考程式的小筆觸上色策略
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+閱讀使用者提供的下載檔案 `C:\Users\ja120\Downloads\新文字文件.txt`，分析其以粒子與 noise flow 累積小筆觸的繪圖方式，並對照目前 `drawRoughWingColor()` 可如何改成一幀完成的手繪上色。
+
+#### 使用者需求
+使用者想換一個方式繪製 rough wing 上色，參考找到的程式。該程式使用多段小筆觸完成畫面，但使用者不想做成動畫，而是希望一幀就看到結果；挑選顏色方式也希望可以從專案原有方式延伸修改。
+
+#### 實作前理解
+參考程式以 `Particle` 為單位，每個粒子從圖片座標取色，使用 `noise(pos.x / 400, pos.y / 400) * TAU` 決定移動方向，並在生命週期中反覆畫小圓。它靠多輪粒子與逐漸變小的筆觸尺寸累積出印象派筆觸。FlutterLens 不需要動畫累積，因此可把粒子的生命週期在單次函式呼叫中跑完，直接畫出多段短 stroke 或小橢圓筆觸。
+
+#### 實作方案
+本次只提出設計方案，不修改功能程式碼。建議以翅膀 root-to-edge 放射方向作為主流場，加入少量 noise flow 偏移，產生很多短小 stroke。每個 stroke 的起點在翅膀內部或邊界附近取樣，顏色從現有 `getRoughWingMarkerColor()` 延伸，依局部 progress、照片色、原本 `color1/color2` 與輕微 hue shift 取得，而不是完全照參考程式從外部圖片取色。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\新文字文件.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+不直接照搬參考程式的動畫 loop，也不把圖片取色機制搬進 rough wing。更適合本專案的是「一次性粒子模擬」：在 `drawRoughWingColor()` 內建立固定數量的小筆觸，每條筆觸只走 2 到 5 個短步，並以 p5.brush 或 p5 shape 畫出結果。
+
+#### 遇到的問題
+參考程式在 1920x1920 canvas 上以動畫逐幀累積，粒子數與生命週期都偏大；若原樣搬到手機 AR Result page，可能會造成明顯效能負擔。且參考程式取色來源是靜態 image，本專案 rough wing 色彩來源是拍照後的 `color1/color2` 與昆蟲生成參數，兩者資料流不同。
+
+#### 嘗試過的解法
+將參考程式拆解為粒子初始化、取色、noise flow 移動、生命週期畫點四個概念，再重新對應到 FlutterLens：粒子初始化改成翅膀 outline 內取樣；取色改成沿用 `getRoughWingMarkerColor()` 與照片色；noise flow 改成 root-to-edge 方向加 jitter；生命週期改成單次函式內的短步模擬。
+
+#### 最終解法
+提出一幀式小筆觸演算法：先產生多個 brush particles，依翅膀進度取得顏色與方向，每個 particle 立刻跑完短生命週期並畫出 2 到 5 段小筆觸。筆觸數量應控制在手機可承受範圍，例如每側翅膀 80 到 160 條短 stroke，而不是上千粒子乘以 100 幀。
+
+#### 視覺驗證紀錄
+- 測試環境：未執行瀏覽器測試
+- 瀏覽器：未執行
+- 裝置 / viewport：未執行
+- 是否有截圖：無
+- Console 錯誤：未檢查
+- 預期畫面：本次為演算法分析，尚未改變視覺結果
+- 實際觀察：未產生新畫面
+- 手機 / AR 後續確認事項：若後續實作，需使用 CDP 測試 Result page，並以真實手機確認短筆觸數量對效能的影響
+
+#### 尚未解決的風險
+短筆觸數量、p5.brush stroke 成本與真實手機效能仍需測試。若用 p5.brush 畫太多短線，可能仍比少量 marker strokes 慢；可準備降級方案，用 p5 的 `ellipse()` 或 `line()` 畫低成本色點。
+
+#### 使用者回饋或修正
+使用者明確表示不需要動畫逐幀跑，希望一幀完成；並希望挑色方式從原專案既有方式延伸。
+
+#### 建議的下一步
+請使用者確認是否採用「一次性粒子短筆觸」方案。若確認，下一步可將 `drawRoughWingColor()` 改為小筆觸生成器，保留現有 Voronoi 翅脈與輪廓流程，並重跑 CDP 視覺測試。
+
+---
+
+### 2026-05-10 — 實作 Rough Wing 一幀式小筆觸粒子上色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+將 `drawRoughWingColor()` 從少量大段放射筆觸改為一幀式小筆觸粒子上色，參考使用者提供的粒子 flow 程式，但不使用動畫逐幀累積。
+
+#### 使用者需求
+使用者確認「試試看」，希望把參考程式中多段小筆觸的精神用在 rough wing 上色，但結果要一幀完成；顏色挑選則從專案原有的 `color1/color2` 與 `fillType` 邏輯延伸。
+
+#### 實作前理解
+原本最新版本使用 `markerBrush` 畫 12 到 17 條較大的放射筆觸，顏色鮮艷但容易形成大色塊。參考程式則以粒子生命週期逐幀畫小圓，累積成印象派質感。FlutterLens 的 Result page 不適合等待動畫累積，因此需要在 `drawRoughWingColor()` 單次呼叫中直接完成短筆觸模擬。
+
+#### 實作方案
+保留現有翅膀輪廓、Voronoi 翅脈與 root-to-edge 結構，只替換上色層。新增 `drawRoughWingParticleStrokes()`，分兩層產生約 82 到 118 條短筆觸。每條筆觸先在翅膀內或邊緣附近取樣起點，再以 root-to-point 的放射方向為主，加入 noise flow 與 fan bend，立即跑完 1 到 4 個短步並用 `markerBrush` 畫出。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\新文字文件.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `sketch.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有新增依賴，也沒有改 `sketch.js` 的 brush 定義。繼續使用既有 `markerBrush`，但每條筆觸的 brush weight 與 strokeWeight 都比上一版小。顏色不再使用大幅極端 hue shift 作為主體，而是新增 `tintRoughWingParticleColor()`：多數筆觸只做較小色相偏移，少數筆觸作為 accent 色。
+
+#### 遇到的問題
+若直接用大量 p5.brush 短線可能造成手機效能負擔，因此本次控制每側翅膀約 82 到 118 條短筆觸，且每條只有 1 到 4 個短步。CDP fake camera 可確認畫面與流程，但仍不能評估真實手機生成時間。
+
+#### 嘗試過的解法
+先將 `drawRoughWingColor()` 的大段 marker stroke loop 移除，改為 `drawRoughWingParticleStrokes()`。新增粒子取樣、progress 推估、短筆觸生成與粒子顏色函式。也修正 `colorToBrushPaint()` 對 `roughPaintColor` 的 alpha 處理，讓 wash 傳入的低 alpha 不會被顏料物件的 alpha 覆蓋。
+
+#### 最終解法
+`drawRoughWingColor()` 現在只保留 0 到 1 層極淡 wash，主要上色由 `drawRoughWingParticleStrokes()` 完成。新增 helper：`sampleRoughWingParticleStart()`、`getRoughWingParticleProgress()`、`makeRoughWingParticleStroke()`、`tintRoughWingParticleColor()`。筆觸方向為根部放射加 noise flow，顏色由原本 `getRoughWingMarkerColor()` 延伸。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-particle-strokes-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 上色由多段短筆觸累積，一幀完成，不依賴動畫；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 52,836 bytes；Back 回到 `SCANNING` 且清空 Result data。Result 截圖顯示短筆觸感比上一版大色塊自然，翅脈仍可讀
+- 手機 / AR 後續確認事項：真實手機相機、生成時間、觸控流暢度、真實照片下的色彩自然度仍需人工確認
+
+#### 尚未解決的風險
+p5.brush 短筆觸數量比上一版多，雖然每條都較短較細，但實際手機效能仍需測。若卡頓，建議先降低 layer count，或考慮用 p5 native `line()` / `ellipse()` 畫低成本筆觸。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者確認要嘗試參考程式的多段小筆觸方向，並提醒不需要動畫逐幀累積。
+
+#### 建議的下一步
+請使用者檢視 `rough-wing-particle-strokes-2026-05-10` 的 Result 截圖。如果方向正確，下一步應以真實手機拍攝自然背景測試生成速度與色彩；若筆觸仍太密或太碎，可降低第二層 count 或拉長單筆 stroke。
+
+---
+
+### 2026-05-10 — 收斂 Rough Wing 小筆觸為主色漸變與輪廓內填色
+
+#### 日期
+2026-05-10
+
+#### 任務摘要
+依使用者回饋，將 rough wing 小筆觸上色收斂為只使用第一主色與第二主色之間的漸變，限制筆觸在翅膀範圍內，並在考慮效能的前提下提高填滿感。
+
+#### 使用者需求
+使用者希望顏色只使用第一主色和第二主色之間的漸變；由於這種多段小筆觸畫法看起來應該待在翅膀內，因此希望限制不要出界；同時希望筆觸可以加粗或更填滿，但仍需考慮目標裝置效能。
+
+#### 實作前理解
+前一版已將上色改為一幀式小筆觸粒子，但包含少量 accent hue，且點位允許靠近或略超出 outline。這次需要移除額外跳色，改用穩定的主色漸變，並避免 `brush.fillBleed()` 造成出界。
+
+#### 實作方案
+移除 watercolor wash 與 accent 色彩。新增 `getRoughWingGradientColor()`，以粒子 `progress` 在 `color1` 與 `color2` 間取樣，只做小幅 saturation / brightness 調整，不改 hue family。新增 `keepRoughParticlePointInsideWing()`，將 stroke 的每個點位推回翅膀內側並避開輪廓邊緣。填滿感透過小幅增加 count、alpha、brushWeight 與 strokeWeight 完成，而不是大幅增加粒子數。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+為了避免出界，本次關閉 wash，而非使用更低的 bleed。真正 polygon mask clipping 目前沒有導入，因 p5.brush 筆刷寬度仍可能跨出中心線；本次採用較低成本的中心線內縮策略，將粒子點位推入輪廓內側。
+
+#### 遇到的問題
+fake camera 的第一主色與第二主色都偏綠，因此自動截圖無法展示真實照片下的雙主色漸變差異。此問題不代表邏輯沒有使用漸變，而是測試素材色彩單一。
+
+#### 嘗試過的解法
+先將 accent 色與 wash 移除，再觀察 CDP 截圖發現填滿感偏薄；第二輪提高兩層粒子的 alpha、brushWeight、strokeWeight，並只小幅增加 count，避免效能成本過大。
+
+#### 最終解法
+`drawRoughWingParticleStrokes()` 現在使用兩層粒子：第一層約 50 到 63 條較粗筆觸，第二層約 60 到 77 條補色筆觸。`getRoughWingGradientColor()` 只混合 `color1` / `color2`，`keepRoughParticlePointInsideWing()` 負責把取樣點與短筆觸點位限制在翅膀內側。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-contained-gradient-filled-2026-05-10/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 上色只使用第一與第二主色間的漸變，筆觸在翅膀內，填滿感比前版提高
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 64,227 bytes；Back 回到 `SCANNING` 且清空 Result data。Result 截圖顯示筆觸更厚且沒有明顯出界；fake camera 下主要呈現綠色系
+- 手機 / AR 後續確認事項：真實手機相機、雙主色漸變效果、筆觸是否在高 DPR 下仍不溢出、生成速度與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+目前是用中心線內縮控制出界，並非真正對 p5.brush stroke 做 polygon mask clipping；若筆刷很粗或手機 DPR 很高，邊緣仍可能有少量可見外溢。筆觸數量與粗度增加後，手機效能需實機驗證。
+
+#### 使用者回饋或修正
+使用者要求顏色回到第一主色與第二主色之間的漸變，並限制筆觸在翅膀範圍內，同時提高填滿感但注意效能。
+
+#### 建議的下一步
+用真實手機和多色背景測試雙主色漸變是否自然。若仍不夠滿，優先略增 brushWeight；若手機卡頓，優先降低第二層 count 或改用低成本 p5 native 筆觸。
+
+---
+
+### 2026-05-11 — 為 Rough Wing 加入雙主色關係判斷、裝飾色與 NMM 高光
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者提出的兩個方向，調整 `drawRoughWingColor()`：加入類 NMM 的亮暗高光層，並用第一主色與第二主色的個別屬性與差異分數決定是否需要額外裝飾色。
+
+#### 使用者需求
+使用者希望讓 `RoughInsectWings.js` 的 `drawRoughWingColor()` 生成結果更具視覺吸引力。提出兩個方向：一是蝴蝶翅膀可能有金屬反射感，可用 NMM 上色技法，以多層高光模擬金屬光澤；二是根據第一與第二主色的彩度、明度與色相來決定額外裝飾色。使用者也提醒：不能只取兩色平均，因為兩個主色差異大時本身可能已足夠明顯，平均值反而會造成誤判。
+
+#### 實作前理解
+目前 rough wing 已是前幾輪收斂後的版本：主上色由 `drawRoughWingParticleStrokes()` 使用兩層 `marker1` 小筆觸完成，顏色主要由 `getRoughWingGradientColor()` 在 `color1` 與 `color2` 間混合，並以 `keepRoughParticlePointInsideWing()` 控制筆觸中心線待在翅膀輪廓內。`docs/llms.txt` 顯示本專案使用 p5.brush 的 p5 build，因此不需要 `brush.render()`；大量 `fillBleed()` / `fillTexture()` 有效能風險，較適合用少量 stroke 疊出質感。
+
+#### 實作方案
+保留既有兩層主色小筆觸，不重寫主填色。新增 `analyzeRoughWingColorPair()`，分別讀取兩個主色的 hue、saturation、brightness，計算 `hueDistance`、`saturationDistance`、`brightnessDistance` 與 `contrastScore`。若兩色已經有高色相差或高明度差，裝飾色會大幅減量；若兩色接近、偏灰或對比不足，才提高裝飾色強度。接著疊加少量 `drawRoughWingAccentStrokes()` 與 `drawRoughWingSpecularStrokes()`，用短筆觸製造裝飾色與 NMM 式暗反射 / 亮高光。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/llms.txt`
+- `docs/visual-test-log.md`
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+採用混合方案：主色漸變作底，智慧裝飾色作節奏，NMM 高光作光澤。沒有使用兩色平均作主要判斷，而是先看兩色之間的差異；主色差異越大，accent 越少。沒有恢復 watercolor wash，避免出界與手機效能風險。新高光與裝飾色都使用既有 `marker1` 短筆觸與輪廓內縮 helper，避免新增依賴或大改筆刷設定。
+
+#### 遇到的問題
+CDP fake camera 的照片色彩高度偏綠，導致第一與第二主色在測試中也接近綠色系，因此截圖無法完整代表真實照片下「兩主色差異大」或「互補色裝飾」的效果。landscape Start page 的 Start button 仍不可見，屬於前次已知版面風險，與本次 rough wing 上色無關。
+
+#### 嘗試過的解法
+先閱讀 `AGENTS.md`、工作日誌、`docs/llms.txt` 與目前 rough wing 實作，確認前人已完成的一幀式小筆觸與輪廓內縮策略。接著只在 `drawRoughWingColor()` 後段疊加新層，並新增色彩分析與 glint helper。修改後用 `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 檢查語法，再執行 `scripts/run-cdp-visual-test.ps1 -RunId rough-wing-accent-nmm-2026-05-11` 做視覺驗證。
+
+#### 最終解法
+`drawRoughWingColor()` 現在會先建立 `colorProfile`，再依序繪製主色粒子、裝飾色短筆觸、NMM 式暗反射與亮高光。新增 helper 包含 `analyzeRoughWingColorPair()`、`makeRoughWingColorStats()`、`getHueDistance()`、`wrapHue()`、`drawRoughWingAccentStrokes()`、`drawRoughWingSpecularStrokes()`、`drawRoughWingGlintStroke()`。裝飾色強度由 `contrastScore` 控制，避免在兩主色本來就強烈時過度加色。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-accent-nmm-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 保留主色漸變與輪廓內小筆觸，並新增少量裝飾色與亮暗高光；翅脈仍可讀，Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 63,654 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。Result 截圖顯示翅膀內有更細的亮暗節奏，未明顯蓋掉翅脈或外溢。fake camera 主色偏綠，無法完整判斷真實照片下的裝飾色自然度
+- 手機 / AR 後續確認事項：真實手機相機、多色背景、兩主色差異大時 accent 是否足夠克制、NMM 高光是否自然、生成速度與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+自動測試只能使用 fake camera，無法代表真實照片色彩。高光與裝飾色目前偏保守，若真實手機上仍不夠明顯，可微增 `drawRoughWingSpecularStrokes()` 的 count 或 highlight alpha；若色彩過度突兀，優先降低 `accentStrength` 上限。landscape Start page 按鈕不可見與 console 404 仍是既有風險。
+
+#### 使用者回饋或修正
+使用者接受混合方案，但指出兩主色不能只用平均判斷。本次已依此修正為先分析兩色個別屬性與差異，再決定是否需要裝飾色。
+
+#### 建議的下一步
+請使用者用真實手機拍攝多色背景測試 rough wing。特別觀察：兩主色本來差異大時是否保持乾淨；兩主色接近時裝飾色是否能增加層次；NMM 高光是否有金屬感但不蓋掉翅脈。
+
+---
+
+### 2026-05-11 — 參考實際蝴蝶影像加入 Rough Wing 圖案語法
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者提供的 `butterfly.jpg` 參考圖，將 rough wing 從單純筆觸與高光推進到更像蝴蝶翅膀的 pattern layer，包含深色外緣、邊緣點列、放射色帶與少量眼斑。
+
+#### 使用者需求
+使用者覺得上一輪結果不夠明顯，希望參考實際翅膀影像，學習或模仿其中的 pattern。使用者提供 `C:\Users\ja120\Downloads\butterfly.jpg`，圖中可見多種蝴蝶翅膀語法：黑色外緣、白點列、眼斑、放射色帶、翅尖深色 patch 與高對比色塊。
+
+#### 實作前理解
+上一輪已加入雙主色關係判斷、裝飾色與 NMM 高光，但視覺仍偏細微。參考圖顯示真正讓蝴蝶翅膀易辨識的不是單一高光，而是明確圖案結構。因 `drawRoughWingColor()` 在 Voronoi 翅脈之前執行，新增圖案層會被後續翅脈壓在上方，視覺上接近真實蝶翼的「底色圖案 + 翅脈線」。
+
+#### 實作方案
+新增 `drawRoughWingButterflyPattern()`，在主色粒子填色後、accent 與 specular 前執行。此函式依 `colorProfile` 與隨機 seed 選擇圖案語法：固定加入深色 rim band 與 rim spots；視主色對比加入 radial bands；主色不高對比時才加入 occasional eye spots。色彩仍延續 `analyzeRoughWingColorPair()`，新增 `rimPaint`、`spotPaint` 與 `bandPaint`，避免只靠平均值判斷。
+
+#### 檢視過的檔案
+- `C:\Users\ja120\Downloads\butterfly.jpg`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇先實作最常見且辨識度高的 pattern：外緣深框與邊緣白點列。眼斑只在非高對比主色時出現，避免所有翅膀都變成同一類花紋。沒有直接複製參考圖中的任何特定蝴蝶，而是抽象成可生成的 pattern archetypes。所有圖案仍使用 p5.brush 的 `marker1` stroke 或小型 `brush.circle()`，避免新增依賴。
+
+#### 遇到的問題
+CDP fake camera 下主色仍偏綠，能檢查 pattern 是否明顯，但不能完整檢查多色真實照片下的配色自然度。portrait 截圖中昆蟲生成位置偏低，翅膀被儲存 / 返回按鈕遮住一部分；這與 Result spawn 位置或隨機生成有關，不是本次 pattern layer 直接造成，但會影響視覺評估。
+
+#### 嘗試過的解法
+先觀察參考圖，整理出外緣黑框、白點列、眼斑、放射色帶、外半部 patch 等重複語法。實作時先建立 `drawRoughWingRimBand()`、`drawRoughWingRimSpots()`、`drawRoughWingRadialBands()`、`drawRoughWingEyeSpots()`，再用 `drawRoughWingPatternDot()` 與 `drawRoughWingPatternStroke()` 統一繪製。修改後使用 `node --check` 與 CDP 視覺測試驗證。
+
+#### 最終解法
+`drawRoughWingColor()` 現在流程為：主色粒子填色 → butterfly pattern layer → 裝飾色短筆觸 → NMM 高光。`analyzeRoughWingColorPair()` 也新增 `rimPaint`、`spotPaint`、`bandPaint`。新增圖案層會固定提供深色輪廓與點列，並依主色對比選擇放射色帶與眼斑，使結果比單純 accent / highligts 更明顯。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-butterfly-pattern-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：rough wing 應更明顯出現實際蝴蝶翅膀常見 pattern，例如深外框、白點列、放射色帶或眼斑；翅脈仍可讀；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 91,947 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。compact Result 截圖可清楚看到深色外緣與白點列，辨識度比上一輪提高。portrait Result 中昆蟲位置偏低，被按鈕遮住部分翅膀，需後續另評估 spawn 位置
+- 手機 / AR 後續確認事項：真實手機相機、多色背景、pattern 強度、按鈕遮擋、生成時間與觸控流暢度仍需人工確認
+
+#### 尚未解決的風險
+新增 pattern layer 讓 PNG 大小從上一輪約 63KB 增加到約 92KB，表示畫面資訊與筆觸數增加，手機效能需實測。黑框與白點列在 fake camera 下非常明顯，真實照片上可能需要依背景調整 alpha 或 count。portrait spawn 位置偏低造成按鈕遮擋，可能需要未來修正 Result page 的生成位置限制。
+
+#### 使用者回饋或修正
+使用者指出上一版不夠明顯，並提供實際蝴蝶影像作為 pattern 參考。本次已依參考圖抽象出 pattern archetypes 並實作。
+
+#### 建議的下一步
+請使用者檢視 `rough-wing-butterfly-pattern-2026-05-11` 截圖。如果方向正確，下一步建議用真實手機拍攝多色背景測試；若覺得黑框太重，可降低 `drawRoughWingRimBand()` 的 `strokeWeight` 或 alpha；若希望更像孔雀蝶，可提高 `drawRoughWingEyeSpots()` 出現率。
+
+---
+
+### 2026-05-11 — 收斂 Rough Wing Pattern 為乾淨內縮版本
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者回饋，將上一版過於明顯且髒的蝴蝶圖案層收斂為較乾淨、低透明、內縮的版本，降低深色筆觸、外溢與髒邊問題。
+
+#### 使用者需求
+使用者指出上一版雖然效果明顯，但視覺上不好看：過於明顯的筆觸、明顯出界、很深的顏色讓畫面看起來很髒。使用者同意改為 clean pattern 方向：弱化深外框、縮小點列、讓圖案更內縮且更淡。
+
+#### 實作前理解
+上一版髒感主要來自 `rimPaint` 太接近黑色且 alpha 高、`drawRoughWingRimBand()` 連續閉合畫兩層粗線、邊緣白點帶深色 ring、以及 pattern 點位太靠近輪廓。p5.brush 筆刷有寬度，即使中心線在輪廓內，視覺上仍可能外溢。
+
+#### 實作方案
+保留 pattern layer 的結構，但全面收斂參數：降低 `rimPaint` 明暗對比與 alpha；`drawRoughWingRimBand()` 改為單層、不閉合、低透明、較細且更內縮的斷續線；`drawRoughWingRimSpots()` 減少數量、縮小半徑、移除深色 ring 並更內縮；`drawRoughWingRadialBands()` 減少數量、降低 alpha、縮小 strokeWeight 並把外緣端點往內縮；眼斑降為低機率且更小。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不移除 pattern layer，因它提供蝴蝶辨識度；但將「黑框白點」從主視覺改成背景性的淡紋理。重點從「明顯」改為「乾淨且不出界」。目前不引入真正 polygon clipping，仍使用內縮點位與降低筆刷粗度來控制外溢。
+
+#### 遇到的問題
+fake camera 仍使主色偏綠，對真實照片下的配色自然度判斷有限。compact 截圖中 Result 昆蟲仍可能被儲存 / 返回按鈕遮住，這是既有 Result spawn 位置風險，與本次 clean pattern 參數收斂無直接關係。
+
+#### 嘗試過的解法
+先定位髒感來源，再用小範圍 patch 調整 color profile 與 pattern drawing 參數。使用 `node --check` 檢查語法，並執行 `scripts/run-cdp-visual-test.ps1 -RunId rough-wing-clean-pattern-2026-05-11` 驗證 Result 流程與截圖。
+
+#### 最終解法
+`rimPaint` 由高 alpha 深黑改為較低明度但不接近黑的主色暗版，alpha 降到 132；`spotPaint` alpha 降到 168 且不再純白；`bandPaint` alpha 降低。rim band 改為單層斷續線，strokeWeight 降至約 1.15 到 2.05，內縮約 0.62 到 0.92 `insectBaseUnit`。白點列變少、變小、無深色外圈，色帶與眼斑也更小、更淡、更內縮。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-wing-clean-pattern-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆 `Failed to load resource: the server responded with a status of 404 (File not found)`，與前次已知狀況一致，未阻止流程
+- 預期畫面：pattern 保留蝴蝶語法但不再以深黑髒邊和大白點為主；筆觸更淡、更內縮，外溢減少；Result Save / Back 不回歸失敗
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 76,871 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。截圖中黑色髒邊與大白點明顯退掉，畫面較乾淨；pattern 變成較淡的蝶翼紋理。compact 仍有按鈕遮擋昆蟲的既有問題
+- 手機 / AR 後續確認事項：真實手機、多色背景、clean pattern 是否太淡、Result spawn 安全區域與效能仍需人工確認
+
+#### 尚未解決的風險
+目前仍沒有真正 mask clipping，若手機高 DPR 或特定 seed 產生較寬筆觸，仍可能有少量出界。clean pattern 比上一版乾淨但辨識度下降，需要使用者判斷是否達到想要的平衡。按鈕遮擋昆蟲的問題仍建議另開任務處理。
+
+#### 使用者回饋或修正
+使用者指出上一版過髒、過黑、筆觸與出界太明顯。本次依此將 pattern 收斂為低透明、內縮、無深色 ring 的版本。
+
+後續使用者補充回饋：clean pattern 版中，白點的點綴效果很好，之後或許可以從白點這個方向發展；但放射色帶看起來有點怪。使用者推測問題不只是筆觸強弱，而是放射色帶的位置過於隨機，且左右翅膀不對稱，導致整體 pattern 缺乏像真實蝴蝶那樣的結構一致性。
+
+#### 建議的下一步
+請使用者比較 `rough-wing-butterfly-pattern-2026-05-11` 與 `rough-wing-clean-pattern-2026-05-11`。若 clean 版太淡，可只微增 radial band alpha，不建議恢復深色 rim band；若仍嫌髒，下一步應暫停 rim band，只保留主色粒子與少量內縮色帶。
+
+依使用者最新回饋，下一次處理 pattern 時應優先保留並發展白點點綴，但重新設計放射色帶。建議新增類似 `createRoughWingPatternPlan()` 的事前參數計算流程：像翅膀大輪廓與 Voronoi 網格一樣，先用共同 seed 決定左右翅膀共享的額外紋理配置，例如白點數量、點列位置、放射色帶起訖 progress、色帶寬度與對稱關係；左右翅膀繪製時再各自加入手繪 jitter、筆壓與微小偏移。這樣可以保留手繪差異，但避免 pattern 結構本身左右不協調或太隨機。
+
+---
+
+### 2026-05-11 — CDP 視覺測試支援本機照片假相機
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+擴充 `scripts/run-cdp-visual-test.ps1`，讓 CDP 視覺測試可用 `tests/fixtures/camera/` 裡的本機照片產生 canvas fake camera stream，取代 Chrome 預設綠色 fake camera。
+
+#### 使用者需求
+使用者詢問 Chrome fake camera 永遠是綠色時，如何確認不同背景下的視覺效果。經討論後同意採用 CDP 注入 mock `getUserMedia()` 的方案，並已在 `tests/fixtures/camera/` 放入五張不同大小照片：`cementWall.jpg`、`colorfulToys.jpg`、`darkWood.jpg`、`greenPlants.jpg`、`streets.jpg`。使用者也已在 `.gitignore` 新增 `tests/`，避免本機照片進入版本控制。
+
+#### 實作前理解
+既有 CDP 腳本能穩定操作 Start → Scanning → Result、Save / Back 與多 viewport，但使用 `--use-fake-device-for-media-stream` 時相機畫面固定偏綠，只能驗流程，無法驗真實背景對取色、rough wing、pattern 與 Result 視覺的影響。若改用 `canvas.captureStream()`，可以在不修改正式 app 的前提下，讓 app 仍透過 `navigator.mediaDevices.getUserMedia()` 取得 video stream。
+
+#### 實作方案
+保留預設 Chrome fake camera 行為；當使用 `-CameraFixture` 時，腳本改為先開 `about:blank`、透過 `Page.addScriptToEvaluateOnNewDocument` 注入 mock camera，再 `Page.navigate` 到本機頁面。mock camera 會載入指定 fixture 圖片，以 cover 方式畫到 `CameraWidth x CameraHeight` canvas，並用 `canvas.captureStream(30)` 回傳假相機影像。產物命名加入 camera label，避免不同 fixture 截圖互相覆蓋。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/visual-test-log.md`
+- `scripts/run-cdp-visual-test.ps1`
+- `.gitignore`
+- `tests/fixtures/camera/` 中的五張 fixture 圖片清單與尺寸
+
+#### 修改過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-visual-test-workflow.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇腳本注入 mock camera，而不是把測試模式寫進正式 app，避免 production code 因測試 fixture 增加分支。預設仍保留原本 Chrome fake camera，讓舊流程可用；指定 `-CameraFixture` 才進入 canvas fixture camera。camera stream 解析度與 browser viewport 分開設定，因真實手機上相機影像尺寸與螢幕 viewport 本來就不同。
+
+#### 遇到的問題
+需要確保注入發生在 app 呼叫 `getUserMedia()` 前，因此不能直接讓 Chrome 啟動到首頁；腳本改為先開 `about:blank`，建立 CDP 連線並注入，再導向首頁。fixture 圖片在本機 server 下提供，必須確認路徑位於專案根目錄內。landscape Start button 不可見的既有問題仍存在。
+
+#### 嘗試過的解法
+先檢查 fixture 檔案與 `.gitignore`，確認五張圖片都在 `tests/fixtures/camera/`，尺寸皆為直式高解析。接著用 PowerShell parser 檢查腳本語法，再執行 `.\scripts\run-cdp-visual-test.ps1 -RunId cdp-fixture-greenPlants-2026-05-11 -CameraFixture greenPlants -CameraWidth 720 -CameraHeight 1280` 驗證完整流程。
+
+#### 最終解法
+腳本新增 `-CameraFixture`、`-CameraFixtureDir`、`-CameraWidth`、`-CameraHeight`。`-CameraFixture default` 使用舊的 Chrome fake camera；指定檔名或 basename 時使用 canvas fixture camera；指定 `all` 時會依檔名排序跑資料夾內的 `jpg`、`jpeg`、`png`、`webp`。截圖命名改為 `<runId>-<cameraLabel>-<viewportLabel>-<stage>.png`，下載路徑改為 `downloads/<cameraLabel>/<viewportLabel>/FlutterLens-result.png`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/cdp-fixture-greenPlants-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：Scanning / Result 背景應為植物照片，不再是預設綠色 fake camera
+- 實際觀察：portrait / compact 完成 `START → SCANNING → RESULT`；portrait Save 下載 `FlutterLens-result.png`，大小 772,584 bytes；Back 回到 `SCANNING` 且 `backCleared=true`。截圖確認 Scanning 與 Result 背景為 `greenPlants.jpg`。landscape 仍停在 `START`，`startVisible=false`
+- 手機 / AR 後續確認事項：真實手機相機、後鏡頭曝光 / 對焦、權限流程、DeviceOrientation、觸控手感與效能仍需實機確認
+
+#### 尚未解決的風險
+canvas fixture camera 改善自動化視覺回歸，但仍不能代表真實手機鏡頭的曝光、噪訊、對焦、廣角畸變與效能。`-CameraFixture all` 尚未實際跑完整五張，若一次跑全部 fixture 與三個 viewport，測試時間會明顯增加。landscape Start page 按鈕不可見仍是既有版面風險。
+
+#### 使用者回饋或修正
+使用者同意實作方案 2，並提供五張本機測試照片與 `.gitignore` 設定。本次實作依此保留照片在本機、不納入版本控制。
+
+#### 建議的下一步
+用 `-CameraFixture all` 跑完整五張 fixture，比較 `greenPlants`、`darkWood`、`cementWall`、`colorfulToys`、`streets` 下 rough wing 與 Result UI 是否穩定。若測試時間太長，可先針對正在調整的視覺功能指定單張 fixture。後續也建議修正 landscape Start button 不可見與 Result 昆蟲可能被按鈕遮擋的既有問題。
+
+---
+
+### 2026-05-11 — 調整 Start page 直向空間分配並修正橫向按鈕不可見
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+重整 Start page responsive layout。直向不再把所有文字集中在畫面中央，改為上方標題、中段說明、下方權限提示與按鈕；短高度橫向改為左文右按鈕，修正 `landscape-844x390` 下 Start button 不可見、CDP 無法進入 Scanning 的問題。
+
+#### 使用者需求
+使用者要求接著修改橫向版面中 Start button 不可見的問題；隨後補充直向手機觀看時也覺得字全部集中在中央、周圍留了許多空間，希望一併改善空間運用。
+
+#### 實作前理解
+既有 Start page 以內容總高度置中。直向時會讓標題、說明、權限提示與按鈕形成一團集中在中央；橫向短高度時，即使已縮小字級，完整 7 行說明與 60px 按鈕總高度仍超過 runtime 高度，導致 `landscape-844x390` 的 Start button 掉出畫面，CDP summary 顯示 `startVisible=false`。
+
+#### 實作方案
+將 `drawStartPage()` 拆成兩種 layout。一般直向與較高畫面使用 `drawStartPagePortraitLayout()`，依 viewport 分區配置標題、正文與底部操作區。`width > height && height < 360` 時使用 `drawStartPageLandscapeCompact()`，顯示短版文案並改成左側文字、右側權限提示與按鈕。新增 `updateStartButtonMetrics()` 與 `drawStartButton()`，讓按鈕尺寸依 layout 調整，但保留既有 `StartButton.ButtonX/Y/Width/Height` 給互動與 CDP 測試讀取。
+
+#### 檢視過的檔案
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+- `Pages/pagesSettings.js`
+- `sketch.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/StartPage/StartPage.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有只把橫向按鈕硬往上推，因為使用者指出直向空間也有問題；因此改為重新整理 Start page 的 responsive layout。直向保留完整文案，橫向改用短文案，避免在 240px runtime 高度中硬塞完整說明。按鈕尺寸在橫向縮小但維持可點擊面積。
+
+#### 遇到的問題
+`drawScreenText()` 沒有文字框寬度或自動換行，因此仍需用手動換行控制中文段落。p5 runtime 在 Chrome headless `844x390` 下約為 `822x240`，可用高度比外部 window size 小很多，橫向必須採用獨立版面。
+
+#### 嘗試過的解法
+先閱讀 Start page、Start button settings、文字 helper 與點擊處理，確認 CDP 是從 `StartButton.ButtonX/Y` 讀座標，互動則用 `dist()` 判斷點擊位置。修改後使用 `node --check Pages\StartPage\StartPage.js` 檢查語法，再執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-layout-responsive-2026-05-11 -CameraFixture greenPlants -CameraWidth 720 -CameraHeight 1280` 進行視覺與互動驗證。
+
+#### 最終解法
+`drawStartPage()` 現在依 viewport 切換 layout。直向版面使用上中下分區：標題位於上方、完整說明位於中段、權限提示與啟動按鈕固定在下方操作區。橫向短版使用左側標題 / 3 行說明、右側權限提示 / 啟動按鈕。三個測試 viewport 都能讀到可見 Start button。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：直向不再集中成一團；橫向 Start button 可見且可點
+- 實際觀察：portrait / compact Start page 呈現上方標題、中段說明、下方提示與按鈕；landscape 顯示左文右按鈕。三個 viewport 都 `startVisible=true` 並完成 `START → SCANNING → RESULT`。portrait Save 下載 `FlutterLens-result.png`，大小 771,398 bytes；Back 回到 `SCANNING` 且 `backCleared=true`
+- 手機 / AR 後續確認事項：真實手機 Safari / Android Chrome 的 viewport、安全區域、字體渲染、觸控手感與權限彈窗仍需人工確認
+
+#### 尚未解決的風險
+CDP 截圖可確認目前測試 viewport，但真實手機可能因瀏覽器網址列、安全區域或系統字體造成高度差異。橫向版面使用短文案，資訊量比直向少；若使用者希望橫向也保留完整說明，需要改成可捲動或更複雜的多段布局。
+
+#### 使用者回饋或修正
+使用者同意「直向分區 + 橫向短版」方案，並指出直向中央集中問題應與橫向不可見問題一起處理。
+
+#### 建議的下一步
+請使用者在真實手機直向與橫向各載入一次 Start page，確認視覺重心與按鈕位置是否符合手感。若直向仍覺得文字偏集中，可再把正文區略往上推並降低文字行距；若橫向希望保留更多資訊，可考慮加入可捲動說明或一個簡短副標。
+
+---
+
+### 2026-05-11 — 測試橫向頁面搭配全部 Camera Fixtures
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者要求，測試修正後的橫向頁面搭配 `tests/fixtures/camera/` 全部照片時，是否都能進入 Scanning 與 Result，並檢視橫向 Result 視覺狀況。
+
+#### 使用者需求
+使用者詢問原有 CDP 截圖流程是否已能進入橫向 Result 與 Scanning 後，要求實際測試橫向頁面搭配 fixtures 裡的照片結果。
+
+#### 實作前理解
+前一輪已修正 Start page 橫向按鈕不可見問題，`greenPlants` 單張 fixture 在 `landscape-844x390` 可完成 `START → SCANNING → RESULT`。本次需擴大到所有 fixture，確認不是單一照片偶然成功。
+
+#### 實作方案
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId landscape-fixtures-all-2026-05-11 -CameraFixture all -CameraWidth 720 -CameraHeight 1280`。腳本會同時跑 portrait、compact 與 landscape，但本次重點檢查五張 fixture 的 `landscape-844x390` summary 與 screenshots。為方便檢視，另外將五張橫向 Result 截圖合成 `landscape-result-montage.png`。
+
+#### 檢視過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-fixtures-all-2026-05-11-summary.json`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-fixtures-all-2026-05-11-console.json`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/screenshots/`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本次不修改功能程式碼，只用現有 CDP fixture camera 流程驗證橫向結果。雖然使用者只問橫向，腳本目前沒有 viewport filter，因此以 `-CameraFixture all` 跑完整矩陣，再聚焦判讀 landscape rows。
+
+#### 遇到的問題
+第一次合成 montage 時 PowerShell `System.Drawing.Bitmap` 建構子參數寫法不正確，產生 overload 錯誤；CDP 測試本身已完成且不受影響。修正合成圖建立方式後成功產出 montage。每個 viewport 仍有一筆已知 404 resource event。
+
+#### 嘗試過的解法
+先直接跑完整 fixture 矩陣，再用 PowerShell / System.Drawing 讀取 `*-landscape-844x390-result.png` 合成垂直對照圖。修正 Bitmap 建構方式後產出 `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-result-montage.png`。
+
+#### 最終解法
+五張 fixture 的橫向測試全部通過 `START → SCANNING → RESULT`，包含 `cementWall`、`colorfulToys`、`darkWood`、`greenPlants`、`streets`。summary 中五個 landscape case 均為 `startVisible=true`、`videoReady=true`、`hasResultPhoto=true`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`landscape-844x390` runtime 約 `822x240`
+- Camera fixtures：`cementWall`、`colorfulToys`、`darkWood`、`greenPlants`、`streets`
+- 是否有截圖：有，集中於 `docs/cdp-runs/landscape-fixtures-all-2026-05-11/screenshots/`，另有 `landscape-result-montage.png`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：所有 fixture 在橫向都能完成 Scanning 與 Result 截圖
+- 實際觀察：所有 fixture 橫向流程成功。Result 截圖顯示背景照片與昆蟲都有出現，但 Save / Back 按鈕在橫向短高度中位於畫面中央偏上，部分結果與昆蟲或主視覺區域重疊
+- 手機 / AR 後續確認事項：真實手機橫向 Result page 的按鈕安全區、昆蟲生成位置與觸控手感仍需人工確認
+
+#### 尚未解決的風險
+橫向 Start page 已可用，但 Result page 橫向 layout 仍有按鈕遮擋或與昆蟲重疊的風險。若要改善，下一步可針對 Result page 橫向模式重新安排 Save / Back 操作區與昆蟲 spawn safe area。
+
+#### 使用者回饋或修正
+使用者要求實際測試橫向頁面搭配 fixtures 裡照片的結果。本次已完成所有 fixture 橫向驗證。
+
+#### 建議的下一步
+優先處理 Result page 橫向模式：將 Save / Back 移到右側或底部安全區，並讓昆蟲生成位置避開按鈕區域。之後再用同一個 `landscape-fixtures-all` 矩陣回歸測試。
+
+---
+
+### 2026-05-11 — 為 Rough Butterfly 加入極簡符號式身體
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+為 `drawRoughInsect()` 中的 `insectType === 0` 加入新的 rough butterfly body。新身體不沿用 `drawInsectBody()` 的寫實頭、胸、腹，而是用細長弧線、短線 / 小點與柔軟觸角暗示蝴蝶身體，並讓 rough wings 依身體參照點定位。
+
+#### 使用者需求
+使用者希望開始為 `drawRoughInsect()` 加上身體繪製，但邏輯不同於 `drawInsect()`。風格需接近參考圖：極簡線條式、符號化、輕盈、飄逸、有裝飾感。身體是一條細直線或微彎弧線，從兩片翅膀交會處往下延伸；中間可用小點或短線表示頭部 / 胸部；觸角用兩條柔軟外彎細線，自然收尾，不必畫圓。使用者確認本階段先只針對 `insectType === 0`。
+
+#### 實作前理解
+`drawInsect()` 會依昆蟲類型安排寫實 body 與 wings；`drawRoughInsect()` 目前只畫 rough wings，body 呼叫被註解。`drawRoughInsectWings()` 原本固定以 `0.5 * insectBaseUnit` 作為 wing pair 的 y offset，左右 wing root 使用全域 `bodyHalfWidth`。若未先建立 body anchor，未來要支援不同角度或更清楚的身體 / 翅膀比例會比較困難。
+
+#### 實作方案
+新增 `RoughInsectBody.js`，提供 `createRoughInsectBodyPlan()` 與 `drawRoughInsectBody()`。`drawRoughInsect()` 在 `insectType === 0` 時先建立 body plan，再把 `wingRootY` 與 `wingRootHalfWidth` 傳給 `drawRoughInsectWings()`。身體繪製順序放在 wings 之後，讓細線 body 與 antenna 能壓在翅膀交會處上方。其他 `insectType` 暫時維持只有 rough wings。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/InsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+
+#### 修改過的檔案
+- `index.html`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本次沒有修改 `drawInsectBody()`，避免寫實 body 與 rough body 的視覺語彙混在一起。body plan 先只支援 `insectType === 0`，但資料結構保留 `wingRootY`、`wingRootHalfWidth`、`headY`、`bottomY`、`curveX`，之後可擴充不同角度與姿態。`drawRoughInsectWings()` 保留既有預設值，沒有 body plan 時仍使用原本的 rough wing 位置。
+
+#### 遇到的問題
+第一次視覺驗證時，主身體線條太厚，畫面讀起來像紅色柱狀筆畫，不符合「幾筆細長弧線」與輕盈感。橫向 Result page 仍有既有風險：Save / Back 按鈕在短高度 landscape 中會遮擋或壓近昆蟲。
+
+#### 嘗試過的解法
+先新增 body plan 與 rough body 線條，再執行 `node --check` 與 CDP 視覺驗證。看到第一版主軸過厚後，將 body axis 與 antenna 的 stroke weight 大幅降低，小點與短線也同步收細，再重新跑 CDP。
+
+#### 最終解法
+`RoughInsectBody.js` 會為 butterfly 產生一組穩定 body plan，包含翅膀交會點、細長 body 主軸、頭部小點、胸部短線與兩條自然外彎觸角。`drawRoughInsect()` 只在 `insectType === 0` 傳入此 plan 並繪製 body；其他 rough insect 類型不變。`RoughInsectWings.js` 接受可選 body plan，讓 wing pair 根據 `wingRootY` 與 `wingRootHalfWidth` 定位。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：`insectType === 0` 的 rough butterfly 應在翅膀交會處出現細長符號式 body 與柔軟觸角，body 不應變成寫實頭胸腹或厚重主體
+- 實際觀察：portrait / compact / landscape 均完成 `START → SCANNING → RESULT`。第二輪收細後，portrait Result 中 body 主軸變成細線，觸角自然外彎並壓在 wing root 上方，整體比第一版輕。portrait Save 下載 `FlutterLens-result.png`，大小 775,803 bytes；Back 回到 `SCANNING` 且 `backCleared=true`
+- 手機 / AR 後續確認事項：真實手機相機、不同背景、不同 seed 下 body 是否太淡或被 wing pattern 吃掉仍需人工確認
+
+#### 尚未解決的風險
+目前 CDP 測到的 seed 顯示 body 位置可接受，但不同隨機翅膀尺寸與背景亮度下，細 body 可能過淡或與 pattern 混在一起。橫向 Result page 的按鈕遮擋昆蟲仍是既有問題，本次未處理。未來若要做不同角度，body plan 需要加入 pose / side view 資訊，並讓 wings 根據該姿態改變根部與旋轉比例。
+
+#### 使用者回饋或修正
+使用者確認本階段先針對 `insectType === 0` 實作 rough butterfly body，其他類型暫不處理。
+
+#### 建議的下一步
+請使用者檢視 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/rough-butterfly-body-thin-2026-05-11-greenPlants-portrait-390x844-result.png` 的 body 線條感。如果方向正確，下一步可用 `-CameraFixture all` 跑全部照片，確認深色 / 淺色背景下 body 的可讀性；若覺得 body 太淡，可只微增 alpha，不建議回到第一版的厚主軸。
+
+---
+
+### 2026-05-11 — 新增視覺截圖後的審美自評流程
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+將使用者提出的「截圖測試後需進行審美判斷」納入專案協作流程，補充到 `AGENTS.md`，並記錄本次 rough butterfly body 的使用者審美回饋。
+
+#### 使用者需求
+使用者確認前一版 rough butterfly body 功能上確實有畫出身體，也符合「比較抽象的線條符號」描述，但視覺上並不吸引人。使用者希望在工作流程內加入新機制：完成截圖測試後，Codex 不只確認畫面是否正確呈現，也要自己進行審美判斷，可以主動修正調整，或是評分並給予評語；使用者也會給出評分及評語，這些內容都要記錄進工作日誌，讓專案逐漸形成美學共識。
+
+#### 實作前理解
+既有流程強調語法檢查、CDP 截圖、console、viewport 與功能流程，但對「視覺是否真的好看」的要求不夠明確。前一輪 rough butterfly body 正是典型例子：功能與描述皆通過，但結果缺少吸引力；若只記錄「已出現、已通過」，未來 agent 會難以理解使用者真正的視覺標準。
+
+#### 實作方案
+在 `AGENTS.md` 新增 `Aesthetic review requirements`，要求截圖或視覺檢查後必須包含審美分數、優點、弱點、是否自行調整、若未調整則說明原因，以及下一步需要的使用者回饋。同步補充 worklog 與 visual test log 應記錄 Codex 審美自評與使用者審美回饋。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將審美自評放入 `AGENTS.md`，使它成為未來 agent 必須遵守的固定流程，而不是只存在於某次對話。使用 `1–10` 分數作為建議量尺，但重點不是分數本身，而是留下具體評語、修正判斷與使用者回饋。
+
+#### 遇到的問題
+本次沒有重新修改 rough butterfly body 視覺本身，因使用者的主要需求是先把新的評估機制納入流程。前一版 body 的審美問題仍需另行設計調整。
+
+#### 嘗試過的解法
+直接補強流程文件，讓「功能正確但視覺弱」能被明確記錄，而不是被視為完成。
+
+#### 最終解法
+`AGENTS.md` 已新增截圖後的審美自評要求，並要求把 Codex 自評與使用者審美回饋記錄進工作日誌。`docs/codex-worklog.md` 已記錄使用者對 rough butterfly body 的最新評語。
+
+#### 視覺驗證紀錄
+本次為流程文件更新，未進行新的瀏覽器截圖。前一輪 rough butterfly body 的 CDP 截圖仍位於 `docs/cdp-runs/rough-butterfly-body-thin-2026-05-11/screenshots/`。
+
+#### Codex 審美自評
+回看前一輪 rough butterfly body，功能分可接受，但審美分約 `4/10`。優點是已建立符號化 body 與 wing root anchor，線條比第一版輕；弱點是整體太像「補上的中心線」，缺少參考圖中的書寫感、節奏、裝飾性與姿態。觸角與身體的關係偏機械，body 沒有成為畫面中有魅力的筆勢。
+
+#### 使用者審美回饋
+使用者回饋：結果功能上確實有畫出身體，也符合比較抽象的線條符號描述，但視覺上並不吸引人。使用者希望未來 Codex 在截圖後加入審美判斷、主動修正或評分評語，並將 Codex 與使用者的評分及評語都記錄進工作日誌，逐漸形成美學共識。
+
+#### 尚未解決的風險
+審美分數可能因 agent 主觀標準不同而波動，因此未來每次自評都應搭配具體畫面描述與使用者回饋，而不是只留下數字。rough butterfly body 本身仍需要下一輪視覺設計改善。
+
+#### 使用者回饋或修正
+使用者明確要求新增工作流程機制，而不只是針對單次畫面修正。
+
+#### 建議的下一步
+下一次調整 rough butterfly body 時，應先把目標審美拆成更具體的準則：例如線條要有書寫起伏、身體與觸角要形成一個優雅手勢、body 不能只是垂直中心線、與翅膀根部需要更自然地融合。完成截圖後需留下 Codex 自評分數與評語，再等待或整合使用者評分。
+
+---
+
+### 2026-05-11 — 記錄 p5.brush 運筆美學提示
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+記錄使用者對 p5.brush 使用方式與 Codex 創作角色的美學提示，並補充到 `AGENTS.md` 的審美流程中。
+
+#### 使用者需求
+使用者提示：`p5.brush` 是可以自由運用的畫筆。當 Codex 能思考並決定好每筆的位置及方向後，效果可能會更自然。Codex 應思考人類會如何運筆，包括下筆時的壓力、轉折等，最後將其設計為一套系統。在這個過程中，Codex 不只是寫程式，也可以是畫面的共同創作者。
+
+#### 實作前理解
+前一版 rough butterfly body 雖然功能上成立，但像是把線條放到畫面上，缺少真正的手繪運筆邏輯。使用者這次指出，問題不只是 brush 種類或 jitter，而是每一筆需要有意圖：起筆、方向、轉折、壓力與收筆都要像人類畫圖一樣被設計。
+
+#### 實作方案
+將這段提示寫入 `AGENTS.md` 的 `Aesthetic review requirements`，使未來使用 p5.brush 實作 rough body、rough wings、pattern 或其他手繪視覺時，都要先思考運筆意圖，再把它系統化成程式。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將「Codex 是畫面的共同創作者」寫入流程脈絡，避免未來 agent 把 p5.brush 當作單純產生線條材質的 API。之後的視覺演算法應描述筆勢與人類運筆邏輯，再寫成可重複的生成系統。
+
+#### 遇到的問題
+本次是流程與美學提示記錄，尚未重新設計 rough butterfly body。
+
+#### 嘗試過的解法
+直接更新 `AGENTS.md` 與工作日誌，保留使用者提示的核心意義。
+
+#### 最終解法
+`AGENTS.md` 已新增 p5.brush 運筆準則：使用 brush 前應決定每筆的起點、轉折、終點、壓力變化與人類下筆理由，再用受控隨機系統化，而不是只靠任意 jitter。工作日誌已記錄使用者提示，作為後續 rough butterfly body 改善的美學基礎。
+
+#### 視覺驗證紀錄
+本次未修改視覺程式，未執行瀏覽器截圖。
+
+#### Codex 審美自評
+這個提示指出了目前 rough body 最大缺口：線條有了，但沒有足夠「運筆意圖」。若以這個標準回看上一版 body，視覺分仍約 `4/10`；下一版應先設計筆勢，再實作 brush stroke。
+
+#### 使用者審美回饋
+使用者明確表示，希望 Codex 能把 p5.brush 當成自由畫筆，思考人類如何運筆，包括每筆的位置、方向、壓力、轉折，並把這些設計成系統；Codex 在此過程中不只是寫程式，也是畫面的共同創作者。
+
+#### 尚未解決的風險
+若只把這段提示寫入文件而不在下一輪實作中具體落地，rough body 仍可能停留在功能正確但美感不足的狀態。下一輪需要把「運筆」拆成可實作的 stroke grammar。
+
+#### 使用者回饋或修正
+使用者提供了未來審美與實作方向：從人類運筆出發，而不是從隨機線條出發。
+
+#### 建議的下一步
+下一輪 rough butterfly body 應先設計 `stroke grammar`：例如 body 主軸是一筆由 wing root 下壓、微彎、收尖的筆；觸角是從頭部輕起筆、外翻、末端減壓收筆的兩筆；胸部短線或小點是節奏點而非結構標籤。完成後再用 CDP 截圖、Codex 審美自評與使用者評分共同迭代。
+
+---
+
+### 2026-05-11 — 以 p5.brush 運筆系統重畫 Rough Butterfly Body
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者「把 p5.brush 當作自由畫筆、思考人類運筆」的提示，重畫 `insectType === 0` 的 rough butterfly body，並擴充 CDP 視覺測試腳本，讓測試可強制 `finalPitch` 以穩定截到指定昆蟲類型。
+
+#### 使用者需求
+使用者要求「那就試試看再畫一次昆蟲身體吧」。脈絡是前一版 body 功能正確但不吸引人；使用者希望 Codex 不只是寫程式，而是作為畫面的共同創作者，設計每一筆的位置、方向、壓力、轉折與系統化規則。
+
+#### 實作前理解
+前一版 `RoughInsectBody.js` 主要用 p5 原生 `bezier()` 畫細線，雖抽象但缺少筆勢。要改善，不能只改線寬，而要把 body 拆成 stroke grammar：主軸、胸部節奏筆、頭部點、兩條觸角各自有起筆、轉折、收筆與壓力設計。另發現既有 CDP 測試不一定穩定截到 `insectType === 0`，因 scanning page 會依 `rotationX` 更新 `finalPitch`，桌機 headless 下可能落到其他類型，導致 body 審美判讀失準。
+
+#### 實作方案
+改寫 `RoughInsectBody.js`：body plan 產生更接近 wing root 的 head / root / bottom 與 `gestureSide`；繪製端改為 `drawHumanBrushStroke()`，用 `pencil1`、紅墨色、受控 jitter 與分段壓力設計主軸、echo stroke、collar rhythm mark、antennae。由於 `brush.vertex(..., pressure)` 在本次截圖中讓主軸不穩定可見，最後改成 brush 主線搭配 native pressure hints，用分段 stroke weight 補出可讀的壓力節奏。同步在 `scripts/run-cdp-visual-test.ps1` 新增 `-ForcedFinalPitch`，測特定 insect type 時可穩定截圖。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ScanningPage/GyroManager.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/llms.txt`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+保留「只針對 `insectType === 0`」的功能範圍。測試工具新增 `-ForcedFinalPitch`，而不是把測試邏輯寫進 app production code。body stroke 使用 brush 作為主要筆觸，但為了穩定可見與表現壓力，額外疊加 native segmented pressure hints；這是目前比純 `brush.vertex(..., pressure)` 更穩定的折衷。
+
+#### 遇到的問題
+第一次重畫後 CDP 截圖其實不是穩定 butterfly，因 `finalPitch` 在 headless scanning 中可能變成其他類型。加入 `-ForcedFinalPitch` 的第一版 PowerShell 參數使用 nullable double，執行時出現 `You cannot call a method on a null-valued expression`，修正為預設 `NaN` 的普通 double 後可用。第二版 brush stroke 一開始仍只有頭部點明顯，主軸幾乎消失；推測 `brush.vertex()` 的 pressure 參數與目前筆刷 / 權重組合不夠穩定，因此改為 brush 線條不傳 pressure，再疊 native 壓力提示。
+
+#### 嘗試過的解法
+先改成 p5.brush stroke grammar，執行 `node --check` 與 CDP。發現非 type0 截圖後，搜尋 `finalPitch` 與 `GyroManager.js`，確認測試需強制 pitch。接著修改 CDP 腳本加入 `-ForcedFinalPitch 0`，重跑後確認 summary 中 `resultFinalPitch=0`。最後調整 brush stroke 的可見度與壓力提示，再重跑 `rough-butterfly-body-forced-type0-visible-2026-05-11`。
+
+#### 最終解法
+`RoughInsectBody.js` 現在以 `gestureSide` 產生一組手勢方向，主軸由 wing root 下壓後微彎並收尖；可選 echo stroke 增加手繪感；collar rhythm mark 與 head dot 作為節奏點；antennae 從頭部輕起筆向外翻。CDP 腳本新增 `-ForcedFinalPitch`，可用 `-ForcedFinalPitch 0` 穩定測 butterfly body。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`scripts/run-cdp-visual-test.ps1` PowerShell parser 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，集中於 `docs/cdp-runs/rough-butterfly-body-forced-type0-visible-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍只有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：butterfly body 應以紅墨手勢線條出現在翅膀交會處，較前版更有筆勢與存在感
+- 實際觀察：body 主軸、頭部點與觸角在 forced type0 截圖中可見，尤其 compact result 較清楚；portrait result 因生成位置落在 Save / Back 附近，按鈕遮擋影響審美判讀。整體比上一版更像一組有意圖的紅墨筆勢，但主軸仍偏直，與翅膀根部融合還可以再優化
+
+#### Codex 審美自評
+本次最終版約 `6/10`。比前一版 `4/10` 明顯進步：紅墨存在感更好，主軸不再只是極細中心線，也開始有下壓、轉折、收筆的意識。弱點是線條仍略像「程式化折線」而非真正一氣呵成的書寫筆勢；body 與 wings 的視覺融合不足，尤其胸部節奏點還沒有漂亮地把兩片翅膀串起來。按鈕遮擋讓 portrait 截圖難以公平評估美感。
+
+#### 使用者審美回饋
+使用者後續評分為 `5/10`，認為結果「還可以」。主要建議是整體平衡：目前結果中身體比例相較於翅膀過於細長。使用者也觀察到 Codex 在截圖自評後做了多次調整，但每次間效果差距不夠明顯，因此建議未來調整參數或繪圖邏輯時可以更大膽，像射箭調整準心一樣，若調過頭反而能看出適當範圍。使用者也希望 Codex 自行重複調整的次數最好不要超過三次，因為使用者也能提供意見。使用者另外說明，已在 Codex 完成後自行修改了身體顏色及筆刷粗細。
+
+#### 尚未解決的風險
+`drawRoughInsect()` 目前每次 draw 都會重新 random seed，Result 可能有幀間變化；這是既有生成邏輯風險，會影響穩定審美比較。Result spawn 與 Save / Back 按鈕遮擋仍干擾評估。`brush.vertex(..., pressure)` 在本環境下不如預期穩定，後續若要更純粹使用 p5.brush 壓力，需要另外做小型筆觸實驗。
+
+#### 使用者回饋或修正
+使用者要求重新嘗試畫 body，並提供「人類運筆」作為核心方向。本次依該方向做第二版。完成後，使用者給出 `5/10`，指出身體比例相對翅膀過細長，並要求未來視覺調整幅度更大、迭代不超過三次；使用者已自行調整 body 顏色與筆刷粗細，未來 agent 不應覆蓋這些手動修改。
+
+#### 建議的下一步
+下一輪若繼續調 body，應先保留使用者已修改的顏色與筆刷粗細，再針對比例大幅調整：縮短 body length、加寬或增加胸部節奏筆，讓身體相對翅膀更穩。視覺迭代時最多做三輪自評調整，且每輪要有明顯差異；若第一輪就暴露方向問題，應停下來請使用者判斷，而不是小幅反覆微調。
+
+---
+
+### 2026-05-11 — Rough Butterfly 新增第二對翅膀
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+在 `drawRoughInsect()` 的 `insectType === 0` rough butterfly 中新增第二對翅膀，讓蝴蝶從 body plan 的不同對照點長出前翅與後翅，並讓同一隻昆蟲的兩對翅膀共用顏色與 pattern 選用。
+
+#### 使用者需求
+使用者想先看畫上蝴蝶第二對翅膀時的效果。第二對翅膀一樣要從身體的對照點長出，可以使用不同於第一對翅膀的位置；兩對翅膀要盡量靠近貼合但不要重疊，模擬真實蝴蝶輪廓，因此可以修改翅膀輪廓決定邏輯。同一隻昆蟲的兩對翅膀要使用相同的顏色選用或紋路 pattern。
+
+#### 實作前理解
+`drawRoughInsect()` 目前只在 `insectType === 0` 建立 `roughBodyPlan`，並將 `wingRootY` 與 `wingRootHalfWidth` 傳入 `drawRoughInsectWings()`。既有 `drawRoughWingPair()` 只畫一對左右對稱的大翅膀；左右翅膀共用 `wingParams`、`baseOutline` 與 `roughPattern`，但 pattern archetype 會在上色時重新隨機判斷。前次使用者已自行調整 body 顏色與筆刷粗細，本次不應覆蓋 body。
+
+#### 實作方案
+在 `RoughInsectWings.js` 中新增 butterfly 專用的雙 wing pair 流程：`fore` 前翅較上、較長，`hind` 後翅較低、較短且更圓。先畫後翅，再畫前翅，最後仍由既有 body 繪製壓在根部上方。另新增 `wingStylePlan`，把 `colorProfile`、`highContrast`、`useEyeSpots`、`useRadialBands` 等 pattern 選用固定為同一份，讓前翅與後翅使用同一套顏色與紋路決策，但保留不同 stroke seed 以維持手繪自然感。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+雙翅邏輯只套用於 `insectType === 0 && bodyPlan`，其他 rough insect 類型維持原本一對翅膀。前後翅共用 pattern 選用，但不強制複製完全相同的筆觸路徑，因為完全相同會太機械；目前保留左右與前後翅各自的 stroke seed，使材質自然但視覺語彙一致。
+
+#### 遇到的問題
+第一版 `rough-butterfly-double-wings-v1-2026-05-11` 功能上有畫後翅，但後翅幾乎被前翅吃掉，畫面仍像單一長翅，只有少量下方暗線可見。這不符合「想先看第二對翅膀效果」的需求。
+
+#### 嘗試過的解法
+第一輪先加入 `drawRoughButterflyWingPairs()`、`createRoughButterflyWingPairPlans()` 與共享 `wingStylePlan`，並跑 CDP 截圖。看到後翅不夠明顯後，第二輪做大幅視覺調整：壓扁前翅下緣、把後翅根點往下移、增加後翅圓度與下垂感，讓第二對翅膀在 silhouette 中讀得出來。
+
+#### 最終解法
+`drawRoughInsectWings()` 會在 rough butterfly 且有 body plan 時呼叫 `drawRoughButterflyWingPairs()`。此函式建立共享 `wingStylePlan` 與 `fore/hind` 兩組 pair plan。`drawRoughWingPairFromPlan()` 支援每對翅膀自己的 `rootHalfWidth`、`yOff`、`rotation`、`scaleX`、`scaleY` 與輪廓參數。`drawRoughWingColor()` 與 `drawRoughWingButterflyPattern()` 現在可接收共享 style / pattern plan。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-double-wings-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：rough butterfly 應出現前翅與後翅，兩對翅膀靠近貼合但輪廓可辨，且前後翅共享同一套顏色與 pattern 選用
+- 實際觀察：第二輪中後翅已明顯成為下方翅瓣，與前翅貼近，整體更像四翅蝴蝶。pattern 色系一致。portrait 與 compact 可讀性較好；landscape 中 Result UI 仍靠近昆蟲，是既有版面風險。
+
+#### Codex 審美自評
+最終第二輪約 `7/10`。優點是四翅輪廓終於讀得出來，前翅與後翅的貼合比第一輪自然，且同一套綠色系 pattern 沒有前後翅風格分裂。弱點是後翅仍有點像被前翅拉長的尾瓣，還不是非常精準的真實蝶翼比例；在植物背景上綠色翅膀與背景融合，輪廓主要靠黑線支撐。第一輪後我做了一次大幅調整；第二輪已足以讓使用者判斷方向，因此停止自我迭代，未做第三輪。
+
+#### 使用者審美回饋
+使用者針對本次改動本身給 `8/10`，不是只針對美觀程度。使用者認為 Codex 這次判斷準確，包含正確辨認第一次繪製的問題、後續改動能明顯看出差異，並且適當地收手給使用者看。使用者觀察到橫向時的翅膀輪廓比例較自然，問題可能出在翅膀輪廓會參照螢幕或畫布的長或寬；直向畫面時翅膀太向下延伸而不自然，橫向時比例比較剛好。
+
+#### 尚未解決的風險
+CDP fake camera 不能代表真實手機相機環境；真實照片下的顏色對比、pattern 可讀性與手機效能仍需實機確認。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，可能影響穩定審美比較。Result spawn 與 Save / Back 按鈕在部分 viewport 中仍可能遮擋或壓近昆蟲。
+
+#### 使用者回饋或修正
+使用者確認「Go!」後允許依實作方案修改程式。本次完成後，使用者補充評分與診斷：本次改動本身 `8/10`，流程判斷與收手時機正確；下一個問題應優先檢查直向 viewport 下 wingBaseLen 或翅膀輪廓參照螢幕長寬造成的垂直延伸。本次沒有要求 commit 或 push。
+
+#### 建議的下一步
+下一輪建議先處理直向比例：檢查 `createRoughButterflyWingPairPlans()` 中 `wingBaseLen`、`foreLength`、`hindTipY`、`hind yOff` 與 `scaleY` 是否過度受 `max(width, height)` 或畫布長邊影響；可讓 butterfly wing size 主要參照短邊或加入 portrait-specific vertical compression。調整時以橫向截圖作為較自然比例的參考，讓直向結果接近橫向的前後翅比例，再用 `-ForcedFinalPitch 0` 跑 portrait / compact / landscape 對照。
+
+---
+
+### 2026-05-11 — 修正 Rough Butterfly 直向雙翅比例
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者觀察，修正 rough butterfly 在 portrait / compact 直向 viewport 下翅膀過度向下延伸的比例問題，讓直向雙翅輪廓更接近前一輪 landscape 中較自然的比例。
+
+#### 使用者需求
+使用者指出上一輪改動本身可給 `8/10`，但觀察到橫向時翅膀輪廓比例較自然；問題應該出在翅膀輪廓會參照螢幕或畫布長寬，導致直向時翅膀太向下延伸、不自然，橫向時反而比較剛好。使用者要求開始下一輪修正。
+
+#### 實作前理解
+`createRoughButterflyWingPairPlans()` 原本使用 `(screenMax * 0.15 + screenMin * 0.4) * 0.01` 作為 `wingBaseLen`。在 portrait runtime 約 `478x694` 時，`screenMax` 會拉大基礎長度；後翅的 `yOff`、`hindTipY` 與 `scaleY` 又會放大垂直下垂，使直向結果比 landscape 更像往下拖的長尾瓣。landscape 較自然，因此不應全面縮小所有方向，而應只讓直向逐步壓縮。
+
+#### 實作方案
+在 `createRoughButterflyWingPairPlans()` 中加入 `portraitAmount`，依 `height / width` 判斷直向程度。橫向時 `portraitAmount=0`，保留原比例；直向時讓 `wingBaseLen` 從原本的長短邊混合值逐步靠近短邊基準，並套用 `verticalCompression` 與 `hindDropCompression` 壓縮 `foreTipY`、`hindTipY`、後翅 `yOff`、前後翅 `scaleY`。第一輪截圖後 compact 仍略有尾瓣感，因此第二輪加強短邊基準與垂直壓縮，並停止在第二輪交給使用者判斷。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不改 body、顏色、pattern，也不改非 butterfly 類型。比例修正只存在於 butterfly 專用 `createRoughButterflyWingPairPlans()`，並透過 `portraitAmount` 保護 landscape。這是因為使用者明確指出 landscape 較自然，若全面縮小翅膀會破壞目前最好的參考。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11` 中，portrait 截圖的昆蟲位置剛好被 Save / Back 按鈕部分遮擋，不適合作為唯一判斷；compact 可見比例有改善但後翅仍有一點向下拖成尾瓣。因此做第二輪加強直向壓縮。
+
+#### 嘗試過的解法
+第一輪將 `wingBaseLen` 在 portrait 時往短邊基準靠近，並壓縮 `hind yOff` 與 `tipY`。第二輪把短邊基準從 `0.47` 調到 `0.44`，讓 `portraitAmount` 更早介入，並加強 `verticalCompression`、`hindDropCompression` 與前後翅 `scaleY` 的直向壓縮。
+
+#### 最終解法
+最終保留第二輪：`portraitAmount = constrain((height / width - 1) / 0.45, 0, 1)`，直向時 `wingBaseLen` 往 `screenMin * 0.44 * 0.01` 靠近；`verticalCompression` 與 `hindDropCompression` 分別壓縮翅尖垂直量與後翅根點下移量。橫向時上述修正不介入。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：portrait / compact 的雙翅不再因畫布長邊而過度向下延伸，landscape 的自然比例不應被破壞
+- 實際觀察：第二輪 portrait / compact 的整體高度收斂，後翅仍可辨但不再像前一輪那樣一路向下拖；landscape 仍保持可讀的四翅輪廓。portrait 這輪未被按鈕遮擋，較能判斷比例。
+
+#### Codex 審美自評
+本輪約 `7.5/10`。優點是使用者指出的 viewport 比例問題被明確對準，直向的翅膀高度與後翅下垂量比上一輪自然，且橫向未被破壞。弱點是後翅末端仍偏尖，真實蝴蝶後翅可以更圓鈍；另外綠色背景仍讓翅膀主要依靠黑線可讀。第一輪後做了一次更明顯的第二輪調整，第二輪已足以提供使用者評圖，因此停止自我迭代。
+
+#### 使用者審美回饋
+使用者對 `portrait-ratio-v2` 給 `6/10`。使用者認為本輪有改善問題，但沒有到差很多；這點可以接受。使用者也認同 Codex 提到的「後翅專屬輪廓」是很好的下一步方向。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。不同 seed、不同背景與不同真實手機 viewport 下，`portraitAmount` 的壓縮曲線仍可能需要微調。Result spawn 與按鈕安全區仍會影響視覺判讀。
+
+#### 使用者回饋或修正
+使用者要求開始下一輪，並提供具體方向：以 landscape 較自然的輪廓比例為參考，修正 portrait 翅膀過度向下延伸。完成後使用者評分 `6/10`，指出比例壓縮雖有改善但差異不大，並肯定下一輪可改做後翅專屬輪廓。
+
+#### 建議的下一步
+下一步不要再只靠 `portraitAmount` 壓縮比例；應設計後翅專屬的 rounder outline，讓後翅有自己的上緣、外緣與圓鈍下緣，而不是沿用前翅輪廓再縮放。目標是讓後翅更像真實蝴蝶的下翅瓣，並用較明顯的輪廓差異解決「改善但不大」的問題。
+
+---
+
+### 2026-05-11 — 規劃昆蟲姿態矩陣與振翅階段
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+閱讀專案規則、工作紀錄與 rough insect 相關程式，評估是否可讓生成昆蟲像參考圖一樣呈現不同姿態、角度與振翅階段。
+
+#### 使用者需求
+使用者提供一張紅色線稿蝴蝶參考圖，希望畫出來的昆蟲能有不同姿態或角度。期待透過類似矩陣轉換的方式，讓身體有不同角度，翅膀隨身體角度變化，並加入模擬振翅的不同階段，呈現昆蟲在立體空間中以不同角度飛行的樣子。
+
+#### 實作前理解
+目前 rough butterfly 已有雙翅與 body plan。`drawRoughInsect()` 會先 translate 到生成位置，再給整隻昆蟲一個 2D 隨機旋轉；`createRoughInsectBodyPlan()` 產生 body 軸線、wing root 與 gestureSide；`createRoughButterflyWingPairPlans()` 產生 fore / hind 兩對翅膀，但翅膀姿態主要仍是 2D 平面輪廓與左右鏡像縮放。若要做參考圖那種不同角度，適合在 body plan 與 wing pair plan 之間新增一層 `posePlan`，用偽 3D 投影控制 body yaw / pitch / roll、左右翅膀開合與振翅 phase。
+
+#### 實作方案
+先不直接改程式，先提出分階段方案：第一階段建立 `posePlan` 與 2D affine / pseudo-3D 投影工具，讓 body 與 wing root 共用同一姿態座標；第二階段讓 fore / hind wings 依 posePlan 改變左右縮放、旋轉、垂直 offset 與遮擋順序；第三階段加入 `flapPhase`，用 3 到 5 個離散振翅階段產生上拍、平展、下拍等 silhouette；第四階段用 CDP `-ForcedFinalPitch 0` 截圖比較多個 pose seed，進行審美自評。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+此需求可行，但建議先做「偽 3D 姿態系統」而不導入真正 3D renderer。原因是目前專案的強項是 p5.brush 手繪線稿與 2D compositing；若直接改成 3D mesh，會破壞既有筆觸系統。姿態矩陣應成為生成計畫的一層資料，而不是散落在各個 draw function 的臨時 rotate / scale。
+
+#### 遇到的問題
+目前 `flapAngle` 在 rough insect 路徑中固定為 `0`；整體 `randomRot` 只有平面旋轉，不能表現立體飛行角度。雙翅雖已有 fore / hind，但 wing outline 還沒有真正針對不同視角改變輪廓與遮擋。
+
+#### 嘗試過的解法
+本階段只做閱讀與方案設計，未修改功能程式。已確認最適合接入點是 `drawRoughInsect()` 建立 `currentSeed` 與 `roughBodyPlan` 之後、呼叫 `drawRoughInsectWings()` 與 `drawRoughInsectBody()` 之前。
+
+#### 最終解法
+尚未實作。建議下一步在使用者同意後新增 `RoughInsectPose.js` 或在現有 rough generator 中加入小型 pose helpers，先完成 6 到 9 種可辨識的靜態姿態，而不是一開始追求連續動畫。
+
+#### 視覺驗證紀錄
+本階段未修改視覺功能，因此未執行瀏覽器截圖。若進入實作，需用既有 CDP 流程測 `portrait-390x844`、`compact-360x740`、`landscape-844x390`，並固定 rough butterfly 類型做多 pose 對照。
+
+#### Codex 審美自評
+目前僅評估方向，暫不給成品分數。參考圖的重點不是精確透視，而是「每隻蝴蝶像一筆畫出不同瞬間」：有的側飛、有的翻轉、有的展平、有的翅膀半收。實作時姿態差異要大到一眼可辨，不能只做微小 scale 差異。
+
+#### 使用者審美回饋
+使用者希望昆蟲能像參考圖一樣有不同姿態或角度，身體與翅膀能透過類似矩陣轉換連動，並加入振翅階段，模擬立體空間中不同角度飛行。
+
+#### 尚未解決的風險
+若每幀重新 random，振翅與姿態可能抖動，後續可能需要先讓 result insect 的 seed / pose 穩定。偽 3D 投影過強時可能讓手繪線稿變得機械；投影過弱則看不出差異。實作後仍需真實手機檢查可讀性與按鈕遮擋。
+
+#### 使用者回饋或修正
+等待使用者確認是否採用此分階段方案，以及第一輪要優先做靜態姿態、振翅階段，或兩者一起做最小版本。
+
+#### 建議的下一步
+若使用者同意，第一輪建議做靜態姿態系統：建立 `posePlan`，用 6 個 pose preset 測試 body axis、wing root、左右 fore / hind wings 的連動與遮擋。通過後第二輪再加入 `flapPhase`。
+
+---
+
+### 2026-05-11 — 實作 Rough Butterfly 偽 3D 姿態與振翅 phase
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+在 rough butterfly 中加入第一版 `posePlan`，讓昆蟲不只平面旋轉，而能依 yaw / pitch / roll、近遠側與離散振翅 phase 產生不同飛行姿態。
+
+#### 使用者需求
+使用者確認可以開始實作與測試，希望昆蟲能像參考圖一樣有不同姿態或角度：身體角度能透過類似矩陣轉換改變，翅膀跟著身體連動，並加入模擬振翅的不同階段，呈現立體空間中不同角度飛行的感覺。
+
+#### 實作前理解
+目前 rough butterfly 已有 body plan 與 fore / hind 雙翅，但主要仍靠整體 `rotate()` 與左右鏡像翅膀呈現。`flapAngle` 固定為 `0`，沒有實際振翅階段。最合適的第一輪不是導入真正 3D renderer，而是在既有 p5.brush 2D 手繪座標上加一層偽 3D pose：讓整隻昆蟲有 roll 與縮放投影，讓左右翅有近遠側差異與不同繪製順序。
+
+#### 實作方案
+新增 `createRoughInsectPosePlan()`，由 seed 產生 `yaw`、`pitch`、`roll`、`phaseIndex`、`nearSide`、近遠側 scale / y offset / root skew / depth tilt。`drawRoughInsect()` 在 rough butterfly 時建立 posePlan，套用整體 roll 與 body scale，並把 posePlan 掛到 bodyPlan。`createRoughButterflyWingPairPlans()` 依 phase 改變 fore / hind 的 length、tipY、yOff 與 rotation。`drawRoughWingPairFromPlan()` 改為依 nearSide 決定左右翅繪製順序，並在 `drawRoughWingSideFromPlan()` 中套用近遠側縮放、位移與旋轉。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `scripts/run-cdp-visual-test.ps1`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本輪只改 rough butterfly，避免影響其他 insect type。未新增外部依賴，也未改 p5.brush、body 顏色或使用者先前自行調整的 body 筆刷粗細。第一輪截圖顯示姿態過度折疊，因此第二輪降低 phase fold / spread 的極端程度、近遠側縮放與 depth tilt，讓視角差異保留但 silhouette 不至於變成兩片直立葉。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-pose-flap-v1-2026-05-11` 的功能流程通過，但 visual 上 portrait / compact 太像兩片直立葉片，四翅與身體不易讀出。差異檢查時也發現一次 patch 誤動到一般 `drawInsect()` 的隨機旋轉區塊，已補回，避免影響非 rough 路徑。
+
+#### 嘗試過的解法
+先建立 `posePlan` 與 near/far wing transform，跑 `node --check` 與 CDP。看到第一輪折翅太強後，第二輪大幅調低最極端振翅 phase、近遠側 scale、root skew 與 depth tilt，再重跑語法檢查與 CDP 視覺測試。第二輪後已能看出半收翅飛行姿態，因此依使用者先前偏好停止自我迭代。
+
+#### 最終解法
+`RoughInsectWings.js` 新增 `createRoughInsectPosePlan()` 與 `drawRoughWingSideFromPlan()`。rough butterfly 現在會以 seed 產生 5 種離散振翅 phase，並讓 fore / hind wings 隨 phase 改變展開長度、上下拍位置與旋轉；左右翅依 yaw 分近遠側，近側稍大、遠側稍小且先畫，形成簡單遮擋與立體感。`InsectManager.js` 只在 rough butterfly 時套用 posePlan；其他 rough 類型維持原本平面隨機旋轉。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過；`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-pose-flap-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：rough butterfly 應呈現非平面旋轉的飛行姿態，左右翅膀有近遠側差異，振翅 phase 造成可辨的半收 / 平展 / 下拍 silhouette
+- 實際觀察：第二輪比第一輪自然，compact / landscape 的半收翅輪廓較穩定；portrait 被 Save / Back 按鈕遮擋，身體與後翅仍偏弱
+
+#### Codex 審美自評
+本輪約 `6.5/10`。優點是姿態系統已開始工作，蝴蝶不再只是平面旋轉，第二輪也比第一輪更像半收翅飛行狀態。弱點是身體軸線還沒有足夠參與 pose，後翅也容易被前翅與背景吃掉；參考圖的輕盈、多角度線稿感只做到骨架，還沒完全到位。本輪做了一次明顯視覺修正後停止，等待使用者評圖。
+
+#### 使用者審美回饋
+尚未收到本輪成品回饋。使用者本輪指示是可以開始做測試。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。Result spawn 與 Save / Back 按鈕遮擋仍會干擾 portrait 評圖。`drawRoughInsect()` 既有每次 draw 重新 random 的風險仍可能造成姿態或種子不穩。若要更接近參考圖，下一步需要讓 body stroke 本身也依 posePlan 變形，而不只是整體縮放與旋轉。
+
+#### 使用者回饋或修正
+使用者針對 `rough-butterfly-pose-flap-v2-2026-05-11` 給 `6.5/10`。使用者認為確實有變化，但變化還不夠明顯；身體本身也需要有更大的角度變化來帶動全身。使用者也指出目前截圖流程或判讀沒有成功取到真正的蝴蝶部分，因為剛才看到的結果更像沒有身體的蛾模板，而不是有身體姿態帶動的蝴蝶。
+
+#### 建議的下一步
+下一輪建議先修正測試與目標判讀：確認 CDP 截圖能穩定取到真正的 rough butterfly，且畫面中必須清楚出現 body。實作上應讓 body axis 直接讀取 posePlan，做出更明顯的側飛 / 俯仰身體姿態，並讓翅根、前翅、後翅以 body 為主軸連動。若 body 不可見或仍像無身體蛾形模板，應視為本輪失敗而不是通過。
+
+---
+
+### 2026-05-11 — 強化 Rough Butterfly Body Axis 姿態
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者回饋，調整 rough butterfly 的 body axis，讓身體本身讀取 `posePlan` 並以更清楚的頭、胸、腹主軸帶動全身姿態。
+
+#### 使用者需求
+使用者要求調整 body axis。上一輪使用者給 `6.5/10`，指出有變化但不夠明顯；身體本身需要有更大的角度變化來帶動全身。使用者也指出前一輪截圖更像沒有身體的蛾模板，因此下一輪必須確認截圖中的 body 清楚可見。
+
+#### 實作前理解
+前一輪 `posePlan` 主要作用在翅膀與整體 layer transform；`RoughInsectBody.js` 的 body axis 還是固定細長筆勢，沒有直接讀取 yaw / pitch / flap phase。這會造成翅膀雖然有近遠側變化，但 body 不夠像整隻昆蟲的骨架。另有測試問題：Result spawn 常靠近 Save / Back 按鈕，會遮住 body，使視覺判讀不可靠。
+
+#### 實作方案
+修改 `drawRoughBodyGestureAxis()`、`drawRoughBodyRhythmMarks()`、`drawRoughBodyGestureAntennae()`，讓 body 點位由 `getRoughPoseBodyPoint()` 產生，並依 `posePlan.yaw`、`posePlan.pitch`、`posePlan.phase.lift`、`posePlan.nearSide` 做頭、胸、腰、腹、尾的明顯偏移。加強主軸 stroke weight、頭部 pressure dot 與胸部量感。同步在 CDP 測試腳本新增 `-ForcedSpawnRatioX` / `-ForcedSpawnRatioY`，讓視覺驗證可把昆蟲固定在較不會被按鈕遮擋的位置。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/ResultPage.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本輪不再調翅膀 silhouette，而是把 body 視為通過條件。CDP forced spawn 只屬於測試工具，不改 production Result page；目的為避免按鈕遮擋造成錯誤審美判讀。Body 顏色仍保留既有黑色，不覆蓋使用者先前可能調過的色彩方向。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-body-axis-pose-v1-2026-05-11` 中，compact 可看出 body 變清楚，但 portrait / landscape 仍受 Save / Back 按鈕遮擋。這證明單靠原本 shutter 位置產生的 spawn 不適合評估 body axis。
+
+#### 嘗試過的解法
+先改 body axis，再跑 `node --check` 與 CDP。看到按鈕遮擋後，修改 `scripts/run-cdp-visual-test.ps1`，新增 forced spawn ratio。第二輪用 `-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36` 重跑，使昆蟲固定在畫面上方偏左，三個 viewport 都能看到 body。
+
+#### 最終解法
+`RoughInsectBody.js` 現在會用 pose-aware points 畫 head、thorax、waist、abdomen、tail，並用較粗的 pencil stroke、native pressure hints、胸部橢圓量感與較大的頭部點強化可讀性。觸角也會依 pose yaw 做些微 skew。`scripts/run-cdp-visual-test.ps1` 支援 `-ForcedSpawnRatioX` / `-ForcedSpawnRatioY`，方便視覺測試固定昆蟲位置。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：第二輪 `-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-body-axis-pose-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：body 清楚可見，且不再像無身體蛾模板
+- 實際觀察：portrait / compact / landscape 都能看到 body；compact 最清楚，portrait 也能辨識觸角、頭部、胸腹軸線與左右翅。整體已不再是無身體模板，但身體角度仍偏正面。
+
+#### Codex 審美自評
+本輪約 `7/10`。優點是 body 真的成為骨架，頭、觸角、胸部與腹部可讀性都比前版好，CDP forced spawn 也讓評圖可靠許多。弱點是姿態還偏正面與對稱，沒有達到參考圖中側飛、俯仰、翻轉那些更戲劇性的角度。這輪完成「body 可見且能帶動全身」的基礎，但下一輪需要改成更明確的 pose preset。
+
+#### 使用者審美回饋
+尚未收到本輪 body axis 調整後回饋。上一輪使用者指出變化不夠明顯，且前一輪像無身體蛾模板。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。Body 在深綠背景上仍可能依賴黑線可讀，真實背景更暗時可能被吃掉。姿態仍由 random 連續值產生，可能缺乏一眼可辨的多姿態差異。
+
+#### 使用者回饋或修正
+使用者回饋：Codex 對 `rough-butterfly-body-axis-pose-v2-2026-05-11` 的自評準確，提出的下一步修改方向也合理。這表示目前「body 已較清楚，但姿態仍偏正面；下一輪應改做離散 pose preset 讓差異更明顯」的判斷可作為後續方向。
+
+#### 建議的下一步
+下一輪建議從 random pose 改成離散 pose preset，例如：正面展翅、三分之二側飛、側身上拍、俯視下拍、仰角半收。每個 preset 明確指定 body lean、近遠側翅膀大小、遮擋順序與 flap phase，才能更接近參考圖中多個不同角度的蝴蝶。
