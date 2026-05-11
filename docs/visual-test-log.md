@@ -627,3 +627,96 @@ rough wing 應保留蝴蝶翅膀 pattern 的方向，但不再出現上一版的
 
 ### 備註 / 風險
 canvas fixture camera 可以改善「永遠綠色 fake camera」造成的視覺判斷盲點，也能分開測 viewport 與 camera stream 解析度。但它仍是合成 video stream，不能代表手機鏡頭曝光、對焦、噪訊、權限流程與裝置效能。`tests/` 已被 `.gitignore` 忽略，fixture 圖片保留為本機測試資產。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 Start page responsive layout：直向改為上中下分區，橫向短高度改為左文右按鈕，修正 landscape Start button 不可見。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+
+### 預期行為
+直向 Start page 不應把標題、說明、提示與按鈕全部集中在中央；按鈕應接近下方操作區且可讀可點。短高度橫向應改用精簡版面，Start button 必須可見，CDP 應可從 `START` 進入 `SCANNING` 並拍照進 `RESULT`。
+
+### 實際觀察
+`portrait-390x844` 與 `compact-360x740` 的 Start page 呈現上方標題、中段說明、下方提示與按鈕，空間分配比前版更清楚。`landscape-844x390` 改為左側短版標題 / 說明、右側權限提示 / 按鈕，按鈕可見。CDP summary 顯示三個 viewport 均 `startVisible=true`，並皆完成 `START → SCANNING → RESULT`。portrait Save 下載 `FlutterLens-result.png`，大小 771,398 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。
+
+### 截圖
+- `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/start-layout-responsive-2026-05-11-greenPlants-portrait-390x844-start.png`
+- `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/start-layout-responsive-2026-05-11-greenPlants-compact-360x740-start.png`
+- `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/start-layout-responsive-2026-05-11-greenPlants-landscape-844x390-start.png`
+- 其他 Scanning / Result / after-back 截圖同樣位於 `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/`
+- 下載驗證：`docs/cdp-runs/start-layout-responsive-2026-05-11/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start page、mock camera、Result render、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機直向 Start page 的上中下分區看起來自然
+- [ ] 真實手機橫向 Start button 可見且容易點擊
+
+### 備註 / 風險
+CDP 截圖確認 layout 與互動流程已改善，但仍需真實手機檢查 Safari / Android Chrome 的 viewport、安全區域、字體渲染與觸控手感。橫向版面刻意使用短文案，避免在低高度硬塞完整說明文字。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+測試橫向頁面搭配全部 camera fixtures 的 Scanning / Result 結果。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：主要檢視 `landscape-844x390`，腳本同時跑 `portrait-390x844` 與 `compact-360x740`
+- 螢幕方向：Landscape 為本次重點
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera
+- 是否可測試 AR：可測 fixture 背景下的 UI 與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+
+### 預期行為
+五張 fixture：`cementWall`、`colorfulToys`、`darkWood`、`greenPlants`、`streets` 在橫向 viewport 都應可從 Start 進入 Scanning，再點擊 shutter 進入 Result，並產生橫向 Result 截圖。
+
+### 實際觀察
+五張 fixture 的 `landscape-844x390` 皆完成 `START → SCANNING → RESULT`，且 `startVisible=true`、`videoReady=true`、`hasResultPhoto=true`。橫向 Result 截圖顯示背景照片與生成昆蟲皆有出現；但 Save / Back 按鈕位於畫面中央偏上，部分結果會和昆蟲或主視覺區域重疊，顯示 Result page 橫向 layout 仍可再優化。
+
+### 截圖
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-result-montage.png`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/screenshots/` 中包含各 fixture 的 `*-landscape-844x390-scanning.png` 與 `*-landscape-844x390-result.png`
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機橫向 Result page 的 Save / Back 不遮住昆蟲
+- [ ] 真實手機橫向拍攝時昆蟲生成位置與按鈕安全區保持距離
+
+### 備註 / 風險
+本次確認橫向流程已可搭配所有 fixture 跑到 Result。下一個橫向視覺風險是 Result page 的操作按鈕與生成昆蟲可能重疊，尤其在短高度 landscape viewport 中更明顯。

@@ -1,43 +1,43 @@
 function drawStartPage() {
-  let cx = width / 2;
-  let isPortrait = height > width;
-
-  // 1. 響應式字級計算 (稍微調低一點下限，以應付極端橫向)
-  let titleSize = constrain(isPortrait ? width * 0.1 : height * 0.12, 26, 48); 
-  let bodySize = constrain(isPortrait ? width * 0.05 : height * 0.06, 15, 22); 
-  let leading = bodySize * 1.6;
-
-  // 2. 確保按鈕已經初始化
   if (!StartButton && typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
   }
   if (!StartButton) return;
 
-  // 3. 【核心修正】計算所有元素的總高度
-  let introLines = 7; // 我們的說明文字包含空白行總共有 7 行
-  let textBlockHeight = introLines * leading;
-  let gap = isPortrait ? 25 : 15; // 元素之間的間距 (直向寬鬆、橫向緊湊)
-  
-  // 總高度 = 標題 + 間距 + 說明文字 + 間距 + 提示文字 + 間距 + 按鈕高度
-  let totalHeight = titleSize + gap + textBlockHeight + gap + 12 + gap + StartButton.ButtonHeight;
+  if (width > height && height < 360) {
+    drawStartPageLandscapeCompact();
+  } else {
+    drawStartPagePortraitLayout();
+  }
+}
 
-  // 4. 計算起始 Y 座標 (讓整組內容完美置中)
-  // 如果螢幕真的扁到裝不下，至少確保從距離頂部 20px 開始畫，不要被裁掉頭
-  let currentY = max((height - totalHeight) / 2, 20);
+function drawStartPagePortraitLayout() {
+  const cx = width / 2;
+  const titleSize = constrain(min(width * 0.085, height * 0.07), 28, 44);
+  const bodySize = constrain(min(width * 0.043, height * 0.028), 14, 19);
+  const leading = bodySize * 1.52;
+  const hintSize = constrain(width * 0.032, 12, 16);
 
-  // --- 開始由上而下依序繪製，絕對不可能重疊 ---
+  updateStartButtonMetrics(
+    constrain(width * 0.48, 168, 210),
+    constrain(height * 0.085, 48, 58),
+    constrain(height * 0.085, 24, 30)
+  );
 
-  // [第一塊：標題]
-  drawScreenText("匿跡蟲蹤調查員", cx, currentY, {
+  const titleY = max(42, height * 0.095);
+  const bodyY = max(titleY + titleSize + 34, height * 0.255);
+  const buttonBottomMargin = max(58, height * 0.085);
+  const buttonY = height - buttonBottomMargin;
+  const hintY = buttonY - StartButton.ButtonHeight / 2 - 28;
+
+  drawScreenText("匿跡蟲蹤調查員", cx, titleY, {
     fill: 255,
     size: titleSize,
     alignX: CENTER,
     alignY: TOP
   });
-  currentY += titleSize + gap; // 畫完後，Y 座標往下推
 
-  // [第二塊：說明文字]
-  let introText = 
+  const introText =
     "大自然裡，許多未知昆蟲正以保護色隱身於周遭。\n" +
     "請透過鏡頭捕捉環境的色彩，揭開牠們的偽裝。\n\n" +
     "不同的昆蟲有著各自偏好的棲地與習性。\n" +
@@ -45,36 +45,92 @@ function drawStartPage() {
     "無論是低頭探尋、平視周圍，抑或仰望天際，\n" +
     "都可能遇見截然不同的驚喜。";
 
-  drawScreenText(introText, cx, currentY, {
+  drawScreenText(introText, cx, bodyY, {
     fill: 210,
     size: bodySize,
     leading: leading,
     alignX: CENTER,
     alignY: TOP
   });
-  currentY += textBlockHeight + gap; // Y 座標繼續往下推
 
-  // [第三塊：權限提示]
-  drawScreenText("( 進入時需允許相機與動作感測器權限，)", cx, currentY, {
+  drawScreenText("( 進入時需允許相機與動作感測器權限 )", cx, hintY, {
     fill: 150,
-    size: 20,
+    size: hintSize,
     alignX: CENTER,
     alignY: TOP
   });
-  currentY += 12 + gap; // Y 座標繼續往下推
 
-  // [第四塊：按鈕]
-  // 因為原本設定按鈕是 CENTER 模式，所以要把中心點往下加一半的高度
-  StartButton.ButtonX = cx;
-  StartButton.ButtonY = currentY + (StartButton.ButtonHeight / 2);
+  drawStartButton(cx, buttonY, bodySize);
+}
+
+function drawStartPageLandscapeCompact() {
+  const marginX = max(28, width * 0.055);
+  const titleSize = constrain(height * 0.13, 24, 34);
+  const bodySize = constrain(height * 0.058, 12, 16);
+  const hintSize = constrain(height * 0.052, 11, 14);
+  const leading = bodySize * 1.42;
+
+  updateStartButtonMetrics(
+    constrain(width * 0.22, 150, 178),
+    constrain(height * 0.2, 44, 50),
+    constrain(height * 0.1, 22, 25)
+  );
+
+  const leftX = marginX;
+  const titleY = max(26, height * 0.18);
+  const bodyY = titleY + titleSize + max(12, height * 0.055);
+  const rightX = width - marginX - StartButton.ButtonWidth / 2;
+  const buttonY = height * 0.61;
+  const hintY = buttonY - StartButton.ButtonHeight / 2 - 24;
+
+  drawScreenText("匿跡蟲蹤調查員", leftX, titleY, {
+    fill: 255,
+    size: titleSize,
+    alignX: LEFT,
+    alignY: TOP
+  });
+
+  drawScreenText("捕捉環境色彩，\n揭開未知昆蟲的偽裝。\n換個角度，也許會遇見新的驚喜。", leftX, bodyY, {
+    fill: 210,
+    size: bodySize,
+    leading: leading,
+    alignX: LEFT,
+    alignY: TOP
+  });
+
+  drawScreenText("需允許相機與動作感測器", rightX, hintY, {
+    fill: 150,
+    size: hintSize,
+    alignX: CENTER,
+    alignY: TOP
+  });
+
+  drawStartButton(rightX, buttonY, bodySize);
+}
+
+function updateStartButtonMetrics(buttonWidth, buttonHeight, borderRadius) {
+  StartButton.ButtonWidth = buttonWidth;
+  StartButton.ButtonHeight = buttonHeight;
+  StartButton.ButtonBorderRadius = borderRadius;
+}
+
+function drawStartButton(x, y, textSize) {
+  StartButton.ButtonX = x;
+  StartButton.ButtonY = y;
 
   fill(StartButton.ButtonColor);
   rectMode(StartButton.ButtonRectMode);
-  rect(StartButton.ButtonX, StartButton.ButtonY, StartButton.ButtonWidth, StartButton.ButtonHeight, StartButton.ButtonBorderRadius);
-  
+  rect(
+    StartButton.ButtonX,
+    StartButton.ButtonY,
+    StartButton.ButtonWidth,
+    StartButton.ButtonHeight,
+    StartButton.ButtonBorderRadius
+  );
+
   drawScreenText(StartButton.Text, StartButton.ButtonX, StartButton.ButtonY, {
     fill: StartButton.TextColor,
-    size: bodySize,
+    size: constrain(textSize, 14, 18),
     alignX: CENTER,
     alignY: CENTER
   });

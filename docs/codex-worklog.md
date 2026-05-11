@@ -992,3 +992,128 @@ canvas fixture camera 改善自動化視覺回歸，但仍不能代表真實手�
 
 #### 建議的下一步
 用 `-CameraFixture all` 跑完整五張 fixture，比較 `greenPlants`、`darkWood`、`cementWall`、`colorfulToys`、`streets` 下 rough wing 與 Result UI 是否穩定。若測試時間太長，可先針對正在調整的視覺功能指定單張 fixture。後續也建議修正 landscape Start button 不可見與 Result 昆蟲可能被按鈕遮擋的既有問題。
+
+---
+
+### 2026-05-11 — 調整 Start page 直向空間分配並修正橫向按鈕不可見
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+重整 Start page responsive layout。直向不再把所有文字集中在畫面中央，改為上方標題、中段說明、下方權限提示與按鈕；短高度橫向改為左文右按鈕，修正 `landscape-844x390` 下 Start button 不可見、CDP 無法進入 Scanning 的問題。
+
+#### 使用者需求
+使用者要求接著修改橫向版面中 Start button 不可見的問題；隨後補充直向手機觀看時也覺得字全部集中在中央、周圍留了許多空間，希望一併改善空間運用。
+
+#### 實作前理解
+既有 Start page 以內容總高度置中。直向時會讓標題、說明、權限提示與按鈕形成一團集中在中央；橫向短高度時，即使已縮小字級，完整 7 行說明與 60px 按鈕總高度仍超過 runtime 高度，導致 `landscape-844x390` 的 Start button 掉出畫面，CDP summary 顯示 `startVisible=false`。
+
+#### 實作方案
+將 `drawStartPage()` 拆成兩種 layout。一般直向與較高畫面使用 `drawStartPagePortraitLayout()`，依 viewport 分區配置標題、正文與底部操作區。`width > height && height < 360` 時使用 `drawStartPageLandscapeCompact()`，顯示短版文案並改成左側文字、右側權限提示與按鈕。新增 `updateStartButtonMetrics()` 與 `drawStartButton()`，讓按鈕尺寸依 layout 調整，但保留既有 `StartButton.ButtonX/Y/Width/Height` 給互動與 CDP 測試讀取。
+
+#### 檢視過的檔案
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+- `Pages/pagesSettings.js`
+- `sketch.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/StartPage/StartPage.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+沒有只把橫向按鈕硬往上推，因為使用者指出直向空間也有問題；因此改為重新整理 Start page 的 responsive layout。直向保留完整文案，橫向改用短文案，避免在 240px runtime 高度中硬塞完整說明。按鈕尺寸在橫向縮小但維持可點擊面積。
+
+#### 遇到的問題
+`drawScreenText()` 沒有文字框寬度或自動換行，因此仍需用手動換行控制中文段落。p5 runtime 在 Chrome headless `844x390` 下約為 `822x240`，可用高度比外部 window size 小很多，橫向必須採用獨立版面。
+
+#### 嘗試過的解法
+先閱讀 Start page、Start button settings、文字 helper 與點擊處理，確認 CDP 是從 `StartButton.ButtonX/Y` 讀座標，互動則用 `dist()` 判斷點擊位置。修改後使用 `node --check Pages\StartPage\StartPage.js` 檢查語法，再執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-layout-responsive-2026-05-11 -CameraFixture greenPlants -CameraWidth 720 -CameraHeight 1280` 進行視覺與互動驗證。
+
+#### 最終解法
+`drawStartPage()` 現在依 viewport 切換 layout。直向版面使用上中下分區：標題位於上方、完整說明位於中段、權限提示與啟動按鈕固定在下方操作區。橫向短版使用左側標題 / 3 行說明、右側權限提示 / 啟動按鈕。三個測試 viewport 都能讀到可見 Start button。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- 是否有截圖：有，集中於 `docs/cdp-runs/start-layout-responsive-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：直向不再集中成一團；橫向 Start button 可見且可點
+- 實際觀察：portrait / compact Start page 呈現上方標題、中段說明、下方提示與按鈕；landscape 顯示左文右按鈕。三個 viewport 都 `startVisible=true` 並完成 `START → SCANNING → RESULT`。portrait Save 下載 `FlutterLens-result.png`，大小 771,398 bytes；Back 回到 `SCANNING` 且 `backCleared=true`
+- 手機 / AR 後續確認事項：真實手機 Safari / Android Chrome 的 viewport、安全區域、字體渲染、觸控手感與權限彈窗仍需人工確認
+
+#### 尚未解決的風險
+CDP 截圖可確認目前測試 viewport，但真實手機可能因瀏覽器網址列、安全區域或系統字體造成高度差異。橫向版面使用短文案，資訊量比直向少；若使用者希望橫向也保留完整說明，需要改成可捲動或更複雜的多段布局。
+
+#### 使用者回饋或修正
+使用者同意「直向分區 + 橫向短版」方案，並指出直向中央集中問題應與橫向不可見問題一起處理。
+
+#### 建議的下一步
+請使用者在真實手機直向與橫向各載入一次 Start page，確認視覺重心與按鈕位置是否符合手感。若直向仍覺得文字偏集中，可再把正文區略往上推並降低文字行距；若橫向希望保留更多資訊，可考慮加入可捲動說明或一個簡短副標。
+
+---
+
+### 2026-05-11 — 測試橫向頁面搭配全部 Camera Fixtures
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者要求，測試修正後的橫向頁面搭配 `tests/fixtures/camera/` 全部照片時，是否都能進入 Scanning 與 Result，並檢視橫向 Result 視覺狀況。
+
+#### 使用者需求
+使用者詢問原有 CDP 截圖流程是否已能進入橫向 Result 與 Scanning 後，要求實際測試橫向頁面搭配 fixtures 裡的照片結果。
+
+#### 實作前理解
+前一輪已修正 Start page 橫向按鈕不可見問題，`greenPlants` 單張 fixture 在 `landscape-844x390` 可完成 `START → SCANNING → RESULT`。本次需擴大到所有 fixture，確認不是單一照片偶然成功。
+
+#### 實作方案
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId landscape-fixtures-all-2026-05-11 -CameraFixture all -CameraWidth 720 -CameraHeight 1280`。腳本會同時跑 portrait、compact 與 landscape，但本次重點檢查五張 fixture 的 `landscape-844x390` summary 與 screenshots。為方便檢視，另外將五張橫向 Result 截圖合成 `landscape-result-montage.png`。
+
+#### 檢視過的檔案
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-fixtures-all-2026-05-11-summary.json`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-fixtures-all-2026-05-11-console.json`
+- `docs/cdp-runs/landscape-fixtures-all-2026-05-11/screenshots/`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本次不修改功能程式碼，只用現有 CDP fixture camera 流程驗證橫向結果。雖然使用者只問橫向，腳本目前沒有 viewport filter，因此以 `-CameraFixture all` 跑完整矩陣，再聚焦判讀 landscape rows。
+
+#### 遇到的問題
+第一次合成 montage 時 PowerShell `System.Drawing.Bitmap` 建構子參數寫法不正確，產生 overload 錯誤；CDP 測試本身已完成且不受影響。修正合成圖建立方式後成功產出 montage。每個 viewport 仍有一筆已知 404 resource event。
+
+#### 嘗試過的解法
+先直接跑完整 fixture 矩陣，再用 PowerShell / System.Drawing 讀取 `*-landscape-844x390-result.png` 合成垂直對照圖。修正 Bitmap 建構方式後產出 `docs/cdp-runs/landscape-fixtures-all-2026-05-11/landscape-result-montage.png`。
+
+#### 最終解法
+五張 fixture 的橫向測試全部通過 `START → SCANNING → RESULT`，包含 `cementWall`、`colorfulToys`、`darkWood`、`greenPlants`、`streets`。summary 中五個 landscape case 均為 `startVisible=true`、`videoReady=true`、`hasResultPhoto=true`。
+
+#### 視覺驗證紀錄
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`landscape-844x390` runtime 約 `822x240`
+- Camera fixtures：`cementWall`、`colorfulToys`、`darkWood`、`greenPlants`、`streets`
+- 是否有截圖：有，集中於 `docs/cdp-runs/landscape-fixtures-all-2026-05-11/screenshots/`，另有 `landscape-result-montage.png`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程
+- 預期畫面：所有 fixture 在橫向都能完成 Scanning 與 Result 截圖
+- 實際觀察：所有 fixture 橫向流程成功。Result 截圖顯示背景照片與昆蟲都有出現，但 Save / Back 按鈕在橫向短高度中位於畫面中央偏上，部分結果與昆蟲或主視覺區域重疊
+- 手機 / AR 後續確認事項：真實手機橫向 Result page 的按鈕安全區、昆蟲生成位置與觸控手感仍需人工確認
+
+#### 尚未解決的風險
+橫向 Start page 已可用，但 Result page 橫向 layout 仍有按鈕遮擋或與昆蟲重疊的風險。若要改善，下一步可針對 Result page 橫向模式重新安排 Save / Back 操作區與昆蟲 spawn safe area。
+
+#### 使用者回饋或修正
+使用者要求實際測試橫向頁面搭配 fixtures 裡照片的結果。本次已完成所有 fixture 橫向驗證。
+
+#### 建議的下一步
+優先處理 Result page 橫向模式：將 Save / Back 移到右側或底部安全區，並讓昆蟲生成位置避開按鈕區域。之後再用同一個 `landscape-fixtures-all` 矩陣回歸測試。
