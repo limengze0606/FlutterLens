@@ -1448,3 +1448,71 @@ CDP fake camera 不能代表真實手機相機環境；真實照片下的顏色�
 
 #### 建議的下一步
 下一輪建議先處理直向比例：檢查 `createRoughButterflyWingPairPlans()` 中 `wingBaseLen`、`foreLength`、`hindTipY`、`hind yOff` 與 `scaleY` 是否過度受 `max(width, height)` 或畫布長邊影響；可讓 butterfly wing size 主要參照短邊或加入 portrait-specific vertical compression。調整時以橫向截圖作為較自然比例的參考，讓直向結果接近橫向的前後翅比例，再用 `-ForcedFinalPitch 0` 跑 portrait / compact / landscape 對照。
+
+---
+
+### 2026-05-11 — 修正 Rough Butterfly 直向雙翅比例
+
+#### 日期
+2026-05-11
+
+#### 任務摘要
+依使用者觀察，修正 rough butterfly 在 portrait / compact 直向 viewport 下翅膀過度向下延伸的比例問題，讓直向雙翅輪廓更接近前一輪 landscape 中較自然的比例。
+
+#### 使用者需求
+使用者指出上一輪改動本身可給 `8/10`，但觀察到橫向時翅膀輪廓比例較自然；問題應該出在翅膀輪廓會參照螢幕或畫布長寬，導致直向時翅膀太向下延伸、不自然，橫向時反而比較剛好。使用者要求開始下一輪修正。
+
+#### 實作前理解
+`createRoughButterflyWingPairPlans()` 原本使用 `(screenMax * 0.15 + screenMin * 0.4) * 0.01` 作為 `wingBaseLen`。在 portrait runtime 約 `478x694` 時，`screenMax` 會拉大基礎長度；後翅的 `yOff`、`hindTipY` 與 `scaleY` 又會放大垂直下垂，使直向結果比 landscape 更像往下拖的長尾瓣。landscape 較自然，因此不應全面縮小所有方向，而應只讓直向逐步壓縮。
+
+#### 實作方案
+在 `createRoughButterflyWingPairPlans()` 中加入 `portraitAmount`，依 `height / width` 判斷直向程度。橫向時 `portraitAmount=0`，保留原比例；直向時讓 `wingBaseLen` 從原本的長短邊混合值逐步靠近短邊基準，並套用 `verticalCompression` 與 `hindDropCompression` 壓縮 `foreTipY`、`hindTipY`、後翅 `yOff`、前後翅 `scaleY`。第一輪截圖後 compact 仍略有尾瓣感，因此第二輪加強短邊基準與垂直壓縮，並停止在第二輪交給使用者判斷。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不改 body、顏色、pattern，也不改非 butterfly 類型。比例修正只存在於 butterfly 專用 `createRoughButterflyWingPairPlans()`，並透過 `portraitAmount` 保護 landscape。這是因為使用者明確指出 landscape 較自然，若全面縮小翅膀會破壞目前最好的參考。
+
+#### 遇到的問題
+第一輪 `rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11` 中，portrait 截圖的昆蟲位置剛好被 Save / Back 按鈕部分遮擋，不適合作為唯一判斷；compact 可見比例有改善但後翅仍有一點向下拖成尾瓣。因此做第二輪加強直向壓縮。
+
+#### 嘗試過的解法
+第一輪將 `wingBaseLen` 在 portrait 時往短邊基準靠近，並壓縮 `hind yOff` 與 `tipY`。第二輪把短邊基準從 `0.47` 調到 `0.44`，讓 `portraitAmount` 更早介入，並加強 `verticalCompression`、`hindDropCompression` 與前後翅 `scaleY` 的直向壓縮。
+
+#### 最終解法
+最終保留第二輪：`portraitAmount = constrain((height / width - 1) / 0.45, 0, 1)`，直向時 `wingBaseLen` 往 `screenMin * 0.44 * 0.01` 靠近；`verticalCompression` 與 `hindDropCompression` 分別壓縮翅尖垂直量與後翅根點下移量。橫向時上述修正不介入。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`greenPlants.jpg`，mock camera canvas `720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示三個 viewport 的 `resultFinalPitch=0`
+- 是否有截圖：有，最終第二輪集中於 `docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JS exception
+- 預期畫面：portrait / compact 的雙翅不再因畫布長邊而過度向下延伸，landscape 的自然比例不應被破壞
+- 實際觀察：第二輪 portrait / compact 的整體高度收斂，後翅仍可辨但不再像前一輪那樣一路向下拖；landscape 仍保持可讀的四翅輪廓。portrait 這輪未被按鈕遮擋，較能判斷比例。
+
+#### Codex 審美自評
+本輪約 `7.5/10`。優點是使用者指出的 viewport 比例問題被明確對準，直向的翅膀高度與後翅下垂量比上一輪自然，且橫向未被破壞。弱點是後翅末端仍偏尖，真實蝴蝶後翅可以更圓鈍；另外綠色背景仍讓翅膀主要依靠黑線可讀。第一輪後做了一次更明顯的第二輪調整，第二輪已足以提供使用者評圖，因此停止自我迭代。
+
+#### 使用者審美回饋
+使用者對 `portrait-ratio-v2` 給 `6/10`。使用者認為本輪有改善問題，但沒有到差很多；這點可以接受。使用者也認同 Codex 提到的「後翅專屬輪廓」是很好的下一步方向。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機 AR / camera 測試。不同 seed、不同背景與不同真實手機 viewport 下，`portraitAmount` 的壓縮曲線仍可能需要微調。Result spawn 與按鈕安全區仍會影響視覺判讀。
+
+#### 使用者回饋或修正
+使用者要求開始下一輪，並提供具體方向：以 landscape 較自然的輪廓比例為參考，修正 portrait 翅膀過度向下延伸。完成後使用者評分 `6/10`，指出比例壓縮雖有改善但差異不大，並肯定下一輪可改做後翅專屬輪廓。
+
+#### 建議的下一步
+下一步不要再只靠 `portraitAmount` 壓縮比例；應設計後翅專屬的 rounder outline，讓後翅有自己的上緣、外緣與圓鈍下緣，而不是沿用前翅輪廓再縮放。目標是讓後翅更像真實蝴蝶的下翅瓣，並用較明顯的輪廓差異解決「改善但不大」的問題。

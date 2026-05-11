@@ -882,3 +882,61 @@ Codex 自評：`7/10`。優點是第二輪的四翅 silhouette 已可辨識，�
 
 ### 備註 / 風險
 CDP fake camera 可確認流程、截圖與基本視覺方向，但不能代表真實手機鏡頭曝光、背景色彩與效能。`drawRoughInsect()` 仍有每幀重新 random 的既有風險，會影響審美比較穩定性。Result page 的按鈕與生成位置仍可能干擾昆蟲觀察，尤其 landscape 或生成位置偏低時。使用者指出下一個比例風險：portrait / compact 中翅膀可能因參照螢幕或畫布長寬而過度向下延伸；下一輪應以 landscape 較自然的輪廓作為比例參考，修正直向 viewport 的雙翅高度與後翅下垂量。
+
+---
+
+### 日期
+2026-05-11
+
+### 任務 / 功能
+驗證 rough butterfly 直向雙翅比例修正，讓 portrait / compact 的前後翅不再因畫布長邊參照而過度向下延伸。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：使用 CDP 注入的 canvas mock camera，fixture 為 `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`，summary 顯示 `resultFinalPitch=0`
+
+### 預期行為
+portrait / compact 的 rough butterfly 雙翅應比上一輪更接近 landscape 的自然比例，後翅不應明顯向下拖成長尾瓣。landscape 因上一輪比例較自然，應保持不被本次 portrait-specific 修正破壞。Start → Scanning → Result、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+第一輪 `rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11` 完成三個 viewport 流程，但 portrait 昆蟲位置剛好被 Save / Back 部分遮擋；compact 顯示比例有改善但後翅仍偏向下拖。第二輪 `rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11` 加強短邊基準與垂直壓縮後，portrait / compact 的整體雙翅高度更收斂，後翅仍可辨但不再一路往下延伸；landscape 仍保持可讀的四翅輪廓。portrait Save 下載 `FlutterLens-result.png`，大小 779,393 bytes，Back 回到 `SCANNING` 且 `backCleared=true`。
+
+### 截圖
+- 最終第二輪 portrait：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 最終第二輪 compact：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11-greenPlants-compact-360x740-result.png`
+- 最終第二輪 landscape：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v2-2026-05-11-greenPlants-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11-greenPlants-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11-greenPlants-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11/screenshots/rough-butterfly-double-wings-portrait-ratio-v1-2026-05-11-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.5/10`。優點是本輪直接回應使用者指出的 viewport 比例問題，直向雙翅高度與後翅下垂量比上一輪自然，且 landscape 沒有被破壞。弱點是後翅末端仍略尖，若要更像真實蝴蝶可下一輪改為更圓鈍的後翅輪廓，而不是繼續壓縮整體比例。綠色背景下翅膀與植物仍接近，輪廓主要靠黑線支撐。
+
+### 使用者審美回饋
+使用者對 `portrait-ratio-v2` 給 `6/10`。使用者認為本輪有改善問題，但沒有到差很多；這點可以接受。使用者也認同 Codex 提到的「後翅專屬輪廓」是很好的下一步方向。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 重新整理後仍正常
+- [ ] 在 GitHub Pages HTTPS 網址上正常
+- [ ] 真實手機 portrait 下雙翅不過度向下延伸
+- [ ] 真實手機 landscape 下雙翅比例仍自然
+- [ ] 不同 seed 下前後翅貼合但不完全重疊
+- [ ] Result spawn 不被 Save / Back 按鈕遮擋
+
+### 備註 / 風險
+本次用 `portraitAmount` 保護 landscape 並壓縮 portrait / compact，但使用者回饋顯示此方向雖有改善，幅度不夠大。下一輪應轉向後翅專屬的圓鈍輪廓設計，而不是繼續只靠 scale、tipY 或 yOff 壓縮。不同手機實際 viewport 與 DPR 仍可能讓壓縮曲線需要微調。

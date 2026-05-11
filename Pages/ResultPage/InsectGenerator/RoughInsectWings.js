@@ -63,16 +63,22 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
   let u = insectBaseUnit;
   let screenMax = max(width, height);
   let screenMin = min(width, height);
-  let wingBaseLen = (screenMax * 0.15 + screenMin * 0.4) * 0.01;
+  let baseFromCanvas = (screenMax * 0.15 + screenMin * 0.4) * 0.01;
+  let baseFromShortEdge = screenMin * 0.44 * 0.01;
+  let portraitRatio = height > width ? height / Math.max(1, width) : 1;
+  let portraitAmount = g.constrain((portraitRatio - 1) / 0.45, 0, 1);
+  let wingBaseLen = baseFromCanvas + (baseFromShortEdge - baseFromCanvas) * portraitAmount;
+  let verticalCompression = 1 - portraitAmount * 0.3;
+  let hindDropCompression = 1 - portraitAmount * 0.42;
   let rootY = bodyPlan.wingRootY;
   let rootHalfWidth = bodyPlan.wingRootHalfWidth;
 
   let foreLength = roughRandom(g, 18.5 * wingBaseLen, 27.5 * wingBaseLen);
   let foreWidth = roughRandom(g, 9.2 * u, 14.5 * u);
-  let foreTipY = roughRandom(g, -7.2 * u, -2.4 * u);
-  let hindLength = foreLength * roughRandom(g, 0.62, 0.78);
+  let foreTipY = roughRandom(g, -7.2 * u, -2.4 * u) * verticalCompression;
+  let hindLength = foreLength * roughRandom(g, 0.58, 0.72);
   let hindWidth = foreWidth * roughRandom(g, 0.94, 1.18);
-  let hindTipY = roughRandom(g, 4.8 * u, 8.4 * u);
+  let hindTipY = roughRandom(g, 4.8 * u, 8.4 * u) * verticalCompression;
 
   return {
     fore: {
@@ -80,7 +86,7 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.88, 1.08),
       rotation: roughRandom(g, -0.13, -0.02),
       scaleX: 1,
-      scaleY: roughRandom(g, 0.72, 0.82),
+      scaleY: roughRandom(g, 0.72, 0.82) * (1 - portraitAmount * 0.1),
       params: {
         length: foreLength,
         width: foreWidth,
@@ -89,11 +95,11 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
       }
     },
     hind: {
-      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u),
+      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u) * hindDropCompression,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.58, 0.76),
       rotation: roughRandom(g, 0.22, 0.38),
       scaleX: roughRandom(g, 0.9, 1.02),
-      scaleY: roughRandom(g, 0.88, 1.06),
+      scaleY: roughRandom(g, 0.88, 1.06) * (1 - portraitAmount * 0.22),
       params: {
         length: hindLength,
         width: hindWidth,
