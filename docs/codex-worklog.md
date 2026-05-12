@@ -2149,3 +2149,150 @@ CDP canvas fixture 不能取代真實手機 AR 測試。觸角在真實植物背
 
 #### 建議的下一步
 後續任何功能或視覺改動的總結，固定加入「可手動微調的參數」段落，列出檔案、function、參數與調整效果。
+
+---
+
+### 2026-05-12 — 整理 rough insect 整體旋轉為 screen rotation plan
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+將 rough insect 的整體畫布旋轉從兩次隨機 rotate，整理成先選離散 screen rotation plan，再只套用一次 `rotate()`。
+
+#### 使用者需求
+使用者先確認 canvas `rotate()` 時翅膀是否會和身體同步，接著要求整理成「一次明確的整體旋轉」。使用者進一步指出旋轉角度不能在一大段範圍內隨機，而應該先決定 plan，每個 plan 有各自角度範圍，讓 plan 間差異更明顯。使用者也明確限定本階段不改變身體編排或翅膀變形，只確認整體轉向正確性。
+
+#### 實作前理解
+`drawRoughInsect()` 目前在 `translate(x, y)` 後先做一次 `random(-PI/4, PI/4)` rotate，之後因 `roughPosePlan` 暫時為 `null`，又在 fallback 分支做第二次 random rotate。這會讓整體方向不容易判讀，也不符合目前重打地基時需要的可控 plan 化方向。由於翅膀與 body 都在同一個 `push()/pop()` 座標系中繪製，只要整體 rotate 放在 draw calls 前，兩者會同步旋轉。
+
+#### 實作方案
+只修改 `Pages/ResultPage/InsectGenerator/InsectManager.js`。新增 `createRoughScreenRotationPlan(seedValue)`，用離散 plan 決定 `baseAngle`、`jitter` 與 `weight`，並用 `seededUnit(seedValue, salt)` 從 `currentSeed` 產生穩定的 plan 選擇與 jitter。`drawRoughInsect()` 先產生 `currentSeed`，再建立 `roughScreenRotationPlan`，最後只呼叫一次 `insectLayer.rotate(roughScreenRotationPlan.rotation)`。保留 `roughPosePlan = null`，且不改 `RoughInsectBody.js` 或 `RoughInsectWings.js`。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪只處理 screen rotation，不處理 body pose 或 wing pose。plan 先包含 `uprightHover`、`diagonalRiseLeft`、`diagonalRiseRight`、`sideDriftLeft`、`sideDriftRight`。每個 plan 的 `jitter` 維持在約 7 至 9 度，避免回到大範圍隨機；plan 間 `baseAngle` 差距則保持明顯，讓後續多 seed 截圖時容易比較。
+
+#### 遇到的問題
+CDP 視覺測試的一次 run 只會抽到當下 seed 對應的一個 screen rotation plan。本輪截圖抽到接近直立 hover 的方向，因此可確認同步與單一旋轉，但尚不能用截圖代表所有 plan 都已審美通過。
+
+#### 嘗試過的解法
+先用 `node --check` 檢查 `InsectManager.js` 語法，再跑既有 CDP 測試流程。檢視 portrait、compact、landscape 三張 result 截圖，確認翅膀、身體、觸角在同一整體方向中同步旋轉。
+
+#### 最終解法
+`drawRoughInsect()` 移除原本前後兩次 random rotate。現在 rough insect 的整體方向由 `createRoughScreenRotationPlan(currentSeed)` 決定，並且只套用一次 `insectLayer.rotate()`。`roughPosePlan` 仍為停用狀態，不影響 body 編排或翅膀形變。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-screen-rotation-plan-2026-05-12`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-screen-rotation-plan-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：翅膀、身體與觸角作為同一整體同步旋轉；沒有出現 body 與 wing 各自不同步的現象。本次 seed 接近直立 hover，尚未覆蓋全部 plan 分支。
+
+#### Codex 審美自評
+本輪約 `7.2/10`。優點是方向系統變乾淨，昆蟲不再因雙重 random rotate 產生難以判讀的任意斜角；body、wing、antennae 仍然像同一隻昆蟲。弱點是本次截圖沒有展示 plan 間差異，審美判斷主要集中在「同步、乾淨、未破壞地基」，還不是完整姿態設計評分。
+
+#### 使用者審美回饋
+使用者明確要求本階段只確認整體轉向正確性，不改變身體編排或翅膀變形。使用者也要求旋轉角度由 plan 分配，每個 plan 有自己的範圍，讓 plan 間差異更明顯。
+
+#### 尚未解決的風險
+CDP + fake camera 仍不能取代真實手機 AR 測試。所有 screen rotation plan 尚未逐一截圖比對；目前沒有測試入口可強制指定 plan id，因此後續若要審美比較，需要新增 debug / forced plan 參數或跑多 seed 截圖。landscape 仍容易被 Save / Back 按鈕與低高度影響構圖判讀。
+
+#### 使用者回饋或修正
+等待使用者確認這種 plan-based screen rotation 的方向是否符合地基階段需求，尤其是是否需要更大角度差、更多 plan，或暫時只保留少量方向。
+
+#### 建議的下一步
+若使用者認可這個整體轉向地基，下一步可加入測試用 forced screen rotation plan，方便逐一截圖 `uprightHover`、`diagonalRise`、`sideDrift`。之後再進入 body / wing posePlan，但仍應保持 screen rotation、body pose、wing pose 三層分離。
+
+---
+
+### 2026-05-12 — 修正 screen rotation plan 角度單位
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+檢查角度模式後，修正 `createRoughScreenRotationPlan()` 讓它配合目前全域 `angleMode(DEGREES)`，使不同 screen rotation plan 真的產生可見旋轉。
+
+#### 使用者需求
+使用者要求檢查角度模式的使用，確認不同 plan 是否真的會有旋轉效果。確認問題後，使用者要求「先只改 `createRoughScreenRotationPlan()`」，不要擴大修改 body、wing 或其他 rotate。
+
+#### 實作前理解
+`sketch.js` 的 setup 會呼叫 `angleMode(DEGREES)`，因此 p5 的 `rotate()` 會把傳入值當 degree。上一輪 `createRoughScreenRotationPlan()` 使用 `PI / 180` 產生弧度值，導致原本預期的 `-32°` 實際只傳入約 `-0.559°`，`58°` 實際只傳入約 `1.012°`，不同 plan 雖然有數值差異，但畫面上幾乎看不出來。
+
+#### 實作方案
+只修改 `Pages/ResultPage/InsectGenerator/InsectManager.js` 中的 `createRoughScreenRotationPlan()`。移除 `const angle = PI / 180`，將各 plan 的 `baseAngle` 與 `jitter` 直接改成 degree 數值，例如 `-32`、`32`、`-58`、`58`。不修改 `drawRoughInsect()`、`RoughInsectBody.js`、`RoughInsectWings.js` 或其他 rotate。
+
+#### 檢視過的檔案
+- `sketch.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+依使用者要求，本輪只修正 screen rotation plan 的角度單位。雖然搜尋結果顯示專案其他檔案也有 `rotate()`，但那些可能牽涉 body / wing 內部姿態與既有視覺，本輪不碰，避免把整體轉向地基修正和內部變形混在一起。
+
+#### 遇到的問題
+角度模式是全域設定，`createRoughScreenRotationPlan()` 若使用弧度值，語法不會錯，但視覺幾乎沒有旋轉，容易誤以為 plan 抽到的是直立。這是視覺專案中「看起來沒壞但行為不符合預期」的典型問題。
+
+#### 嘗試過的解法
+先用 `rg` 搜尋 `angleMode` 與 `rotate()`，確認 `sketch.js` 有 `angleMode(DEGREES)`。接著用 Node 模擬原本弧度值在 degree 模式下的實際角度，確認 plan 差異只有約 `0.5°` 到 `1°`。修正後再用 Node 模擬不同 seed，確認可抽到 `38.30°`、`-52.63°`、`56.73°`、`-8.22°`、`-31.31°` 等明顯角度。
+
+#### 最終解法
+`createRoughScreenRotationPlan()` 現在直接使用 degree 數值：`uprightHover` 為 `0 ± 9°`，`diagonalRiseLeft / Right` 為 `±32 ± 8°`，`sideDriftLeft / Right` 為 `±58 ± 7°`。`drawRoughInsect()` 仍只套用一次 `insectLayer.rotate(roughScreenRotationPlan.rotation)`。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- Node 模擬：不同 seed 可產生明顯 degree 旋轉角度
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-screen-rotation-degrees-2026-05-12`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-screen-rotation-degrees-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：compact viewport 出現明顯側向飛行效果，portrait 與 landscape 也有可見整體斜向；翅膀、身體與觸角同步旋轉。
+
+#### Codex 審美自評
+本輪約 `7.4/10`。優點是 plan 的方向差異終於可見，側向圖像明顯比上一輪更符合「plan 間差異要清楚」的目標。弱點是這仍只是整體畫布旋轉，不是身體帶動的姿態；側向時內部 body / wing 沒有投影變形，但這符合使用者要求的本階段範圍。
+
+#### 使用者審美回饋
+使用者要求先只改 `createRoughScreenRotationPlan()`，避免擴大到身體編排或翅膀變形。
+
+#### 尚未解決的風險
+專案其他 `rotate()` 也可能受到 `angleMode(DEGREES)` 影響，但本輪未檢查或修正它們。若後續要處理 body / wing 內部姿態，需要另開一輪系統性檢查角度單位，並搭配視覺截圖，避免一次改太多造成風格變動。
+
+#### 使用者回饋或修正
+等待使用者確認目前 screen rotation 的 degree 範圍是否足夠清楚，尤其是 `sideDrift` 的角度是否太大或剛好。
+
+#### 建議的下一步
+下一步可新增 debug / forced screen rotation plan 入口，讓測試能指定 `uprightHover`、`diagonalRiseLeft`、`diagonalRiseRight`、`sideDriftLeft`、`sideDriftRight` 逐張截圖比較。若使用者想先維持現狀，也可以回頭檢查 body / wing 內部 rotate 的角度模式，但應另開一輪。

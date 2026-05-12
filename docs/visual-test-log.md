@@ -1267,3 +1267,97 @@ Codex 自評：`7.2/10`。優點是兩條觸角讓頭部方向更像昆蟲，且
 
 ### 備註 / 風險
 本輪只加兩條簡單觸角，尚未重新設計更有手繪運筆意圖的 antenna stroke grammar。若使用者覺得方向正確，後續可再調觸角長度、外彎幅度或起筆位置；若覺得目前已足夠，下一步可改處理腹部分節。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+整理 rough insect 的整體畫布旋轉，改成先決定離散 screen rotation plan，再只套用一次 `rotate()`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+rough insect 應先由 `createRoughScreenRotationPlan()` 選出整體畫布方向，並只在 `drawRoughInsect()` 中套用一次 `insectLayer.rotate()`。翅膀、身體與觸角應同步跟著同一個畫布旋轉；本階段不應改變 body 編排、翅膀形變或 posePlan。
+
+### 實際觀察
+`rough-screen-rotation-plan-2026-05-12` 中，三個 viewport 都成功完成 Start → Scanning → Result；portrait 完成 Save / Back。截圖中的翅膀、身體與觸角維持同步，沒有出現翅膀與 body 分離或各自旋轉的現象。本次實際抽到的方向接近直立 hover，因此視覺截圖驗證了單一整體旋轉與同步性，但尚未用截圖覆蓋所有 screen rotation plan 分支。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-screen-rotation-plan-2026-05-12/screenshots/rough-screen-rotation-plan-2026-05-12-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-screen-rotation-plan-2026-05-12/screenshots/rough-screen-rotation-plan-2026-05-12-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-screen-rotation-plan-2026-05-12/screenshots/rough-screen-rotation-plan-2026-05-12-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.2/10`。優點是整體方向控制變乾淨，body、wing、antennae 仍像同一隻昆蟲，不再有雙重旋轉造成的不可控斜角。弱點是本次截圖抽到的方向偏直立，還沒有把 `diagonalRise` 與 `sideDrift` 的視覺差異完整展示出來；因此目前更像技術地基確認，不是完整姿態審美評分。
+
+### 使用者審美回饋
+使用者要求這階段只確認整體轉向正確性，不改變身體編排或翅膀變形；並指出旋轉角度應先決定 plan，再讓每個 plan 有各自範圍，使 plan 間差異更明顯。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機上不同 seed 的 screen rotation plan 差異是否足夠明顯
+- [ ] 真實手機上整體轉向後昆蟲不會被 Save / Back 遮擋
+- [ ] 真實手機上背景運動與昆蟲方向不會產生不自然的貼圖感
+- [ ] 後續若加入 body / wing posePlan，需維持 screen rotation 與內部姿態分層清楚
+
+### 備註 / 風險
+本輪只確認單一整體旋轉與同步性，沒有改 body 編排、wing root、near / far wing scale 或翅膀變形。若要驗證所有 plan 的審美差異，後續需要加入可強制指定 screen rotation plan 的測試入口，或用多 seed 截圖比較。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+修正 `createRoughScreenRotationPlan()` 的角度單位，讓 screen rotation plan 配合目前全域 `angleMode(DEGREES)`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+因 `sketch.js` 在 setup 中呼叫 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 應直接輸出 degree 角度給 `insectLayer.rotate()`。不同 plan 的 `baseAngle` 應產生可見的整體旋轉差異；本輪仍不改 body 編排、翅膀變形或內部 pose。
+
+### 實際觀察
+修正前，以弧度值傳入 degree 模式時，`diagonalRiseLeft` 約只會旋轉 `-0.559°`、`sideDriftLeft` 約只會旋轉 `-1.012°`，幾乎看不出 plan 差異。修正後的 Node 模擬確認不同 seed 可得到 `38.30°`、`-52.63°`、`56.73°`、`-8.22°`、`-31.31°` 等明顯角度。`rough-screen-rotation-degrees-2026-05-12` 截圖中，compact viewport 明顯呈現側向飛行，portrait 與 landscape 也可見整體斜向；翅膀、身體與觸角仍同步旋轉。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-screen-rotation-degrees-2026-05-12/screenshots/rough-screen-rotation-degrees-2026-05-12-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-screen-rotation-degrees-2026-05-12/screenshots/rough-screen-rotation-degrees-2026-05-12-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-screen-rotation-degrees-2026-05-12/screenshots/rough-screen-rotation-degrees-2026-05-12-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.4/10`。優點是 plan 差異終於清楚進到畫面，compact 的側向姿態讓「不同方向」變得可判讀，而不是微小旋轉。弱點是目前只是整體貼圖式旋轉，側向時 body / wing 內部仍沒有真正的姿態投影；但這符合本階段只驗整體轉向的限制。
+
+### 使用者審美回饋
+使用者要求先只改 `createRoughScreenRotationPlan()`，用來修正角度模式問題，不擴大到 body 或 wing 內部 rotate。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機上 degree 角度是否過大或過小
+- [ ] 側向 plan 是否容易被按鈕或畫面邊界遮擋
+- [ ] 若日後改回 `angleMode(RADIANS)`，需同步調整 screen rotation plan 單位
+- [ ] 後續仍需分開處理 screen rotation 與 body / wing pose
+
+### 備註 / 風險
+本輪只修正 `createRoughScreenRotationPlan()`；專案其他 `rotate()` 仍可能受到全域 `angleMode(DEGREES)` 影響，但依使用者要求，本輪沒有擴大修改。後續若檢查 body 或 wing 內部角度，應另開一輪避免混入本次地基修正。
