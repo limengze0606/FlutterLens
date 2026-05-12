@@ -5,26 +5,51 @@ function createRoughInsectBodyPlan(g, seedValue, insectType) {
 
   let u = insectBaseUnit;
   let centerDriftX = roughRandom(g, -0.12 * u, 0.12 * u);
-  let rootY = roughRandom(g, 0.05 * u, 0.34 * u);
-  let bodyLength = roughRandom(g, 5.8 * u, 7.2 * u);
-  let gestureSide = roughRandom(g, 0, 1) < 0.5 ? -1 : 1;
-  let bodyCurve = gestureSide * roughRandom(g, 0.22 * u, 0.62 * u);
-  let topY = rootY - roughRandom(g, 0.74 * u, 1.04 * u);
-  let bottomY = rootY + bodyLength;
+  let rootY = roughRandom(g, 0.12 * u, 0.26 * u);
+  let headY = rootY - roughRandom(g, 1.24 * u, 1.46 * u);
+  let thoraxY = rootY + roughRandom(g, 0.18 * u, 0.36 * u);
+  let abdomenY = rootY + roughRandom(g, 0.9 * u, 1.2 * u);
+  let bottomY = abdomenY + roughRandom(g, 6 * u, 8 * u);
+  let headRx = roughRandom(g, 0.5 * u, 0.62 * u);
+  let thoraxRx = roughRandom(g, 0.76 * u, 0.94 * u);
+  let abdomenRx = roughRandom(g, 0.66 * u, 0.82 * u);
 
   return {
     insectType,
     centerX: centerDriftX,
-    topY,
+    topY: headY - headRx,
     rootY,
-    headY: topY + roughRandom(g, 0.12 * u, 0.28 * u),
+    headY,
     bottomY,
-    curveX: bodyCurve,
+    curveX: 0,
     wingRootY: rootY,
-    wingRootHalfWidth: roughRandom(g, 0.34 * u, 0.48 * u),
-    antennaSpread: roughRandom(g, 1.65 * u, 2.35 * u),
-    antennaLength: roughRandom(g, 2.2 * u, 3.1 * u),
-    gestureSide
+    wingRootHalfWidth: roughRandom(g, 0.38 * u, 0.5 * u),
+    anatomy: {
+      head: {
+        x: centerDriftX,
+        y: headY,
+        rx: headRx,
+        ry: roughRandom(g, 0.58 * u, 0.72 * u),
+        rotation: 0
+      },
+      thorax: {
+        x: centerDriftX,
+        y: thoraxY,
+        rx: thoraxRx,
+        ry: roughRandom(g, 0.96 * u, 1.18 * u),
+        rotation: 0
+      },
+      abdomen: {
+        x: centerDriftX,
+        y: (abdomenY + bottomY) * 0.5,
+        rx: abdomenRx,
+        ry: (bottomY - abdomenY) * 0.5,
+        rotation: 0
+      }
+    },
+    antennaSpread: 0,
+    antennaLength: 0,
+    gestureSide: 1
   };
 }
 
@@ -38,14 +63,65 @@ function drawRoughInsectBody(g, bodyPlan, seedValue) {
 
   let u = insectBaseUnit;
   let ink = "#050504";
-  let softInk = "#151511";
-  let warmInk = "#2a2620";
 
-  drawRoughBodyGestureAxis(g, bodyPlan, ink, u);
-  drawRoughBodyFigurativeMasses(g, bodyPlan, ink, softInk, warmInk, u);
-  drawRoughBodyRhythmMarks(g, bodyPlan, ink, softInk, u);
-  drawRoughBodyGestureAntennae(g, bodyPlan, ink, u);
+  drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
 
+  g.pop();
+}
+
+function drawRoughBodySimpleOutline(g, plan, ink, u) {
+  if (!plan.anatomy) return;
+
+  drawRoughOutlineOval(g, plan.anatomy.abdomen, ink, {
+    strokeWeight: roughRandom(g, 1.5, 1.8),
+    wobble: 0.055 * u,
+    passes: 2
+  });
+  drawRoughOutlineOval(g, plan.anatomy.thorax, ink, {
+    strokeWeight: roughRandom(g, 1.82, 2.36),
+    wobble: 0.05 * u,
+    passes: 2
+  });
+  drawRoughOutlineOval(g, plan.anatomy.head, ink, {
+    strokeWeight: roughRandom(g, 1.7, 2.02),
+    wobble: 0.04 * u,
+    passes: 2
+  });
+}
+
+function drawRoughOutlineOval(g, oval, ink, options = {}) {
+  let passes = options.passes || 1;
+  let wobble = options.wobble || 0;
+  let rotation = oval.rotation || 0;
+
+  if (typeof brush !== "undefined") {
+    brush.noFill();
+    brush.set("pencil1", ink, 1);
+    brush.stroke(ink, 248);
+    brush.strokeWeight(options.strokeWeight || 1);
+
+    for (let pass = 0; pass < passes; pass++) {
+      brush.beginShape(0.12);
+      let count = 28;
+      for (let i = 0; i <= count; i++) {
+        let t = (i / count) * Math.PI * 2;
+        let localX = Math.cos(t) * (oval.rx + roughRandom(g, -wobble, wobble));
+        let localY = Math.sin(t) * (oval.ry + roughRandom(g, -wobble, wobble));
+        let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
+        brush.vertex(point.x, point.y, roughRandom(g, 0.32, 0.74));
+      }
+      brush.endShape(true);
+    }
+    return;
+  }
+
+  g.push();
+  g.translate(oval.x, oval.y);
+  g.rotate(rotation);
+  g.noFill();
+  g.stroke(ink);
+  g.strokeWeight(options.strokeWeight || 1);
+  g.ellipse(0, 0, oval.rx * 2, oval.ry * 2);
   g.pop();
 }
 
@@ -72,7 +148,6 @@ function drawRoughBodyGestureAxis(g, plan, ink, u) {
   drawHumanBrushStroke(g, points, {
     brushName: "pencil1",
     color: ink,
-    brushWeight: roughRandom(g, 0.5, 0.72),
     strokeWeight: roughRandom(g, 1.1, 1.7),
     curvature: 0.22,
     jitter: 0.035 * u
@@ -87,7 +162,6 @@ function drawRoughBodyGestureAxis(g, plan, ink, u) {
     drawHumanBrushStroke(g, echoPoints, {
       brushName: "pencil1",
       color: ink,
-      brushWeight: roughRandom(g, 0.32, 0.46),
       strokeWeight: roughRandom(g, 0.8, 1.5),
       curvature: 0.24,
       jitter: 0.025 * u
@@ -158,7 +232,6 @@ function drawRoughBodyRhythmMarks(g, plan, ink, softInk, u) {
   ], {
     brushName: "pencil1",
     color: softInk,
-    brushWeight: roughRandom(g, 0.34, 0.52),
     strokeWeight: roughRandom(g, 0.68, 1.05),
     curvature: 0.2,
     jitter: 0.02 * u
@@ -188,7 +261,6 @@ function drawRoughBodyGestureAntennae(g, plan, ink, u) {
   ], {
     brushName: "pencil1",
     color: ink,
-    brushWeight: roughRandom(g, 0.34, 0.48),
     strokeWeight: roughRandom(g, 0.36, 0.54),
     curvature: 0.28,
     jitter: 0.018 * u
@@ -202,7 +274,6 @@ function drawRoughBodyGestureAntennae(g, plan, ink, u) {
   ], {
     brushName: "pencil1",
     color: ink,
-    brushWeight: roughRandom(g, 0.34, 0.48),
     strokeWeight: roughRandom(g, 0.36, 0.54),
     curvature: 0.28,
     jitter: 0.018 * u
@@ -350,7 +421,6 @@ function drawRoughAbdomenSegments(g, anatomy, ink, softInk, u) {
     ], {
       brushName: "pencil1",
       color: i % 2 === 0 ? ink : "#5d5140",
-      brushWeight: roughRandom(g, 0.26, 0.4),
       strokeWeight: roughRandom(g, 0.46, 0.82),
       curvature: 0.16,
       jitter: 0.018 * u,
@@ -373,7 +443,6 @@ function drawRoughBodyDorsalHighlight(g, anatomy, colorValue, u) {
   drawHumanBrushStroke(g, points, {
     brushName: "pencil1",
     color: colorValue,
-    brushWeight: roughRandom(g, 0.22, 0.34),
     strokeWeight: roughRandom(g, 0.5, 0.86),
     curvature: 0.2,
     jitter: 0.015 * u,
@@ -402,7 +471,6 @@ function drawRoughThoraxHairs(g, anatomy, softInk, u) {
     ], {
       brushName: "pencil1",
       color: softInk,
-      brushWeight: roughRandom(g, 0.18, 0.28),
       strokeWeight: roughRandom(g, 0.28, 0.48),
       curvature: 0.08,
       jitter: 0.012 * u,
@@ -444,7 +512,7 @@ function drawHumanBrushStroke(g, points, options) {
   if (!points || points.length < 2) return;
 
   if (typeof brush !== "undefined") {
-    brush.set(options.brushName || "pencil1", options.color, options.brushWeight || 0.3);
+    brush.set(options.brushName || "pencil1", options.color, 1);
     brush.strokeWeight(options.strokeWeight || 0.35);
     brush.beginShape(options.curvature || 0.16);
     for (let i = 0; i < points.length; i++) {

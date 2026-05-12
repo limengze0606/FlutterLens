@@ -1860,3 +1860,158 @@ CDP canvas fixture 不能取代真實手機 AR / camera 測試。使用者指出
 
 #### 建議的下一步
 下一位 agent 接手時，先依 `AGENTS.md` 的摘要閱讀順序進行 onboarding。若使用者接著評估 rough butterfly body，應同步更新 `docs/visual-style-guide.md` 與 `docs/current-risks-and-next-steps.md`。
+
+---
+
+### 2026-05-12 — RoughInsectBody 三段輪廓地基
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+依使用者要求回頭打好 `RoughInsectBody.js` 的地基：先不處理翅膀或身體本身的姿態角度，將 rough butterfly body 簡化成頭、胸、腹三個空心輪廓，內部不填色。
+
+#### 使用者需求
+使用者表示想回頭打好 `RoughInsectBody.js` 的地基，先不考慮或固定住翅膀或身體本身的角度，將身體構造簡化為頭、胸、腹三個圖形，而且只畫輪廓，內部不用填滿顏色。Codex 先提出計畫，使用者回覆「好」後才開始修改。
+
+#### 實作前理解
+上一版 rough butterfly body 已經加入 p5.brush 填色 mass、腹部分節、背線 highlight、胸毛、頭部點與觸角，視覺較豐富，但也讓基本身體比例不容易單獨判讀。使用者本輪不是要求再加細節，而是要退回更乾淨的結構地基，確認 head / thorax / abdomen 三段本身是否成立。
+
+#### 實作方案
+在 `createRoughInsectBodyPlan()` 中直接建立 `anatomy.head`、`anatomy.thorax`、`anatomy.abdomen` 三個固定縱向排列的橢圓參數，保留少量 seed-based 尺寸差異，但不再使用 body curve 或 pose-driven point。`drawRoughInsectBody()` 改為只呼叫新的 `drawRoughBodySimpleOutline()`，用 `drawRoughOutlineOval()` 畫三個 `noFill()` 輪廓。`InsectManager.js` 中暫時將 rough butterfly 的 `roughPosePlan` 設為 `null`，讓 body 與 wings 不再套用 pseudo-3D posePlan。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪沒有刪掉舊的 body helper，而是停止呼叫它們，方便之後回頭比較或逐層加回細節。保留 `wingRootY` 與 `wingRootHalfWidth`，避免翅膀定位接口壞掉。先停用 `createRoughInsectPosePlan()` 的套用，而不是刪除 pose 系統，因為這次目標是固定姿態建立 body 地基；未來仍可能回到離散 pose preset。
+
+#### 遇到的問題
+沙盒內 PowerShell 仍出現 `CreateProcessAsUserW failed: 5`，因此讀檔、語法檢查與 CDP 視覺測試都需要使用沙盒外執行。第一輪截圖顯示三段輪廓功能上成立，但在 `greenPlants.jpg` 背景與翅膀內部線條上偏淡，頭胸腹不夠像主結構。
+
+#### 嘗試過的解法
+第一版先改成三個空心輪廓並跑 `rough-body-three-outline-2026-05-12`。看過截圖後，Codex 判斷 body 地基太淡，因此做第二輪小調整：放大 head / thorax / abdomen 的 rx / ry，並提高輪廓線寬與 brush stroke alpha。第二輪重跑 `rough-body-three-outline-bolder-2026-05-12` 後，portrait / compact 的三段 body 明顯更可讀。
+
+#### 最終解法
+`RoughInsectBody.js` 現在以 `anatomy` 保存三個空心輪廓，繪製時只畫 abdomen、thorax、head 的 `pencil1` no-fill outline。內部填色、highlight、分節、短毛、頭部點與觸角都不再呼叫。`InsectManager.js` 暫時不建立 rough butterfly posePlan，因此 `bodyPlan.posePlan` 不會傳入 body 或 wings，讓本輪畫面專注於基礎比例。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 是否有截圖：有，最終第二輪位於 `docs/cdp-runs/rough-body-three-outline-bolder-2026-05-12/screenshots/`；第一輪對照位於 `docs/cdp-runs/rough-body-three-outline-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 預期畫面：rough butterfly body 應只顯示頭、胸、腹三個空心輪廓，沒有填色與內部裝飾
+- 實際觀察：第二輪 portrait / compact 都能看出三段輪廓；landscape 也可見 body，但畫面高度與 Save / Back 按鈕位置讓構圖判讀較受干擾。portrait 完成 Save 下載與 Back 清除 result data。
+
+#### Codex 審美自評
+本輪約 `6.8/10`。優點是回到清楚的 body 地基，三段輪廓比上一版複雜 body 更容易檢查比例，也符合「只畫輪廓、不填色」的需求。第一輪偏淡，第二輪加粗後在植物背景中可讀性變好。弱點是視覺魅力刻意收掉，目前像結構草圖，不像完成品；頭胸腹與翅根仍偏機械，後續需要使用者判斷比例是否值得繼續加細節。
+
+#### 使用者審美回饋
+尚未收到本輪截圖後的使用者評分。已記錄使用者原始方向：先固定或不考慮角度，body 簡化為頭、胸、腹三個圖形，且只畫輪廓、內部不填色。
+
+#### 尚未解決的風險
+CDP canvas fixture 不能替代真實手機 AR / camera 測試。三段 body 目前只用 `greenPlants.jpg` 補測，尚未跑完整 `-CameraFixture all` 背景壓力測試。posePlan 暫停後，姿態變化暫時減少；後續若要回到側飛、俯仰或翻轉，需要重新設計三輪廓 body 的投影規則。
+
+#### 使用者回饋或修正
+使用者已批准先按計畫實作三輪廓 body 地基。等待使用者檢視第二輪截圖後，判斷三段比例、線寬與空心輪廓方向是否正確。
+
+#### 建議的下一步
+請使用者先評估三輪廓地基。如果比例與可讀性可接受，下一步可以只加回一層細節，例如觸角或腹部分節；若覺得三段仍不夠像昆蟲，應先調整頭胸腹比例與間距，再進入 pose preset 或翅膀角度。
+
+---
+
+### 2026-05-12 — 清理 body 筆觸粗細參數並拉長腹部
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+回答使用者對 `brushWeight` / `strokeWeight` 的疑問後，趁此修正 `RoughInsectBody.js` 裡的命名與用法混淆，讓 body 筆觸粗細統一由 `strokeWeight` 控制，同時加粗身體輪廓線並拉長腹部。
+
+#### 使用者需求
+使用者詢問 `brushWeight` 與 `strokeWeight` 在程式中的作用，以及 `docs/llms.txt` 是否有對應功能。理解後，使用者要求趁現在修正這個問題，順便把身體輪廓線加粗，並讓腹部輪廓再長一點。
+
+#### 實作前理解
+`docs/llms.txt` 中 p5.brush 的正式 API 是 `brush.set(name, color, weight)` 與 `brush.strokeWeight(weight)`。`brushWeight` 不是 library API，而是先前 `RoughInsectBody.js` helper 自訂的 option 名稱，實際上也只是傳給 `brush.set()` 的第三個 weight multiplier。這會和後續的 `brush.strokeWeight()` 形成兩套粗細控制，語意不乾淨，也容易讓未來調參誤判。
+
+#### 實作方案
+本輪只處理 `RoughInsectBody.js`，不動 `RoughInsectWings.js`。在 body helper 中移除所有 `brushWeight` option，將 `brush.set(..., 1)` 固定為選擇筆刷與顏色，真正的筆觸粗細統一交給 `brush.strokeWeight(options.strokeWeight)`。同時提高三個 body 輪廓的 `strokeWeight` 區間，並把 abdomen 的長度由約 `2.18-2.54u` 拉長到約 `2.78-3.22u`。
+
+#### 檢視過的檔案
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇只清理 body 檔，因使用者本輪關注的是 `RoughInsectBody.js` 的地基與輪廓。`RoughInsectWings.js` 仍有一些 wing pattern layer 使用 `brushWeight` 作為自訂參數，暫時不一起改，避免影響翅膀視覺。body 中即使是目前未呼叫的舊 helper，也移除 `brushWeight` option，避免未來加回時再次混淆。
+
+#### 遇到的問題
+需要避免把 `brush.set()` 的第三個參數與 `brush.strokeWeight()` 都拿來同時調 body 粗細。若兩者同時存在，很難判斷截圖中線條變粗是因哪個參數造成。
+
+#### 嘗試過的解法
+先用 `rg` 搜尋 `brushWeight`、`strokeWeight`、`brush.set` 與 `brush.strokeWeight`，確認 body 檔中混用位置。接著移除所有 body helper 的 `brushWeight` option，並把 `drawHumanBrushStroke()` 與 `drawRoughOutlineOval()` 內的 `brush.set()` weight 固定為 `1`。修改後用 `rg` 確認 `RoughInsectBody.js` 中不再有 `brushWeight`。
+
+#### 最終解法
+`RoughInsectBody.js` 的 body 筆觸粗細現在只看 `strokeWeight`。三段輪廓的線寬區間提高為 abdomen 約 `1.85-2.42`、thorax 約 `1.82-2.36`、head 約 `1.55-2.02`。腹部輪廓比前一版更長，讓中心 body 的昆蟲主軸更明顯。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 搜尋檢查：`rg -n "brushWeight" Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 無結果
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-body-outline-weight-cleanup-2026-05-12`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-body-outline-weight-cleanup-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：portrait / compact 中 body 腹部更長，三段輪廓更有主結構感。landscape 仍可見 body，但按鈕與畫面高度仍限制構圖判讀。
+
+#### Codex 審美自評
+本輪約 `7.1/10`。優點是腹部長度更像昆蟲身體主軸，輪廓在植物背景中更穩定可讀，且參數語意比前一版乾淨。弱點是黑色輪廓變重後，會和翅膀內部線條搶視覺；後續若要加回分節、觸角或姿態，需要控制中心 body 不要變成過密的黑線團。
+
+#### 使用者審美回饋
+使用者本輪指出 `brushWeight` / `strokeWeight` 的語意問題並要求修正，也要求加粗身體輪廓線與拉長腹部。尚未收到本輪截圖後的視覺評分。
+
+#### 尚未解決的風險
+CDP canvas fixture 不能替代真實手機 AR / camera 測試。這次只清理 body 檔，未處理 wings 中的自訂 `brushWeight` 參數；若未來要全專案一致化，需要另行評估，避免翅膀視覺大幅改變。加粗 body 後，在暗背景或細節密集翅膀上可能顯得太黑。
+
+#### 使用者回饋或修正
+等待使用者檢視 `rough-body-outline-weight-cleanup-2026-05-12` 的截圖，確認腹部長度與輪廓線粗細是否合適。
+
+#### 建議的下一步
+如果使用者認可目前三段比例，下一步可加回單一細節層，例如先只加觸角，或先只加腹部分節。若使用者覺得黑線太重，應先微降 body `strokeWeight` 區間，再加細節。

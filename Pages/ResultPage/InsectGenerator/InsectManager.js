@@ -100,7 +100,7 @@ function drawRoughInsect(insectLayer, x, y) {
     wingColorLineType = floor(random(2)); // 0 或 1
     wingLineColorSet = floor(random(20)); // 調整稀有度
     let roughBodyPlan = (insectType === 0) ? createRoughInsectBodyPlan(insectLayer, currentSeed, insectType) : null;
-    let roughPosePlan = (insectType === 0) ? createRoughInsectPosePlan(insectLayer, currentSeed) : null;
+    let roughPosePlan = null;
 
     if (roughPosePlan) {
         insectLayer.rotate(roughPosePlan.roll);

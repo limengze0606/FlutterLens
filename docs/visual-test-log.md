@@ -1115,3 +1115,108 @@ Codex 自評：`7.2/10`。優點是 rough butterfly body 已從線稿骨架變�
 
 ### 備註 / 風險
 本輪驗證的是具象 body，而不是新的姿態 preset。第一次測試漏用 fixtures 是驗證流程疏漏；已補跑 `greenPlants.jpg`，但尚未跑 `-CameraFixture all` 的完整背景壓力測試。CDP canvas fixture 可以確認 UI 與 rough body 視覺回歸，但不能替代真實手機 AR 測試。下一輪若使用者認可 body 方向，可回到離散 pose preset；若 body 仍不夠具象，建議先放大 body 或提高 highlight 對比。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+驗證 `RoughInsectBody.js` 回到基礎三段式 body：頭、胸、腹三個空心輪廓，內部不填色、不畫分節，並暫時固定 rough butterfly pose。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+
+### 預期行為
+Result page 的 rough butterfly body 應清楚退回三個空心輪廓：頭、胸、腹。內部不應再有填色、highlight、腹部分節、胸毛、頭部點或觸角。body 與 wings 暫時不套用 pseudo-3D posePlan，以便先評估基礎比例與結構。
+
+### 實際觀察
+第一輪 `rough-body-three-outline-2026-05-12` 成功顯示三個空心輪廓，但在 `greenPlants.jpg` 背景與翅膀內部線條上偏淡，頭胸腹不夠像主結構。第二輪 `rough-body-three-outline-bolder-2026-05-12` 放大三個輪廓並加粗線寬後，portrait / compact 都能讀出三段式 body。landscape 也可見 body，但畫面高度較低且 Save / Back 按鈕靠近昆蟲，構圖判讀仍受限制。三個 viewport 都成功完成 Start → Scanning → Result；portrait 也完成 Save / Back。
+
+### 截圖
+- 第二輪 portrait：`docs/cdp-runs/rough-body-three-outline-bolder-2026-05-12/screenshots/rough-body-three-outline-bolder-2026-05-12-greenPlants-portrait-390x844-result.png`
+- 第二輪 compact：`docs/cdp-runs/rough-body-three-outline-bolder-2026-05-12/screenshots/rough-body-three-outline-bolder-2026-05-12-greenPlants-compact-360x740-result.png`
+- 第二輪 landscape：`docs/cdp-runs/rough-body-three-outline-bolder-2026-05-12/screenshots/rough-body-three-outline-bolder-2026-05-12-greenPlants-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-body-three-outline-2026-05-12/screenshots/rough-body-three-outline-2026-05-12-greenPlants-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-body-three-outline-2026-05-12/screenshots/rough-body-three-outline-2026-05-12-greenPlants-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-body-three-outline-2026-05-12/screenshots/rough-body-three-outline-2026-05-12-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`6.8/10`。優點是這版很誠實地回到 body 地基，頭、胸、腹三段比前一版填色具象 body 更容易被單獨檢查，也不會被 highlight、分節或觸角干擾。第二輪加粗後，三段輪廓在植物背景中可讀性明顯改善。弱點是視覺魅力刻意收掉了，目前更像骨架草圖，而不是已完成的昆蟲；頭胸腹與翅根的融合仍偏機械，landscape 構圖也受按鈕干擾。本輪做了一次視覺調整後停止，因任務目標是建立地基，不是追求最終美感。
+
+### 使用者審美回饋
+尚未收到本輪截圖後的使用者評分。使用者本輪需求是「回頭打好 `RoughInsectBody.js` 的地基，先不考慮或固定住翅膀或身體本身的角度，將身體構造簡化為頭、胸、腹三個圖形，只畫輪廓，內部不用填滿顏色」。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 真實手機上三個 body 輪廓不會被背景吃掉
+- [ ] 真實手機上 head / thorax / abdomen 比例仍可讀
+- [ ] 後續加回觸角或分節時不會破壞目前地基
+- [ ] 後續 pose preset 能讓三輪廓 body 與 wing root 一起連動
+
+### 備註 / 風險
+CDP canvas fixture 可以確認 UI 與 rough body 視覺回歸，但不能替代真實手機 AR 測試。這版刻意停用 rough butterfly posePlan，因此姿態暫時變得較正面；若後續要做側飛、俯仰或翻轉，需要先決定三輪廓 body 如何投影，而不是直接回到連續隨機扭曲。尚未跑 `-CameraFixture all` 的完整背景壓力測試。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+修正 `RoughInsectBody.js` 中 `brushWeight` 與 `strokeWeight` 容易混淆的 helper 設計，並加粗 body 輪廓、拉長腹部輪廓。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+`RoughInsectBody.js` 中不應再有自訂 `brushWeight` option；body 筆觸粗細應統一由 `strokeWeight` 控制。Result page 應顯示更粗的頭、胸、腹輪廓，且腹部比前一版更長。
+
+### 實際觀察
+`rg` 已確認 `RoughInsectBody.js` 中沒有殘留 `brushWeight`。視覺測試 `rough-body-outline-weight-cleanup-2026-05-12` 中，portrait / compact 的腹部輪廓明顯拉長，三段 body 比上一版更像主結構。landscape 仍可見 body，但按鈕與低畫面高度仍干擾構圖判讀。三個 viewport 都成功完成 Start → Scanning → Result；portrait 完成 Save / Back。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-body-outline-weight-cleanup-2026-05-12/screenshots/rough-body-outline-weight-cleanup-2026-05-12-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-body-outline-weight-cleanup-2026-05-12/screenshots/rough-body-outline-weight-cleanup-2026-05-12-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-body-outline-weight-cleanup-2026-05-12/screenshots/rough-body-outline-weight-cleanup-2026-05-12-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.1/10`。優點是腹部長度更有昆蟲身體主軸感，三段輪廓在植物背景上更穩定可讀，且筆觸參數語意更乾淨。弱點是黑色輪廓現在存在感較強，會和翅膀內部線條競爭；若後續加回分節或觸角，需小心不要讓中心 body 變成過重黑線團。
+
+### 使用者審美回饋
+使用者指出 `brushWeight` 與 `strokeWeight` 的語意問題，並要求趁現在修正，同時加粗身體輪廓線、拉長腹部輪廓。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] 真實手機上加粗輪廓不會顯得過黑
+- [ ] 真實手機上腹部拉長後不會被 Save / Back 或畫面邊緣遮擋
+- [ ] 後續加回細節時仍維持 `strokeWeight` 為唯一 body 粗細參數
+
+### 備註 / 風險
+本輪只清理 `RoughInsectBody.js`，沒有同步修改 `RoughInsectWings.js` 中既有 wing pattern 的 `brushWeight` 參數命名。若後續要全專案一致化，需要另開一輪檢查 wings 的筆觸 helper，避免一次重構影響太多視覺輸出。
