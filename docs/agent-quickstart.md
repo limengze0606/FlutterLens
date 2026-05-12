@@ -9,6 +9,7 @@
 - 非瑣碎功能需先讀相關檔案、摘要現況、提出方案，等使用者同意後才改程式。
 - Agent 不得自行 commit、push、merge、rebase、刪 branch 或改 remote。
 - 專案文件與協作紀錄一律使用繁體中文；技術識別字可保留英文。
+- 每次新增功能或調整視覺後，總結時需告訴使用者可手動微調的參數：檔案、function、參數名稱，以及數值調大 / 調小的效果。
 
 ## 先讀哪些檔案
 
@@ -23,7 +24,7 @@
 - 已建立可重跑的 CDP 視覺測試流程，可操作 Start -> Scanning -> Result。
 - 測試腳本支援 fake camera、camera fixtures、forced pitch、forced spawn ratio、Save / Back 驗證與 console event 摘要。
 - Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹。
-- 最新一次成果是回頭重打 `RoughInsectBody.js` 地基：暫時固定 rough butterfly pose，不再套用 yaw / pitch / roll，身體簡化成頭、胸、腹三個空心輪廓，內部不填色、不畫分節或觸角。後續已清理 body 檔中的 `brushWeight` helper option，粗細統一由 `strokeWeight` 控制，並加粗輪廓、拉長腹部，用 `greenPlants.jpg` fixture 補測。
+- 最新一次成果是回頭重打 `RoughInsectBody.js` 地基：暫時固定 rough butterfly pose，不再套用 yaw / pitch / roll，身體簡化成頭、胸、腹三個空心輪廓，內部不填色、不畫分節。後續已清理 body 檔中的 `brushWeight` helper option，粗細統一由 `strokeWeight` 控制，並加粗輪廓、拉長腹部；最新小步驟是在頭部上方加回兩條簡單觸角線，用 `greenPlants.jpg` fixture 補測。
 
 ## 目前使用者偏好
 

@@ -6,7 +6,7 @@
 
 - CDP + fake camera 不能取代真實手機 AR / camera 測試。
 - 真實手機上的相機權限、後鏡頭、HTTPS、DeviceOrientation、觸控手感與效能仍需人工確認。
-- Rough butterfly body 目前退回三個空心輪廓地基；`brushWeight` helper option 已從 body 檔清掉，輪廓粗細統一由 `strokeWeight` 控制。加粗線條與拉長腹部後結構更可讀，但仍需使用者確認比例是否符合後續發展方向。
+- Rough butterfly body 目前退回三個空心輪廓地基，並加回兩條簡單觸角；`brushWeight` helper option 已從 body 檔清掉，輪廓粗細統一由 `strokeWeight` 控制。加粗線條、拉長腹部與加入觸角後結構更可讀，但仍需使用者確認比例是否符合後續發展方向。
 - 姿態暫時固定 / 停用 posePlan，尚未完成使用者期待的離散 pose preset。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，測試時需使用 forced spawn 或調整生成位置。
 - Landscape 構圖與 forced spawn 位置仍需再評估。
@@ -22,7 +22,7 @@
 
 目前最合理的下一輪方向取決於使用者對三輪廓 body 地基的評分：
 
-- 若頭、胸、腹比例可接受：下一步可逐層加回觸角、腹部分節或少量筆觸質感。
+- 若頭、胸、腹與觸角比例可接受：下一步可逐層加回腹部分節或少量筆觸質感。
 - 若 body 線條太重或與翅膀內線搶視覺：先微調 `strokeWeight` 區間或降低翅膀內線干擾，不急著加姿態。
 - 若使用者認為地基已穩：再開始設計離散 pose preset，並讓三輪廓 body 與 wing root 一起投影。
 

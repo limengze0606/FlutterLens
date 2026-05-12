@@ -87,6 +87,64 @@ function drawRoughBodySimpleOutline(g, plan, ink, u) {
     wobble: 0.04 * u,
     passes: 2
   });
+  drawRoughSimpleAntennae(g, plan.anatomy.head, ink, u);
+}
+
+function drawRoughSimpleAntennae(g, head, ink, u) {
+  let baseY = head.y - head.ry * 0.72;
+  let baseGap = head.rx * 0.28;
+  let reachX = roughRandom(g, 0.92 * u, 1.24 * u);
+  let reachY = roughRandom(g, 3.26 * u, 4.64 * u);
+  let curveOut = roughRandom(g, 0.18 * u, 0.34 * u);
+
+  drawRoughAntennaLine(g, [
+    [head.x - baseGap, baseY],
+    [head.x - reachX * 0.52, baseY - reachY * 0.48],
+    [head.x - reachX - curveOut, baseY - reachY]
+  ], ink, {
+    strokeWeight: roughRandom(g, 0.82, 1.18),
+    jitter: 0.018 * u
+  });
+
+  drawRoughAntennaLine(g, [
+    [head.x + baseGap, baseY],
+    [head.x + reachX * 0.52, baseY - reachY * 0.48],
+    [head.x + reachX + curveOut, baseY - reachY]
+  ], ink, {
+    strokeWeight: roughRandom(g, 0.82, 1.18),
+    jitter: 0.018 * u
+  });
+}
+
+function drawRoughAntennaLine(g, points, ink, options = {}) {
+  let jitter = options.jitter || 0;
+
+  if (typeof brush !== "undefined") {
+    brush.noFill();
+    brush.set("pencil1", ink, 1);
+    brush.stroke(ink, 238);
+    brush.strokeWeight(options.strokeWeight || 1);
+    brush.beginShape(0.18);
+    for (let point of points) {
+      brush.vertex(
+        point[0] + roughRandom(g, -jitter, jitter),
+        point[1] + roughRandom(g, -jitter, jitter)
+      );
+    }
+    brush.endShape();
+    return;
+  }
+
+  g.push();
+  g.noFill();
+  g.stroke(ink);
+  g.strokeWeight(options.strokeWeight || 1);
+  g.beginShape();
+  for (let point of points) {
+    g.curveVertex(point[0], point[1]);
+  }
+  g.endShape();
+  g.pop();
 }
 
 function drawRoughOutlineOval(g, oval, ink, options = {}) {

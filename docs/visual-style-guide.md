@@ -25,12 +25,12 @@
 - 已加入第一版偽 3D pose / flap phase，讓左右翅有近遠側差異與半收翅 silhouette。
 - 使用者對 pose / flap v2 給 `6.5/10`：有變化，但不夠明顯，body 不夠帶動全身。
 - 後續強化 body axis 後，Codex 自評約 `7/10`，使用者認同「body 已較清楚，但下一步應做離散 pose preset」的方向。
-- 最新版本依使用者要求回頭打地基：先停用 rough butterfly posePlan，將 body 簡化為頭、胸、腹三個空心輪廓，不填色、不畫分節或觸角。後續清理 `brushWeight` / `strokeWeight` 混淆，身體線寬統一交給 `strokeWeight`，並把輪廓加粗、腹部拉長。Codex 自評約 `7.1/10`，優點是結構更清楚、腹部更像昆蟲主軸；弱點是黑線較重，會與翅膀內部線條競爭。
+- 最新版本依使用者要求回頭打地基：先停用 rough butterfly posePlan，將 body 簡化為頭、胸、腹三個空心輪廓，不填色、不畫分節。後續清理 `brushWeight` / `strokeWeight` 混淆，身體線寬統一交給 `strokeWeight`，並把輪廓加粗、腹部拉長；最新加入兩條簡單觸角線。Codex 自評約 `7.2/10`，優點是結構更清楚、腹部更像昆蟲主軸，觸角讓頭部方向更像昆蟲；弱點是觸角仍偏符號，黑線較重，會與翅膀內部線條競爭。
 
 ## 目前視覺弱點
 
 - Body 在深綠或暗背景上仍可能被吃掉，仍偏依賴黑色輪廓與少量 highlight。
-- Body 目前是三個空心輪廓，結構比前一版更單純，腹部已拉長、輪廓已加粗；若後續加回細節，需避免黑色線條過重，或讓中心結構再次被翅膀內線與裝飾淹沒。
+- Body 目前是三個空心輪廓加兩條簡單觸角，結構比前一版更單純，腹部已拉長、輪廓已加粗；若後續加回細節，需避免黑色線條過重，或讓中心結構再次被翅膀內線與裝飾淹沒。
 - Pose 系統仍偏連續隨機值，缺乏一眼可辨的離散姿態 preset。
 - Landscape forced spawn 曾讓昆蟲靠近畫面上緣，評估構圖時需調整 spawn ratio。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，視覺測試應使用 forced spawn 避免誤判。

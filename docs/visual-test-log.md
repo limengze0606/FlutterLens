@@ -1220,3 +1220,50 @@ Codex 自評：`7.1/10`。優點是腹部長度更有昆蟲身體主軸感，三
 
 ### 備註 / 風險
 本輪只清理 `RoughInsectBody.js`，沒有同步修改 `RoughInsectWings.js` 中既有 wing pattern 的 `brushWeight` 參數命名。若後續要全專案一致化，需要另開一輪檢查 wings 的筆觸 helper，避免一次重構影響太多視覺輸出。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+在目前三段式 rough butterfly body 地基上，加回兩條簡單觸角線。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+Result page 的 rough butterfly body 應維持頭、胸、腹三個空心輪廓，並在頭部上方出現左右各一條簡單觸角線。觸角不應加入端點球、填色或其他裝飾，也不應重新引入 `brushWeight`。
+
+### 實際觀察
+`rough-body-simple-antennae-2026-05-12` 中，portrait / compact 都能看到兩條觸角線，觸角從頭部上緣向左右上方延伸，沒有破壞三段 body 地基。landscape 仍可見觸角，但受畫面高度與按鈕遮擋風險影響，構圖判讀較弱。三個 viewport 都成功完成 Start → Scanning → Result；portrait 完成 Save / Back。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-body-simple-antennae-2026-05-12/screenshots/rough-body-simple-antennae-2026-05-12-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-body-simple-antennae-2026-05-12/screenshots/rough-body-simple-antennae-2026-05-12-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-body-simple-antennae-2026-05-12/screenshots/rough-body-simple-antennae-2026-05-12-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.2/10`。優點是兩條觸角讓頭部方向更像昆蟲，且沒有把 body 地基重新複雜化。觸角線長度與粗細在 portrait / compact 中可讀，不會明顯壓過頭胸腹輪廓。弱點是觸角目前仍偏符號化，缺少更自然的起筆、彎曲與收筆魅力；但本輪目標是「兩條線」，因此先不加額外裝飾。
+
+### 使用者審美回饋
+使用者要求「加上觸角，兩條線」。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 真實手機上觸角不會被背景吃掉
+- [ ] 真實手機上觸角不會與翅膀上緣混在一起
+- [ ] 後續若加腹部分節，仍維持 body 地基清楚
+
+### 備註 / 風險
+本輪只加兩條簡單觸角，尚未重新設計更有手繪運筆意圖的 antenna stroke grammar。若使用者覺得方向正確，後續可再調觸角長度、外彎幅度或起筆位置；若覺得目前已足夠，下一步可改處理腹部分節。

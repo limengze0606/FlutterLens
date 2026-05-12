@@ -2015,3 +2015,137 @@ CDP canvas fixture 不能替代真實手機 AR / camera 測試。這次只清理
 
 #### 建議的下一步
 如果使用者認可目前三段比例，下一步可加回單一細節層，例如先只加觸角，或先只加腹部分節。若使用者覺得黑線太重，應先微降 body `strokeWeight` 區間，再加細節。
+
+---
+
+### 2026-05-12 — 加回兩條簡單觸角線
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+在目前三段式 rough butterfly body 地基上，依使用者要求加入兩條簡單觸角線。
+
+#### 使用者需求
+使用者要求：「加上觸角，兩條線」。需求很明確，是在現有頭、胸、腹空心輪廓基礎上加回最小限度的觸角，不是加完整頭部裝飾或複雜細節。
+
+#### 實作前理解
+目前 body 地基已停用 posePlan，使用頭、胸、腹三個空心輪廓，且 `brushWeight` helper option 已從 body 檔移除，粗細統一由 `strokeWeight` 控制。本輪應維持這些規則，只增加左右兩條可讀的 antenna line。
+
+#### 實作方案
+在 `drawRoughBodySimpleOutline()` 畫完 head outline 後呼叫 `drawRoughSimpleAntennae()`。觸角從 head 上緣左右兩個 base point 起筆，經過一個中間控制點，向左右上方延伸。新增 `drawRoughAntennaLine()`，使用 `brush.set("pencil1", ink, 1)` 與 `brush.strokeWeight()` 畫線，fallback 則用 p5 原生 `curveVertex()`。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪只加兩條線，不加端點球、分叉、填色或腹部分節，避免打破目前 body 地基的簡潔性。保留使用者手動微調過的腹部比例與 strokeWeight，沒有覆蓋既有 body 參數。觸角 helper 沒有使用 `brushWeight`，延續上一輪清理後的參數規則。
+
+#### 遇到的問題
+觸角需要可讀，但不能太粗或太長，否則會和翅膀上緣與內部線條混在一起。landscape viewport 中畫面高度低，觸角與 UI / 翅膀的判讀仍較不穩。
+
+#### 嘗試過的解法
+先用三點 brush path 畫左右觸角，base 在 head 上緣，尾端向左右上方外展。線寬設定在 `0.82-1.18`，比 head / thorax / abdomen 輪廓輕，讓它像附屬結構而不是主輪廓。
+
+#### 最終解法
+`RoughInsectBody.js` 新增 `drawRoughSimpleAntennae()` 與 `drawRoughAntennaLine()`。目前 body 繪製順序為 abdomen、thorax、head、antennae。觸角在 p5.brush 可用時用 `pencil1` 手繪線，否則用原生 p5 curve fallback。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 搜尋檢查：`rg -n "brushWeight" Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 無結果
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-body-simple-antennae-2026-05-12`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-body-simple-antennae-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：portrait / compact 中兩條觸角清楚可見，讓頭部更像昆蟲；landscape 也可見，但構圖仍受按鈕與高度限制。
+
+#### Codex 審美自評
+本輪約 `7.2/10`。優點是觸角讓 body 更像昆蟲，卻沒有把地基變複雜；兩條線在 portrait / compact 中可讀，沒有壓過頭胸腹輪廓。弱點是目前觸角仍偏符號，缺少更自然的手繪起筆與收筆魅力；但依使用者「兩條線」的範圍，本輪選擇不再加裝飾。
+
+#### 使用者審美回饋
+使用者要求加上觸角，兩條線。尚未收到本輪截圖後的評分。
+
+#### 尚未解決的風險
+CDP canvas fixture 不能取代真實手機 AR 測試。觸角在真實植物背景、深色背景或不同 seed 下可能與翅膀上緣混在一起。若未來做姿態 preset，觸角也需要跟著 head 方向重新投影。
+
+#### 使用者回饋或修正
+等待使用者確認觸角長度、角度與粗細是否符合預期。
+
+#### 建議的下一步
+若使用者認可觸角，下一步可選擇加腹部分節，或先微調觸角長度 / 外彎幅度。若覺得 body 地基已夠完整，再回到姿態或翅膀根部連動。
+
+---
+
+### 2026-05-12 — 新增「可手動微調參數」總結要求
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+將使用者要求的「之後做新功能時，要說明在哪裡調參數」正式加入專案協作流程。
+
+#### 使用者需求
+使用者表示，以後有做什麼新功能時要跟使用者說在哪裡改參數，接著要求把這件事新增到工作流程。
+
+#### 實作前理解
+本專案的視覺迭代高度依賴參數微調，例如 body 輪廓線寬、腹部長度、觸角張開距離與翅膀 pattern 密度。若 Codex 只回報改了什麼，而不說明可調參數在哪裡，使用者之後要手動微調會很不方便，也會讓未來 agent 忘記交代重要調參入口。
+
+#### 實作方案
+更新 `AGENTS.md` 的 Required collaboration workflow 與 Completion criteria，要求 Codex 在完成新功能或視覺調整後，提供可手動微調的參數說明，包括檔案路徑、function 名稱、參數名稱，以及數值調大 / 調小會造成的效果。同步更新 `docs/agent-quickstart.md`，讓後續 agent onboarding 時會看到此規則。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+將此要求放入 `AGENTS.md` 的核心流程與完成標準，而不是只記在 worklog，確保未來每次 meaningful task 的 final summary 都必須包含調參資訊。`docs/agent-quickstart.md` 也同步補充，降低後續 agent 漏讀完整 `AGENTS.md` 細節時遺漏此要求的風險。
+
+#### 遇到的問題
+本次是流程文件更新，沒有程式或視覺輸出變更，因此不需要跑 CDP 視覺測試。
+
+#### 嘗試過的解法
+先檢視 `AGENTS.md` 中既有 Required collaboration workflow 與 Completion criteria，再新增「manual tuning notes」相關步驟。接著在 quickstart 的專案狀態中補一條簡短規則。
+
+#### 最終解法
+`AGENTS.md` 現在要求 Codex 在總結時提供新功能或變更行為的可手動調參位置與效果。Completion criteria 也新增 manual tuning notes。`docs/agent-quickstart.md` 已補充同樣規則。
+
+#### 視覺驗證紀錄
+本次沒有修改程式或視覺輸出，因此未執行瀏覽器截圖，也未更新 `docs/visual-test-log.md`。
+
+#### Codex 審美自評
+本次是流程規則更新，沒有視覺成品可評分。此規則有助於後續視覺合作，因使用者可以更直接接手微調參數。
+
+#### 使用者審美回饋
+本次沒有新的視覺審美評分。使用者新增的是協作流程偏好：每次做新功能或視覺調整後，都要說明參數在哪裡調。
+
+#### 尚未解決的風險
+未來 agent 仍需實際遵守此規則；若只寫文件但 final summary 漏掉調參位置，仍會造成使用者手動微調困難。
+
+#### 使用者回饋或修正
+使用者明確要求把「告知調參位置」加入工作流程，已完成。
+
+#### 建議的下一步
+後續任何功能或視覺改動的總結，固定加入「可手動微調的參數」段落，列出檔案、function、參數與調整效果。

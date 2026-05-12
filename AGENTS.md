@@ -98,7 +98,8 @@ For any non-trivial feature, Codex must follow this workflow:
 7. Run the project in a browser or local preview.
 8. Capture screenshots or provide visual verification notes.
 9. Update the worklog.
-10. Summarize changed files, checks performed, visual observations, and unresolved risks.
+10. Tell the user where the main new or changed behavior can be manually tuned, including file path, function name, parameter names, and what happens when values increase or decrease.
+11. Summarize changed files, checks performed, visual observations, unresolved risks, and suggested tuning parameters.
 
 Codex must not skip the planning step unless the user explicitly asks for a quick direct edit.
 
@@ -271,6 +272,7 @@ A task is complete only when Codex has provided:
 - browser or visual verification result
 - known limitations
 - worklog update
+- manual tuning notes for new or changed behavior, including file path, function name, parameter names, and expected effect of increasing or decreasing values
 - next recommended action for the user
 
 Codex must clearly say if any verification step could not be performed.
