@@ -194,6 +194,24 @@ Avoid:
 - changing public file paths used by GitHub Pages unless necessary
 - adding dependencies without explaining why
 
+## Summary docs and reading order
+
+The full `docs/codex-worklog.md` is the source of truth for collaboration history, but future agents should not read the entire file by default. Use the summary docs first, then open the full worklog only when the summary is not enough.
+
+Recommended onboarding order:
+
+1. Read `docs/agent-quickstart.md` first.
+2. For visual, aesthetic, p5.brush, insect, composition, or user taste questions, also read `docs/visual-style-guide.md`.
+3. For browser checks, screenshots, CDP, fake camera, camera fixtures, console collection, or viewport testing, also read `docs/testing-playbook.md`.
+4. For planning the next task, judging unresolved risks, or continuing rough butterfly work, also read `docs/current-risks-and-next-steps.md`.
+5. Read the full `docs/codex-worklog.md` only when:
+   - the summary files do not answer the question;
+   - a decision, user feedback, visual score, or failed attempt needs original context;
+   - a new meaningful task must be appended to the worklog;
+   - the user explicitly asks for historical detail.
+
+Summary docs are navigation and current conclusions. They do not replace the full worklog. If a task changes the current project state, visual standard, testing workflow, unresolved risks, or recommended next step, update the matching summary doc in Traditional Chinese in addition to appending the full worklog entry.
+
 ## Worklog requirements
 
 ## Worklog requirements

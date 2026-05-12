@@ -1055,3 +1055,63 @@ Codex 自評：`7/10`。優點是 body 真的成為視覺骨架，頭部、觸�
 
 ### 備註 / 風險
 本輪改善了 body 可見度與測試截圖位置，但仍未解決「姿態差異要更大」的核心美術目標。若下一輪繼續，應設計離散 pose preset，例如正面展翅、三分之二側飛、側身上拍、俯視下拍，而不是只靠 random yaw / pitch 小幅變化。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+驗證 rough butterfly 身體改為 p5.brush 具象頭、胸、腹結構後，是否比原本 body axis 更接近 `InsectBody.js` 的具象昆蟲身體。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 螢幕方向：Portrait、compact portrait、landscape
+- 是否可使用相機：第一次測試誤用 Chrome 預設 fake camera；使用者提醒後補跑 canvas fixture `tests/fixtures/camera/greenPlants.jpg`
+- 是否可測試 AR：可測 UI 流程與 Result 視覺回歸，仍不能取代真實手機 AR 測試
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+Result page 的 rough butterfly body 應可讀出頭、胸、腹與腹部分節，而不是只有中線、黑色中心點或無身體蛾模板。p5.brush 的筆觸應保留 rough 手繪質感，不能變成 `InsectBody.js` 那種完全乾淨的 native ellipse。
+
+### 實際觀察
+第一輪 `rough-butterfly-figurative-brush-body-v1-2026-05-12` 的功能流程通過，body 也出現，但遠看仍偏小偏黑，容易糊成中心黑點。第二輪 `rough-butterfly-figurative-brush-body-v2-2026-05-12` 放大頭胸腹並加入暖色 dorsal highlight 後，portrait / compact 都能看出具象身體。此時仍是預設 fake camera，未使用 fixtures，是本輪驗證疏漏。使用者提醒後補跑 `rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12`，使用 `greenPlants.jpg` fixture；在植物背景中，portrait / compact 都能讀出頭、胸、腹與腹部分節，compact 最清楚。landscape 可見 body，但 forced spawn 位置偏上，昆蟲接近畫面上緣。
+
+### 截圖
+- 補測 greenPlants portrait：`docs/cdp-runs/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12-greenPlants-portrait-390x844-result.png`
+- 補測 greenPlants compact：`docs/cdp-runs/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12-greenPlants-compact-360x740-result.png`
+- 補測 greenPlants landscape：`docs/cdp-runs/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12-greenPlants-landscape-844x390-result.png`
+- 第二輪預設 fake camera portrait：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v2-2026-05-12-default-portrait-390x844-result.png`
+- 第二輪預設 fake camera compact：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v2-2026-05-12-default-compact-360x740-result.png`
+- 第二輪預設 fake camera landscape：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v2-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v2-2026-05-12-default-landscape-844x390-result.png`
+- 第一輪對照 portrait：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v1-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v1-2026-05-12-default-portrait-390x844-result.png`
+- 第一輪對照 compact：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v1-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v1-2026-05-12-default-compact-360x740-result.png`
+- 第一輪對照 landscape：`docs/cdp-runs/rough-butterfly-figurative-brush-body-v1-2026-05-12/screenshots/rough-butterfly-figurative-brush-body-v1-2026-05-12-default-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.2/10`。優點是 rough butterfly body 已從線稿骨架變成較具象的 head / thorax / abdomen，分節與背線 highlight 讓腹部比前版更可讀，也保留 p5.brush 的手繪感。補測 `greenPlants.jpg` 後，確認植物背景中 body 仍可讀，但深綠葉叢會吃掉一部分黑色線條。弱點是 body 在整隻昆蟲比例中仍偏小，深色身體仍容易依賴輪廓與 highlight 判讀；姿態本身還沒有本輪改動，只是把既有 pose body 變得更具象。
+
+### 使用者審美回饋
+使用者指出本輪最初沒有使用 fixtures 內的圖片測試。已補跑 `greenPlants.jpg` fixture 並更新紀錄。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 可在手機載入
+- [ ] 相機權限流程正常
+- [ ] Canvas 符合 viewport
+- [ ] 觸控互動正常
+- [ ] AR 疊合位置可接受
+- [ ] 沒有明顯掉幀
+- [ ] 真實手機上 body 不會被背景吃掉
+- [ ] 真實手機上頭、胸、腹與分節仍可讀
+- [ ] 真實手機上 p5.brush body 不會太重或太髒
+- [ ] landscape spawn 不貼近畫面上緣
+
+### 備註 / 風險
+本輪驗證的是具象 body，而不是新的姿態 preset。第一次測試漏用 fixtures 是驗證流程疏漏；已補跑 `greenPlants.jpg`，但尚未跑 `-CameraFixture all` 的完整背景壓力測試。CDP canvas fixture 可以確認 UI 與 rough body 視覺回歸，但不能替代真實手機 AR 測試。下一輪若使用者認可 body 方向，可回到離散 pose preset；若 body 仍不夠具象，建議先放大 body 或提高 highlight 對比。

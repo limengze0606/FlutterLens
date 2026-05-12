@@ -1723,3 +1723,140 @@ CDP fake camera 不能取代真實手機 AR / camera 測試。Body 在深綠背�
 
 #### 建議的下一步
 下一輪建議從 random pose 改成離散 pose preset，例如：正面展翅、三分之二側飛、側身上拍、俯視下拍、仰角半收。每個 preset 明確指定 body lean、近遠側翅膀大小、遮擋順序與 flap phase，才能更接近參考圖中多個不同角度的蝴蝶。
+
+---
+
+### 2026-05-12 — 將 Rough Butterfly 身體改為 p5.brush 具象頭胸腹
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+依使用者要求，將 rough 昆蟲身體從偏線稿骨架的 body axis，改成參考 `InsectBody.js` 那種較具象的頭、胸、腹結構，但繪製方式改用 p5.brush，保留 rough 手繪質感。
+
+#### 使用者需求
+使用者要求先閱讀 `AGENTS.md` 與 `docs/codex-worklog.md`，吸收前人的工作紀錄，接著將 rough 昆蟲身體改成像 `InsectBody.js` 那種較具象的結構，但要使用 p5.brush 來畫。使用者同意方案後要求開始實作。
+
+#### 實作前理解
+`InsectBody.js` 以 native ellipse 畫蝴蝶的 head、thorax、abdomen、segments 與 antennae；`RoughInsectBody.js` 目前只支援 `insectType === 0`，也就是 rough butterfly，並且已經讀取 `posePlan` 做 body axis。因為載入順序是 `RoughInsectWings.js`、`RoughInsectBody.js`、`InsectBody.js`，rough body 不能直接依賴 `InsectBody.js` 的函式，適合在 `RoughInsectBody.js` 內把具象解剖結構翻譯成 p5.brush 筆觸。
+
+#### 實作方案
+保留 `drawRoughInsectBody()` 的入口與 body plan / posePlan 流程，不改 `InsectManager.js` 或翅膀。新增 body anatomy helper，從 pose-aware 的 head、thorax、abdomen、tail 點位建立身體角度、法線與軸線。用 `brush.fill()` / `brush.beginShape()` / `brush.endShape(true)` 生成手繪橢圓 mass，分別畫腹部、胸部與頭部，再補腹部分節、背線 highlight、胸部短毛與頭部小點。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `index.html`
+- `Pages/ResultPage/InsectGenerator/InsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+本輪只改 rough butterfly body，不擴張到 moth 或 dragonfly，因目前 rough body plan 本來也只支援 butterfly。具象化不是直接複製 `InsectBody.js` 的乾淨 ellipse，而是將 head / thorax / abdomen / segments 的結構轉成 brush shape，避免失去 rough 線稿與手繪材質。第一輪截圖顯示 body 已出現但偏小偏黑，因此做第二輪調整：放大頭胸腹、加暖色 dorsal highlight 與較可見的分節線。
+
+#### 遇到的問題
+第一版 `rough-butterfly-figurative-brush-body-v1-2026-05-12` 功能流程正常，但 body 遠看仍容易糊成中心黑點，不夠接近使用者想要的具象身體。landscape forced spawn 讓昆蟲靠近畫面上緣，視覺判讀仍受位置影響。
+
+#### 嘗試過的解法
+先建立 p5.brush 橢圓 mass、腹部分節、胸部短毛與頭部小點，跑 `node --check` 與 CDP。看到第一版 body 偏小後，第二版放大 abdomen / thorax / head 的比例，並新增暖色背線與較明顯的腹部分節，再重跑語法檢查與 CDP 視覺測試。
+
+#### 最終解法
+`RoughInsectBody.js` 新增 `drawRoughBodyFigurativeMasses()`、`buildRoughBodyAnatomy()`、`drawRoughBrushOval()`、`drawRoughAbdomenSegments()`、`drawRoughBodyDorsalHighlight()`、`drawRoughThoraxHairs()` 等 helper。現在 rough butterfly body 會在原本 pose-aware body axis 上疊加 p5.brush 畫出的頭、胸、腹具象 mass，並用分節與 highlight 增加可讀性。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過；`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過；第一輪也檢查過 `RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 瀏覽器：Google Chrome headless
+- 裝置 / viewport：`portrait-390x844` runtime 約 `478x694`；`compact-360x740` runtime 約 `478x590`；`landscape-844x390` runtime 約 `822x240`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Camera fixture：第一次視覺測試誤用腳本預設 fake camera，後續依使用者提醒補跑 `-CameraFixture greenPlants`，使用 `tests/fixtures/camera/greenPlants.jpg`
+- 是否有截圖：有，補正後的 fixture 驗證集中於 `docs/cdp-runs/rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12/screenshots/`；先前預設 fake camera 對照在 `docs/cdp-runs/rough-butterfly-figurative-brush-body-v2-2026-05-12/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 預期畫面：rough butterfly body 應可讀成具象的頭、胸、腹，而不是只有一條 body axis 或黑色中心點
+- 實際觀察：在 `greenPlants.jpg` fixture 中，portrait / compact 都能讀出頭、胸、腹與腹部分節，compact 最清楚；植物背景比預設假相機更容易吃掉部分黑色線條，因此更能暴露對比風險。landscape 可見 body，但 forced spawn 位置偏上，昆蟲接近畫面上緣。
+
+#### Codex 審美自評
+本輪約 `7.2/10`。優點是 body 從骨架線變成真正可讀的昆蟲身體，頭胸腹和分節已比前版具象，也保留 p5.brush 的手繪感。補跑 `greenPlants.jpg` fixture 後，確認植物背景中 body 仍可讀，但深綠葉叢會吃掉一部分黑色線條。弱點是整體 body 仍偏小，仍主要靠深色輪廓與 highlight 讀出；姿態本身仍沿用上一輪的 pose 系統，還不是使用者先前期待的更明顯側飛 / 翻轉 preset。本輪做了一次視覺調整與一次 fixture 補測後停止，等待使用者評分。
+
+#### 使用者審美回饋
+尚未收到本輪成品回饋。使用者本輪明確方向是「身體更像 `InsectBody.js` 的具象結構，但使用 p5.brush 來畫」。
+
+#### 尚未解決的風險
+CDP canvas fixture 不能取代真實手機 AR / camera 測試。使用者指出第一次測試沒有用 fixtures 圖片，這是本輪驗證流程疏漏；已補跑 `greenPlants.jpg`，但尚未跑完整 `all` fixtures 背景壓力測試。真實背景若較暗，深色 body 可能仍被吃掉。landscape forced spawn 讓昆蟲靠近畫面上緣，下一輪若要評估 landscape 構圖，應改用較低的 spawn ratio。body 已具象化，但尚未解決前次工作紀錄中「離散 pose preset」的姿態差異需求。
+
+#### 使用者回饋或修正
+使用者指出本輪最初沒有使用 fixtures 內的圖片測試。已承認疏漏並補跑 `rough-butterfly-figurative-brush-body-greenPlants-v2-2026-05-12`，使用 `tests/fixtures/camera/greenPlants.jpg`。等待使用者對 fixture 補測結果的視覺評分與方向修正。
+
+#### 建議的下一步
+請使用者先評估第二版 body 具象程度。如果分數接近可接受，下一步建議回到離散 pose preset；如果覺得 body 仍太小或不夠像 `InsectBody.js`，下一輪可優先放大 body 10-20%、提高 highlight 對比，或讓 abdomen 更長、更明確分節。
+
+---
+
+### 2026-05-12 — 建立摘要文件導覽與閱讀規則
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+將目前工作日誌中的重點資訊整理成多個摘要檔，讓後續 agent 可以先讀精簡導覽，只有在需要追溯原始脈絡時才閱讀完整 `docs/codex-worklog.md`。同時把何時讀取或編輯這些摘要檔的規則寫入 `AGENTS.md`。
+
+#### 使用者需求
+使用者要求把目前工作日誌中的重點資訊摘要成不同檔案，方便後續 agent 只在必要時才看完整內容。接著使用者確認，應把何時讀或編輯這些檔案的規則寫進 `AGENTS.md`，並同意開始執行。
+
+#### 實作前理解
+`docs/codex-worklog.md` 已接近 150KB，`docs/visual-test-log.md` 也累積大量視覺測試紀錄。完整日誌仍需要保留作為 source of truth，但後續 agent 若每次都全讀，會浪費上下文，也容易被歷史細節淹沒。較合理的做法是建立第一層摘要檔，分別承擔 onboarding、審美標準、測試流程、風險與下一步。
+
+#### 實作方案
+新增四個摘要檔：`docs/agent-quickstart.md`、`docs/visual-style-guide.md`、`docs/testing-playbook.md`、`docs/current-risks-and-next-steps.md`。在 `AGENTS.md` 新增「Summary docs and reading order」區塊，規定新 agent 先讀摘要檔，只有摘要不足、需要原始決策、需要記錄新任務或使用者明確要求時才讀完整 worklog。最後把本次文件整理追加到工作日誌。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/`
+
+#### 修改過的檔案
+- `AGENTS.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+摘要檔只作為導覽與目前結論，不取代完整 worklog。若未來任務改變視覺標準、測試流程、目前風險或建議下一步，必須同步更新對應摘要檔。這樣可讓後續 agent 快速進入狀況，同時仍保留完整歷史可追溯。
+
+#### 遇到的問題
+目前 Windows 沙盒內 PowerShell 仍出現 `CreateProcessAsUserW failed: 5`，因此讀取檔案索引時需要使用沙盒外執行。這次修改本身是文件整理，不涉及程式與視覺畫面。
+
+#### 嘗試過的解法
+先用 `rg` 與 `Get-Content -Encoding UTF8` 查看 `AGENTS.md`、worklog 標題索引、最近工作紀錄與視覺測試索引，再根據已有結論建立摘要檔。沒有壓縮或刪除原始工作日誌，以避免遺失歷史脈絡。
+
+#### 最終解法
+已建立四個摘要檔，並在 `AGENTS.md` 中加入閱讀順序與編輯規則。後續 agent 應先讀 `docs/agent-quickstart.md`，再依任務讀 `docs/visual-style-guide.md`、`docs/testing-playbook.md` 或 `docs/current-risks-and-next-steps.md`；只有摘要不足或需要正式記錄時才讀完整 `docs/codex-worklog.md`。
+
+#### 視覺驗證紀錄
+本次沒有修改程式或視覺輸出，因此未執行瀏覽器截圖，也未更新 `docs/visual-test-log.md`。
+
+#### Codex 審美自評
+本次是文件資訊架構整理，沒有視覺成品可評分。文件結構目標是降低後續 agent onboarding 成本，並讓審美、測試與風險資訊各自有固定入口。
+
+#### 使用者審美回饋
+本次沒有新的視覺審美回饋。
+
+#### 尚未解決的風險
+摘要檔需要後續 agent 持續維護，否則可能與完整 worklog 脫節。未來若新增大量視覺迭代，應避免只寫完整 worklog 而忘記更新 `docs/visual-style-guide.md` 或 `docs/current-risks-and-next-steps.md`。
+
+#### 使用者回饋或修正
+使用者同意建立摘要檔，並確認要把何時讀取或編輯這些檔案的規則寫進 `AGENTS.md`。
+
+#### 建議的下一步
+下一位 agent 接手時，先依 `AGENTS.md` 的摘要閱讀順序進行 onboarding。若使用者接著評估 rough butterfly body，應同步更新 `docs/visual-style-guide.md` 與 `docs/current-risks-and-next-steps.md`。
