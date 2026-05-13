@@ -1163,7 +1163,7 @@ function analyzeRoughWingColorPair(g, color1, color2) {
 }
 
 function createRoughWingSpotPalette(g, stronger, quieter, averageBrightness, hueDistance, alreadyContrasty) {
-  let useDarkSpots = averageBrightness >= 58;
+  let useDarkSpots = averageBrightness >= 100;
   let primaryHue = useDarkSpots
     ? wrapHue(stronger.h + (alreadyContrasty ? 10 : 205))
     : wrapHue(stronger.h + roughRandom(g, -10, 14));
@@ -1253,24 +1253,50 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
   let highContrast = patternPlan && typeof patternPlan.highContrast === "boolean"
     ? patternPlan.highContrast
     : colorProfile.contrastScore > 0.5 || colorProfile.hueDistance > 82 || colorProfile.brightnessDistance > 32;
+  
+  // 決定是否要畫眼紋
   let useEyeSpots = patternPlan && typeof patternPlan.useEyeSpots === "boolean"
     ? patternPlan.useEyeSpots
     : !highContrast && roughRandom(g, 0, 1) > 0.78;
-  let modeRoll = roughRandom(g, 0, 1);
-  let mode = modeRoll < 0.38 ? "rim-chain" : (modeRoll < 0.72 ? "inner-scatter" : "rim-and-inner");
-  let rimCount = mode === "inner-scatter"
-    ? Math.floor(roughRandom(g, 4, 7))
-    : Math.floor(roughRandom(g, 7, 12));
-  let innerCount = mode === "rim-chain"
-    ? Math.floor(roughRandom(g, 1, 4))
-    : Math.floor(roughRandom(g, highContrast ? 4 : 5, highContrast ? 8 : 10));
+
+  let mode = "none";
+  let rimCount = 0;
+  let innerCount = 0;
+
+  // 一般斑點與眼紋互斥
+  if (!useEyeSpots) {
+    // 【修改點 1】：如果這隻蝴蝶還沒決定整體的斑點風格，先決定好 (只會在畫第一對翅膀時執行)
+    if (!patternPlan.globalSpotMode) {
+      patternPlan.globalSpotMode = roughRandom(g, 0, 1) < 0.5 ? "inner-scatter" : "rim-chain";
+    }
+    
+    // 讀取全局風格
+    mode = patternPlan.globalSpotMode;
+
+    // 【修改點 2】：嚴格限制 inner-scatter 只出現在一對翅膀上
+    if (mode === "inner-scatter") {
+      if (patternPlan.hasDrawnInnerScatter) {
+        // 如果已經畫過了，這對翅膀強制設定為沒有花紋
+        mode = "none"; 
+      } else {
+        // 還沒畫過，標記為已畫，並給予斑點數量
+        patternPlan.hasDrawnInnerScatter = true; 
+        innerCount = Math.floor(roughRandom(g, highContrast ? 4 : 5, highContrast ? 8 : 10));
+      }
+    } else if (mode === "rim-chain") {
+      // 如果是 rim-chain，則照常繪製 (兩對翅膀都會有邊緣斑點)
+      rimCount = Math.floor(roughRandom(g, 7, 12));
+    }
+  }
+
   let rimSpots = [];
   let innerSpots = [];
   let eyeSpots = [];
-  let offset = roughRandom(g, 0, perimeter / Math.max(1, rimCount));
+  let offset = rimCount > 0 ? roughRandom(g, 0, perimeter / Math.max(1, rimCount)) : 0;
 
+  // 產生邊緣斑點 (如果 mode 是 none 或 inner-scatter，這裡的 rimCount 會是 0，直接跳過)
   for (let i = 0; i < rimCount; i++) {
-    if (roughRandom(g, 0, 1) < 0.2) continue;
+    if (roughRandom(g, 0, 1) < 0.2) continue; 
     rimSpots.push({
       distance: offset + (perimeter * i) / Math.max(1, rimCount) + roughRandom(g, -perimeter / Math.max(1, rimCount) * 0.16, perimeter / Math.max(1, rimCount) * 0.16),
       inset: insectBaseUnit * roughRandom(g, 0.7, 1.12),
@@ -1279,6 +1305,7 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
     });
   }
 
+  // 產生內部斑點 (如果 mode 是 none，這裡的 innerCount 會是 0，直接跳過)
   for (let i = 0; i < innerCount; i++) {
     let point = sampleSymmetricInnerSpotPoint(g, outline, bounds, center);
     if (!point) continue;
@@ -1290,13 +1317,14 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
     });
   }
 
+  // 產生眼紋
   if (useEyeSpots) {
     let count = highContrast ? 1 : Math.floor(roughRandom(g, 1, 3));
     for (let i = 0; i < count; i++) {
       eyeSpots.push({
         progress: g.constrain(roughRandom(g, 0.56, 0.86) - i * roughRandom(g, 0.04, 0.08), 0.48, 0.88),
         yBias: roughRandom(g, -0.36, 0.36),
-        radius: insectBaseUnit * roughRandom(g, 0.24, 0.43),
+        radius: insectBaseUnit * roughRandom(g, 1.1, 1.3),
         coreOffsetX: -roughRandom(g, 0.08, 0.2),
         coreOffsetY: -roughRandom(g, 0.06, 0.18)
       });
@@ -1304,7 +1332,7 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
   }
 
   return {
-    mode,
+    mode: useEyeSpots ? "eye-spots-only" : mode,
     tone: colorProfile.spotPalette ? colorProfile.spotPalette.tone : "auto",
     root: outline && outline.length > 0 ? { x: outline[0].x, y: outline[0].y } : { x: 0, y: 0 },
     rimSpots,
@@ -1317,10 +1345,10 @@ function sampleSymmetricInnerSpotPoint(g, outline, bounds, center) {
   let root = outline && outline.length > 0 ? outline[0] : { x: 0, y: 0 };
 
   for (let i = 0; i < 34; i++) {
-    let progress = roughRandom(g, 0.28, 0.86);
-    let edge = getWingOutlinePointAtProgress(g, outline, progress, -insectBaseUnit * roughRandom(g, 0.38, 1.05));
+    let progress = roughRandom(g, 0.5, 0.6);
+    let edge = getWingOutlinePointAtProgress(g, outline, progress, -insectBaseUnit * roughRandom(g, 0.38, 0.6));
     if (!edge) continue;
-    let towardEdge = roughRandom(g, 0.46, 0.84);
+    let towardEdge = roughRandom(g, 0.82, 0.95);
     let x = root.x + (edge[0] - root.x) * towardEdge + roughRandom(g, -insectBaseUnit * 0.26, insectBaseUnit * 0.26);
     let y = root.y + (edge[1] - root.y) * towardEdge + roughRandom(g, -insectBaseUnit * 0.36, insectBaseUnit * 0.36);
     if (isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 0.08)) {
@@ -1484,8 +1512,7 @@ function drawRoughWingEyeSpots(g, root, center, outline, bounds, colorProfile) {
 function drawRoughWingPatternDot(g, x, y, radius, paint, roughness) {
   brush.set("marker1", paint.color, roughRandom(g, 0.12, 0.22));
   brush.stroke(paint.color, paint.alpha);
-  if (typeof brush.wash === "function") brush.wash(paint.color, paint.alpha);
-  else if (typeof brush.fill === "function") brush.fill(paint.color, paint.alpha);
+  brush.fill(paint.color, paint.alpha);
   brush.strokeWeight(roughRandom(g, 0.24, 0.56));
   brush.circle(x, y, radius, roughness);
   if (typeof brush.noWash === "function") brush.noWash();
