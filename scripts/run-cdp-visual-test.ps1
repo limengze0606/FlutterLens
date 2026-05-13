@@ -13,6 +13,7 @@ param(
   [double]$ForcedFinalPitch = [double]::NaN,
   [double]$ForcedSpawnRatioX = [double]::NaN,
   [double]$ForcedSpawnRatioY = [double]::NaN,
+  [string]$ForcedRoughWingPosePreset = "",
   [switch]$KeepProfiles
 )
 
@@ -223,9 +224,18 @@ function Receive-CdpMessage {
   )
 
   $buffer = New-Object byte[] 2097152
-  $segment = [ArraySegment[byte]]::new($buffer)
-  $result = $Socket.ReceiveAsync($segment, [Threading.CancellationToken]::None).Result
-  $text = [Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count)
+  $builder = [System.Text.StringBuilder]::new()
+
+  do {
+    $segment = [ArraySegment[byte]]::new($buffer)
+    $result = $Socket.ReceiveAsync($segment, [Threading.CancellationToken]::None).Result
+    if ($result.MessageType -eq [System.Net.WebSockets.WebSocketMessageType]::Close) {
+      return $null
+    }
+    [void]$builder.Append([Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count))
+  } while (-not $result.EndOfMessage)
+
+  $text = $builder.ToString()
   if ([string]::IsNullOrWhiteSpace($text)) {
     return $null
   }
@@ -487,6 +497,11 @@ try {
         Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning")
 
         if ($scan.state -eq "SCANNING") {
+          if (-not [string]::IsNullOrWhiteSpace($ForcedRoughWingPosePreset)) {
+            $poseLiteral = ConvertTo-Json $ForcedRoughWingPosePreset -Compress
+            Invoke-CdpEval -Socket $socket -Events $events -Expression "(() => { window.__flutterLensForcedRoughWingPosePreset = $poseLiteral; return window.__flutterLensForcedRoughWingPosePreset; })()" | Out-Null
+          }
+
           if (-not [double]::IsNaN($ForcedFinalPitch)) {
             $pitchLiteral = [Globalization.CultureInfo]::InvariantCulture.NumberFormat
             $pitchValue = $ForcedFinalPitch.ToString($pitchLiteral)
@@ -591,6 +606,7 @@ try {
         scanState = if ($scan) { $scan.state } else { $null }
         resultState = if ($result) { $result.state } else { $null }
         forcedFinalPitch = if (-not [double]::IsNaN($ForcedFinalPitch)) { $ForcedFinalPitch } else { $null }
+        forcedRoughWingPosePreset = if (-not [string]::IsNullOrWhiteSpace($ForcedRoughWingPosePreset)) { $ForcedRoughWingPosePreset } else { $null }
         resultFinalPitch = if ($result) { $result.finalPitch } else { $null }
         videoReady = if ($scan) { [bool]$scan.videoReady } else { $null }
         hasResultPhoto = if ($result) { [bool]$result.hasResultPhoto } else { $null }

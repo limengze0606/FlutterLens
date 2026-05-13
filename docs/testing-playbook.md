@@ -41,8 +41,12 @@
 - `-ForcedFinalPitch 0`：固定最終生成類型 / pitch 相關測試條件。
 - `-ForcedSpawnRatioX 0.34`
 - `-ForcedSpawnRatioY 0.36`
+- `-ForcedRoughWingPosePreset frontOpen`：固定 rough butterfly 的 wing perspective preset。可用值目前包含 `frontOpen`、`threeQuarterRise`、`sideFold`。
 
 Forced spawn 用於避免 Result page 的 Save / Back 按鈕遮擋昆蟲，特別適合評估 rough butterfly body。
+Forced rough wing pose 用於逐張比較離散姿態，避免隨機 seed 讓審美判讀混在一起。
+
+2026-05-12 補充：`Receive-CdpMessage` 已改成累積 WebSocket 訊息直到 `EndOfMessage`，避免大型 screenshot base64 被分段接收時造成 `Unterminated string` JSON parse 錯誤。
 
 ## 常用 viewport
 
@@ -103,4 +107,3 @@ CDP + fake camera 可以驗證 UI、頁面狀態、截圖流程、Save / Back �
 - DeviceOrientation 權限。
 - 真實背景下的 AR 疊合。
 - 手機 GPU 效能與觸控手感。
-

@@ -23,13 +23,13 @@
 
 - 已建立可重跑的 CDP 視覺測試流程，可操作 Start -> Scanning -> Result。
 - 測試腳本支援 fake camera、camera fixtures、forced pitch、forced spawn ratio、Save / Back 驗證與 console event 摘要。
-- Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹。
-- 最新一次成果是回頭重打 `RoughInsectBody.js` 地基：暫時固定 rough butterfly pose，不再套用 yaw / pitch / roll，身體簡化成頭、胸、腹三個空心輪廓，內部不填色、不畫分節。後續已清理 body 檔中的 `brushWeight` helper option，粗細統一由 `strokeWeight` 控制，並加粗輪廓、拉長腹部；已在頭部上方加回兩條簡單觸角線，用 `greenPlants.jpg` fixture 補測。最新小步驟是整理 rough insect 的整體畫布旋轉：移除雙重 random rotate，改由 `createRoughScreenRotationPlan()` 先選離散 screen rotation plan，再只套用一次 `rotate()`；因全域 `angleMode(DEGREES)`，screen rotation plan 目前直接使用 degree 數值。本階段不改 body 編排或翅膀變形。
+- Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹、三輪廓 body 地基、screen rotation plan、離散 wing perspective preset。
+- 最新狀態：`createRoughScreenRotationPlan()` 仍只控制整隻昆蟲的螢幕朝向，並使用 degree 數值。`createRoughWingPerspectivePlan()` 已重新啟用 rough butterfly 的內部翅膀姿態，先提供 `frontOpen`、`threeQuarterRise`、`sideFold` 三個 preset。最新修正把 body 三段改成共用 thorax / wing root 附近 anchor 做姿態轉位，前後翅也共用 side hinge，再只做小幅 local root offset，降低胸腹與翅根斷開感。body 仍是頭、胸、腹三個空心輪廓加觸角，尚未回到填色或分節。
 
 ## 目前使用者偏好
 
 - 使用者重視「看起來真的有身體帶動姿態」的昆蟲，不接受像無身體模板的蛾形。
-- 使用者目前希望先把 body 基礎結構打穩，再回頭處理姿態、翅膀角度或更豐富的手繪細節；後續仍需要更明顯的離散姿態 preset，例如側飛、俯仰、翻轉、半收翅。
+- 使用者目前希望透視不必幾何精確，但要用來強調方向與立體感。後續評估 rough butterfly pose 時，應看 preset 是否一眼可讀出飛行方向、近遠側與半收 / 展開，而不是只檢查矩陣或 rotate 是否正確。
 - 使用者會給審美分數與具體批評，這些回饋必須記進 `docs/codex-worklog.md`，並同步整理到 `docs/visual-style-guide.md`。
 
 ## 本輪文件維護規則

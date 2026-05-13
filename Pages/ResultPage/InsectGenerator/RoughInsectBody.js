@@ -72,22 +72,67 @@ function drawRoughInsectBody(g, bodyPlan, seedValue) {
 function drawRoughBodySimpleOutline(g, plan, ink, u) {
   if (!plan.anatomy) return;
 
-  drawRoughOutlineOval(g, plan.anatomy.abdomen, ink, {
+  let anatomy = getRoughSimpleBodyPoseAnatomy(plan, u);
+
+  drawRoughOutlineOval(g, anatomy.abdomen, ink, {
     strokeWeight: roughRandom(g, 1.5, 1.8),
     wobble: 0.055 * u,
     passes: 2
   });
-  drawRoughOutlineOval(g, plan.anatomy.thorax, ink, {
+  drawRoughOutlineOval(g, anatomy.thorax, ink, {
     strokeWeight: roughRandom(g, 1.82, 2.36),
     wobble: 0.05 * u,
     passes: 2
   });
-  drawRoughOutlineOval(g, plan.anatomy.head, ink, {
+  drawRoughOutlineOval(g, anatomy.head, ink, {
     strokeWeight: roughRandom(g, 1.7, 2.02),
     wobble: 0.04 * u,
     passes: 2
   });
-  drawRoughSimpleAntennae(g, plan.anatomy.head, ink, u);
+  drawRoughSimpleAntennae(g, anatomy.head, ink, u);
+}
+
+function getRoughSimpleBodyPoseAnatomy(plan, u) {
+  let pose = plan.posePlan || null;
+  if (!pose) return plan.anatomy;
+
+  let lean = pose.bodyLeanX || 0;
+  let tilt = ((pose.bodyTiltDegrees || 0) * Math.PI) / 180;
+  let scaleX = pose.bodyScaleX || 1;
+  let scaleY = pose.bodyScaleY || 1;
+  let anchor = getRoughBodyPoseAnchor(plan);
+
+  return {
+    head: transformRoughSimpleBodyOval(plan.anatomy.head, plan, anchor, lean, tilt, scaleX, scaleY),
+    thorax: transformRoughSimpleBodyOval(plan.anatomy.thorax, plan, anchor, lean, tilt, scaleX, scaleY),
+    abdomen: transformRoughSimpleBodyOval(plan.anatomy.abdomen, plan, anchor, lean, tilt, scaleX, scaleY)
+  };
+}
+
+function getRoughBodyPoseAnchor(plan) {
+  let thorax = plan.anatomy && plan.anatomy.thorax ? plan.anatomy.thorax : null;
+
+  return {
+    x: thorax ? thorax.x : plan.centerX,
+    y: thorax ? thorax.y : plan.rootY
+  };
+}
+
+function transformRoughSimpleBodyOval(oval, plan, anchor, lean, rotation, scaleX, scaleY) {
+  let bodyLen = Math.max(insectBaseUnit, plan.bottomY - plan.rootY);
+  let axisT = (oval.y - anchor.y) / bodyLen;
+  let localX = (oval.x - anchor.x) * scaleX + lean * axisT;
+  let localY = (oval.y - anchor.y) * scaleY;
+  let cosA = Math.cos(rotation);
+  let sinA = Math.sin(rotation);
+
+  return {
+    x: anchor.x + localX * cosA - localY * sinA,
+    y: anchor.y + localX * sinA + localY * cosA,
+    rx: oval.rx * scaleX,
+    ry: oval.ry * scaleY,
+    rotation: (oval.rotation || 0) + rotation
+  };
 }
 
 function drawRoughSimpleAntennae(g, head, ink, u) {

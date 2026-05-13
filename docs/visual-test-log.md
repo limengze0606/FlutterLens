@@ -1361,3 +1361,102 @@ Codex 自評：`7.4/10`。優點是 plan 差異終於清楚進到畫面，compac
 
 ### 備註 / 風險
 本輪只修正 `createRoughScreenRotationPlan()`；專案其他 `rotate()` 仍可能受到全域 `angleMode(DEGREES)` 影響，但依使用者要求，本輪沒有擴大修改。後續若檢查 body 或 wing 內部角度，應另開一輪避免混入本次地基修正。
+
+---
+
+### 日期
+2026-05-12
+
+### 任務 / 功能
+驗證 rough butterfly 第一版離散 wing perspective preset：`frontOpen`、`threeQuarterRise`、`sideFold`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Forced preset：`-ForcedRoughWingPosePreset frontOpen / threeQuarterRise / sideFold`
+
+### 預期行為
+`frontOpen` 應呈現較正面的展翅；`threeQuarterRise` 應有近遠側比例差與上拍方向；`sideFold` 應像側身半收翅。透視不需幾何精準，但應明顯強化方向與立體感。Start → Scanning → Result 流程、portrait Save / Back 不應回歸失敗。
+
+### 實際觀察
+三個 preset 逐一重跑後都完成 `START → SCANNING → RESULT`，portrait Save 下載 `FlutterLens-result.png`，Back 回到 `SCANNING` 且 `backCleared=true`。`frontOpen` 看起來穩定、近似正面展開；`threeQuarterRise` 的近遠側差異比前者更明顯，方向感較好；`sideFold` 最能讀出側身半收，立體感最強，但在 landscape Result 中仍靠近 Save / Back 按鈕，構圖判讀受既有 UI 遮擋風險影響。
+
+### 截圖
+- frontOpen portrait：`docs/cdp-runs/rough-wing-perspective-frontOpen-2026-05-12b/screenshots/rough-wing-perspective-frontOpen-2026-05-12b-greenPlants-portrait-390x844-result.png`
+- threeQuarterRise portrait：`docs/cdp-runs/rough-wing-perspective-threeQuarterRise-2026-05-12b/screenshots/rough-wing-perspective-threeQuarterRise-2026-05-12b-greenPlants-portrait-390x844-result.png`
+- sideFold portrait：`docs/cdp-runs/rough-wing-perspective-sideFold-2026-05-12b/screenshots/rough-wing-perspective-sideFold-2026-05-12b-greenPlants-portrait-390x844-result.png`
+- 其他 Start / Scanning / Result / after-back 截圖位於各 run 的 `screenshots/` 資料夾。
+
+### 審美評分與評語
+Codex 自評：`7.6/10`。優點是三個 preset 終於有可辨識的 silhouette 差異，尤其 `sideFold` 有明顯側身與半收翅，較符合使用者說的「透過透視強調方向及立體感」。`threeQuarterRise` 也比單純整體旋轉更像有近遠側。弱點是 body lean 仍偏輕，翅膀和 body 的骨架連動還不夠像真正同一隻昆蟲在轉身；`frontOpen` 安全但保守。這輪沒有再做第二次視覺調整，因為第一版已能提供三個明顯選項，適合先讓使用者評圖。
+
+### 使用者審美回饋
+使用者確認「透視效果重要」的重點不是完美精確對準，而是透過這種方式強調方向及立體感，並要求先試試看。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception。初次並行跑 `threeQuarterRise` 與 `sideFold` 時因兩個腳本搶同一組 server/debug port，結果不可信；後續已改為逐一重跑。另修正 `Receive-CdpMessage`，讓 CDP WebSocket 可累積大型 screenshot 訊息直到 `EndOfMessage`，避免 base64 被分段造成 JSON parse 錯誤。
+
+### 手機檢查清單
+- [ ] 真實手機上 `sideFold` 是否仍像蝴蝶，而不是變成單片葉子或蛾形剪影
+- [ ] `threeQuarterRise` 的近遠側比例是否足夠明顯
+- [ ] `frontOpen` 是否太保守，需要更像展翅瞬間
+- [ ] body lean 是否需要更大，讓頭胸腹更明顯帶動翅膀
+- [ ] landscape / 小高度畫面中 Save / Back 是否仍遮擋昆蟲
+- [ ] 真實相機背景下綠色翅膀是否被植物背景吃掉
+
+### 備註 / 風險
+本輪是偽透視與 gesture perspective，不是完整 3D 投影。p5 `rotate()` 仍使用 degree；若未來加入 affine matrix 或更複雜投影，需要明確分開 p5 angle mode 與 `Math.sin()` / `Math.cos()` 的 radian 單位。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+修正 rough butterfly wing perspective 的旋轉軸心：body 三段共用 anchor，前後翅共用 side hinge。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Forced preset：`-ForcedRoughWingPosePreset frontOpen / threeQuarterRise / sideFold`
+
+### 預期行為
+Body 的 head / thorax / abdomen 不應像三個各自繞圓心旋轉的零件；它們應該以 thorax / wing root 附近共同 anchor 做姿態轉位。Fore / hind wings 不應各自用相距很遠的 yOff 當旋轉軸，應共用 body side hinge，再用小幅 local offset 表現前後翅分層。
+
+### 實際觀察
+三個 forced preset 都完成 `START → SCANNING → RESULT`。portrait Save 下載 PNG，Back 回到 `SCANNING` 且 `backCleared=true`。Result 截圖中，`threeQuarterRise` 的翅根比前版更靠近 body，前後翅不再像分別從不同高度旋轉；`sideFold` 仍保留側身半收感，但翅根更像從同一個 hinge 折出。Body 三段斷開感降低，不過因設計上仍是三個空心輪廓，近看仍不是一條真正連續的軀幹。
+
+### 截圖
+- frontOpen portrait：`docs/cdp-runs/rough-wing-anchor-frontOpen-2026-05-13/screenshots/rough-wing-anchor-frontOpen-2026-05-13-greenPlants-portrait-390x844-result.png`
+- threeQuarterRise portrait：`docs/cdp-runs/rough-wing-anchor-threeQuarterRise-2026-05-13/screenshots/rough-wing-anchor-threeQuarterRise-2026-05-13-greenPlants-portrait-390x844-result.png`
+- sideFold portrait：`docs/cdp-runs/rough-wing-anchor-sideFold-2026-05-13/screenshots/rough-wing-anchor-sideFold-2026-05-13-greenPlants-portrait-390x844-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.8/10`。優點是使用者指出的軸心問題被明確改善，翅膀更像從 body wing root 長出，`threeQuarterRise` 與 `sideFold` 的姿態連動比前版自然。弱點是 body 仍然是三個分離空心橢圓，雖然共同 anchor 減少斷裂，但若要更像一體，之後需要極簡連接筆觸或 body axis。這輪沒有再做第二次視覺調整，因為修正已對準使用者診斷，且不應在未確認前加入新 body 細節。
+
+### 使用者審美回饋
+使用者指出前版身體帶動邏輯不對：旋轉中心是各橢圓圓心，旋轉後胸腹明顯斷開；翅膀也有相同問題，旋轉軸心不在身體基準點上。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機上 `threeQuarterRise` 的翅根是否仍貼近 body
+- [ ] `sideFold` 是否在小尺寸下仍看得出 body，而不是只剩翅膀三角形
+- [ ] 若 body 仍顯得分離，下一步加極簡連接線或 body axis
+- [ ] 真實背景下黑色 body / wing outline 是否過重
+
+### 備註 / 風險
+本輪只修正共同旋轉基準，不新增分節、填色或 body 連接筆觸。若後續繼續強化 body 一體感，應避免重新造成黑線過密或壓過翅膀圖案。

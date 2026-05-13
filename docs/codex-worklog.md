@@ -2296,3 +2296,240 @@ CDP + fake camera 仍不能取代真實手機 AR 測試。所有 screen rotation
 
 #### 建議的下一步
 下一步可新增 debug / forced screen rotation plan 入口，讓測試能指定 `uprightHover`、`diagonalRiseLeft`、`diagonalRiseRight`、`sideDriftLeft`、`sideDriftRight` 逐張截圖比較。若使用者想先維持現狀，也可以回頭檢查 body / wing 內部 rotate 的角度模式，但應另開一輪。
+
+---
+
+### 2026-05-12 — 規劃 rough butterfly 翅膀控制方案
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+閱讀目前 rough insect / rough butterfly 的旋轉、body plan 與 wing plan 接點，整理下一輪如何讓 `createRoughScreenRotationPlan()` 之後的翅膀控制更具體。
+
+#### 使用者需求
+使用者指出前一輪已透過 `createRoughScreenRotationPlan()` 控制昆蟲整體旋轉；接下來需要想一個方式控制翅膀，可能是矩陣變化，或是在每片翅膀繪製時操作畫布。使用者也提醒之前曾試過類似操作，可以參考或優化。
+
+#### 實作前理解
+目前 `drawRoughInsect()` 會先建立 `currentSeed`，再用 `createRoughScreenRotationPlan(currentSeed)` 對整隻昆蟲做一次螢幕座標旋轉。`roughPosePlan` 目前固定為 `null`，因此 `RoughInsectWings.js` 中既有的 `createRoughInsectPosePlan()`、近遠側 scale、root skew、depth tilt 與繪製順序控制都沒有被啟用。舊 pose 程式可以參考，但需注意專案全域 `angleMode(DEGREES)`，舊程式中許多看似 radian 的小 `rotate()` 值若直接交給 p5 會幾乎不可見。
+
+#### 實作方案
+本輪只提出方案，不修改功能程式。建議新增一層 `createRoughWingPosePlan()` 或重構既有 `createRoughInsectPosePlan()`，把 screen rotation、body/wing pose、單片翅膀 local transform 分開。下一輪應以離散 preset 為核心，例如正面展翅、三分之二側飛、側身上拍、俯視下拍、仰角半收；每個 preset 明確指定左右近遠側、前後翅開合、root offset、scale、rotation、draw order 與遮擋關係。實作上優先延伸現有 `drawRoughWingSideFromPlan()` 的 `push()` / `translate()` / `rotate()` / `scale()` 流程，而不是先全面改成低階矩陣；若需要 shear 或真正 2D affine，再用獨立 helper 包裝，避免 angle mode 混淆。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/codex-worklog.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+下一步不應只在 `drawRoughWing()` 裡隨機扭曲每片翅膀，否則會回到「翅膀自己變形、身體沒有帶動」的問題。較好的做法是先從 body root / thorax 的共同座標建立 pose，再把前翅、後翅、左右側都視為同一 pose preset 的子結果。`createRoughScreenRotationPlan()` 繼續只負責螢幕朝向，不混入翅膀開合。
+
+#### 遇到的問題
+沙盒內 PowerShell 仍會出現 `CreateProcessAsUserW failed: 5`，因此本輪讀檔需要使用沙盒外授權執行。另確認到角度單位是後續翅膀姿態的高風險點：p5 的 `rotate()` 目前吃 degree，但 `Math.sin()` / `Math.cos()` 仍吃 radian，兩者需要明確分層。
+
+#### 嘗試過的解法
+先從摘要文件確認最新狀態，再搜尋 `createRoughScreenRotationPlan()`、`drawRoughInsect()`、rough wing / body 相關函式。接著閱讀 `InsectManager.js`、`RoughInsectWings.js` 與 `RoughInsectBody.js`，定位既有 pose plan、wing pair plan、wing side transform 與 body wing root 的接點。
+
+#### 最終解法
+本輪沒有實作功能。整理出的建議是：下一輪先建立可審查的離散 `wingPosePlan`，再把它接到 `roughBodyPlan.posePlan` 或新的 `roughBodyPlan.wingPosePlan`；優先使用現有單片翅膀畫布 transform，並把所有傳給 p5 `rotate()` 的數值明確改成 degree。
+
+#### 視覺驗證紀錄
+本輪只做方案整理，未修改視覺功能，因此沒有執行瀏覽器截圖。下一輪若實作翅膀控制，必須使用 CDP / fixture / forced spawn 做 portrait、compact、landscape 截圖，並特別檢查不同 pose preset 是否一眼可辨。
+
+#### Codex 審美自評
+目前僅是方案階段，暫不給成品分數。方案的審美重點是讓翅膀姿態跟 body root 有共同骨架，避免單純把翅膀壓扁或旋轉成裝飾圖形。下一輪視覺判斷應優先看 silhouette 是否有不同飛行瞬間，而不是只看線條有沒有畫出來。
+
+#### 使用者審美回饋
+使用者希望把前一輪整體旋轉 plan 往更具體的翅膀控制延伸，並開放矩陣變化或每片翅膀繪製時操作畫布兩種方向。
+
+#### 尚未解決的風險
+舊的 `createRoughInsectPosePlan()` 還在檔案中，但目前被停用；若直接重新啟用，可能因 angle mode 與 body 地基尚未投影而重現之前「有變化但不夠明顯、body 不夠帶動」的問題。若改用低階矩陣，也可能讓 p5.brush 與原本 outline / pattern / clipping helper 的座標理解變得更難除錯。
+
+#### 使用者回饋或修正
+等待使用者確認下一輪要採用哪種策略：保守延伸現有 `drawRoughWingSideFromPlan()`、導入明確 affine matrix helper，或先只做 debug preset 逐張比較。
+
+#### 建議的下一步
+請使用者先審查方案。若同意，下一輪可先實作 3 個最小可辨 preset：`frontOpen`、`threeQuarterRise`、`sideFold`，並加上 forced preset 測試入口，避免一開始就讓隨機 seed 影響審美判讀。
+
+---
+
+### 2026-05-12 — 實作 rough butterfly wing perspective preset
+
+#### 日期
+2026-05-12
+
+#### 任務摘要
+依使用者要求試作 rough butterfly 翅膀控制，新增三個離散 wing perspective preset，用偽透視強調飛行方向與立體感。
+
+#### 使用者需求
+使用者詢問透視效果是否重要，並澄清不是追求完美精確對準，而是希望透過這種方式強調方向及立體感。使用者接著要求「試試看」。
+
+#### 實作前理解
+上一輪 `createRoughScreenRotationPlan()` 只控制整隻昆蟲在螢幕上的整體旋轉。若要讓翅膀更有方向感，不能只靠整體 rotate，也不應讓每片翅膀獨立亂變形。現有 `RoughInsectWings.js` 裡有舊的 `createRoughInsectPosePlan()`，但目前在 `InsectManager.js` 中 `roughPosePlan` 被設為 `null`；且舊 pose 中部分 `rotate()` 參數帶有 radian 感，會受全域 `angleMode(DEGREES)` 影響而幾乎不可見。較合適的做法是建立離散 preset，讓每個姿態明確指定 near / far side、root skew、depth tilt、draw order 與前後翅開合。
+
+#### 實作方案
+新增 `createRoughWingPerspectivePlan(g, seedValue)`，提供 `frontOpen`、`threeQuarterRise`、`sideFold` 三個 preset。`InsectManager.js` 在 rough butterfly 時建立此 plan 並掛到 `roughBodyPlan.posePlan`。`RoughInsectWings.js` 依 preset 控制前後翅長寬、lift、fold、rotation、近遠側 scale、y offset、root skew、depth tilt 與繪製順序。`RoughInsectBody.js` 對三個空心 body oval 套用輕量 lean / scale / rotation，讓 body 稍微跟著視角動，但不回到填色或分節。測試腳本新增 `-ForcedRoughWingPosePreset`，可指定單一 preset 逐張截圖比較。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/ResultPage.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪採用 gesture perspective，而不做真正 3D projection。原因是使用者明確表示透視不是要精準對位，而是要強調方向與立體感。`createRoughScreenRotationPlan()` 繼續只負責整體螢幕朝向；`createRoughWingPerspectivePlan()` 負責 rough butterfly 內部姿態；單片翅膀仍透過現有 `drawRoughWingSideFromPlan()` 的 `push()` / `translate()` / `rotate()` / `scale()` 來變形，避免破壞 p5.brush、outline、pattern 與 clipping 流程。
+
+#### 遇到的問題
+第一次執行 CDP 測試時，`Receive-CdpMessage` 對大型 screenshot base64 只讀到 WebSocket 分段訊息的一部分，就嘗試 `ConvertFrom-Json`，造成 `Unterminated string`。此外，曾並行跑 `threeQuarterRise` 與 `sideFold` 測試，兩個腳本搶同一組 server/debug port，導致該次結果不可信。
+
+#### 嘗試過的解法
+先新增 forced preset 測試參數，再跑 `frontOpen`。遇到 CDP 分段問題後，修改 `Receive-CdpMessage`，讓它累積訊息直到 `EndOfMessage`。之後重新跑 `frontOpen` 成功，再逐一、非並行重跑 `threeQuarterRise` 與 `sideFold`。
+
+#### 最終解法
+`createRoughWingPerspectivePlan()` 目前有三個 preset：
+- `frontOpen`：正面展翅，近遠側差異小，穩定但保守。
+- `threeQuarterRise`：三分之二側飛，近側較大、遠側壓縮，有上拍方向。
+- `sideFold`：側身半收翅，遠側壓縮最強，立體感最明顯。
+
+`scripts/run-cdp-visual-test.ps1` 新增 `-ForcedRoughWingPosePreset`，並修正 CDP WebSocket receive 以支援大型 screenshot 訊息。
+
+#### 視覺驗證紀錄
+- 語法檢查：
+  - `node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+  - `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+  - `node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過
+  - PowerShell parser 檢查 `scripts\run-cdp-visual-test.ps1` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Run id：
+  - `rough-wing-perspective-frontOpen-2026-05-12b`
+  - `rough-wing-perspective-threeQuarterRise-2026-05-12b`
+  - `rough-wing-perspective-sideFold-2026-05-12b`
+- 實際觀察：三個 preset 都完成 `START → SCANNING → RESULT`。portrait Save 下載 PNG，Back 回到 `SCANNING` 且 `backCleared=true`。`frontOpen` 穩定正面；`threeQuarterRise` 有可讀近遠側；`sideFold` 最有側身半收效果。Console 每個 viewport 仍只有既有 404 resource event，未觀察到新增 JavaScript exception。
+
+#### Codex 審美自評
+本輪約 `7.6/10`。優點是三個 preset 的 silhouette 差異已經可讀，尤其 `sideFold` 明顯比單純整體旋轉更有方向與立體感；`threeQuarterRise` 也開始有近遠側關係。弱點是 body lean 仍偏輕，三輪廓 body 和翅膀還不像完全同一個骨架在空間裡轉身；`frontOpen` 穩但保守。這輪沒有做第二次自我視覺調整，因為第一版已足以讓使用者比較三個方向，適合先停下來收回饋。
+
+#### 使用者審美回饋
+使用者指出透視效果的重要性在於強調方向及立體感，不必完美精確對準，並要求先試作。
+
+#### 尚未解決的風險
+CDP + fixture 不能取代真實手機 AR / camera 測試。`sideFold` 在 landscape 中仍可能被 Save / Back 按鈕遮擋，構圖風險未解。綠色翅膀在植物背景上仍可能被吃掉。若未來加入 affine matrix 或更複雜投影，需小心 p5 `rotate()` 的 degree 與 `Math.sin()` / `Math.cos()` 的 radian 分離。
+
+#### 使用者回饋或修正
+等待使用者針對三個 preset 給審美分數或偏好，尤其是 `sideFold` 是否過度壓縮、`threeQuarterRise` 是否足夠立體、`frontOpen` 是否太保守。
+
+#### 建議的下一步
+請使用者優先比較三張 portrait Result：`frontOpen`、`threeQuarterRise`、`sideFold`。若方向可行，下一輪可做一到兩個大幅調整：加強 body lean / root 連動，或新增俯視下拍 / 仰角半收 preset。若覺得 `sideFold` 太像單片葉子，先降低 far side 壓縮與 depth tilt。
+
+---
+
+### 2026-05-13 — 修正 wing perspective 的共同軸心
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者診斷，修正 rough butterfly body 與 wings 的姿態旋轉軸心，避免胸腹與翅根像各自分離的零件。
+
+#### 使用者需求
+使用者指出身體帶動邏輯不太對，因為旋轉中心是橢圓圓心，一旋轉後胸腹會明顯斷開；翅膀也有相同問題，旋轉軸心不在身體基準點上。使用者確認可以依此方向修正。
+
+#### 實作前理解
+上一版 `getRoughSimpleBodyPoseAnatomy()` 會為 head、thorax、abdomen 各自調整 x/y 與 rotation，實際上是讓每個橢圓繞自己的中心畫旋轉輪廓，缺少共同 body axis。`drawRoughWingSideFromPlan()` 則直接以每組 pair plan 的 `yOff` 作為單片翅膀 transform origin；fore / hind wing 的 `yOff` 差距可達數個 `insectBaseUnit`，因此看起來像前後翅各自有旋轉軸，而不是從同一個 body side hinge 長出。
+
+#### 實作方案
+Body：新增 `getRoughBodyPoseAnchor()`，以 thorax 中心作為姿態 anchor。`transformRoughSimpleBodyOval()` 改為先把每個橢圓中心轉成相對 anchor 的 local point，再套用 scale、沿 body axis 的 lean，最後整組用同一個 tilt 旋轉回畫面座標。橢圓本身的 rotation 只順著共同 tilt，不再決定段落位置。
+
+Wings：`createRoughButterflyWingPairPlans()` 將 fore / hind 的 `yOff` 改成共同 `hingeY: rootY` 加小幅 `rootOffsetY`。`drawRoughWingSideFromPlan()` 先移動到 body side hinge，再套用 depth rotation，最後才加小幅 local root offset 與 scale。`rootSkew` 也降低，避免投影偏移把 hinge 從 body 拉太遠。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪只修共同旋轉基準，不新增 body 填色、腹部分節或連接線。原因是使用者指出的是 transform 邏輯問題；若同時加新細節，會讓截圖難以判斷改善來自軸心修正還是新線條遮掩。
+
+#### 遇到的問題
+Body 仍是三個空心橢圓，因此即使共同 anchor 改善了位置關係，近看仍不會完全像一條連續軀幹。翅膀若完全共用同一 root，前後翅會過度重疊；因此保留小幅 `rootOffsetY`，但把 offset 從數個 `u` 縮小到約 `0.12u` 到 `0.46u`。
+
+#### 嘗試過的解法
+先搜尋並閱讀 body / wing pose transform 接點，確認問題集中在 `getRoughSimpleBodyPoseAnatomy()`、`transformRoughSimpleBodyOval()` 與 `drawRoughWingSideFromPlan()`。接著用 `apply_patch` 修改共同 anchor / hinge，再跑語法檢查與三個 forced preset 視覺測試。
+
+#### 最終解法
+`RoughInsectBody.js` 現在用 thorax 附近共同 anchor 轉換 head、thorax、abdomen 的中心點。`RoughInsectWings.js` 現在讓 fore / hind wing 共用 `hingeY: rootY`，並在單片 wing side transform 中以 body side hinge 為旋轉軸，再加很小的 local root offset。
+
+#### 視覺驗證紀錄
+- 語法檢查：
+  - `node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+  - `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+  - `node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Run id：
+  - `rough-wing-anchor-frontOpen-2026-05-13`
+  - `rough-wing-anchor-threeQuarterRise-2026-05-13`
+  - `rough-wing-anchor-sideFold-2026-05-13`
+- 實際觀察：三個 preset 都完成 `START → SCANNING → RESULT`。portrait Save 下載 PNG，Back 回到 `SCANNING` 且 `backCleared=true`。`threeQuarterRise` 的翅根比前版更靠近 body，前後翅不再像分別從不同高度旋轉；`sideFold` 仍保留側身半收效果，但更像從同一 hinge 折出。Console 每個 viewport 仍只有既有 404 resource event，未觀察到新增 JavaScript exception。
+
+#### Codex 審美自評
+本輪約 `7.8/10`。優點是使用者指出的軸心問題被明確改善，body 與翅膀的關係更像由同一個 thorax / wing root 帶動；`threeQuarterRise` 與 `sideFold` 比前版自然。弱點是 body 三段仍是分離空心輪廓，若要更像真實昆蟲的一體軀幹，下一步需要極簡連接筆觸或 body axis。這輪沒有做第二次私下調整，因為已對準使用者診斷，且不應未經確認就加入新 body 細節。
+
+#### 使用者審美回饋
+使用者指出前版旋轉中心在各橢圓圓心，導致胸腹斷開；翅膀也應避免旋轉軸心偏離身體基準點。
+
+#### 尚未解決的風險
+CDP + fixture 不能取代真實手機 AR / camera 測試。`sideFold` 在小尺寸或植物背景下仍可能只讀成翅膀三角形，body 需要更穩定的一體感。黑色 outline 在複雜背景上可讀，但也可能變重。
+
+#### 使用者回饋或修正
+等待使用者評估共同軸心修正後是否解決「胸腹斷開」與「翅膀旋轉軸不在身體基準點」問題。
+
+#### 建議的下一步
+若使用者認可軸心修正，下一步可選擇：一、加非常細的 body axis / 胸腹連接筆觸，讓三個空心輪廓更像一體；二、再調 `sideFold` 的壓縮比例，避免側身時 body 被翅膀吃掉；三、開始新增俯視下拍或仰角半收 preset。

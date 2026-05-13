@@ -69,6 +69,122 @@ function createRoughInsectPosePlan(g, seedValue) {
   };
 }
 
+function createRoughWingPerspectivePlan(g, seedValue) {
+  setRoughSeed(g, seedValue + 4517);
+
+  let forcedPreset = getForcedRoughWingPosePreset();
+  let presets = [
+    {
+      id: "frontOpen",
+      weight: 3,
+      yaw: 0.14,
+      pitch: -0.04,
+      phase: { lift: 0.02, spread: 1.04, fold: 1.0, rot: 0 },
+      nearScale: 1.05,
+      farScale: 0.94,
+      nearScaleY: 1.0,
+      farScaleY: 0.94,
+      nearYOffsetUnit: -0.03,
+      farYOffsetUnit: 0.12,
+      rootSkewUnit: 0.2,
+      depthTilt: 2.5,
+      bodyLeanUnit: 0.16,
+      bodyTiltDegrees: 2.5,
+      topWingCompression: 0.98
+    },
+    {
+      id: "threeQuarterRise",
+      weight: 3,
+      yaw: 0.62,
+      pitch: -0.28,
+      phase: { lift: -0.34, spread: 0.93, fold: 0.82, rot: -8 },
+      nearScale: 1.22,
+      farScale: 0.72,
+      nearScaleY: 1.04,
+      farScaleY: 0.72,
+      nearYOffsetUnit: -0.34,
+      farYOffsetUnit: 0.42,
+      rootSkewUnit: 0.82,
+      depthTilt: 11,
+      bodyLeanUnit: 0.55,
+      bodyTiltDegrees: 7,
+      topWingCompression: 0.86
+    },
+    {
+      id: "sideFold",
+      weight: 2,
+      yaw: 0.88,
+      pitch: 0.22,
+      phase: { lift: 0.42, spread: 0.76, fold: 0.58, rot: 15 },
+      nearScale: 1.28,
+      farScale: 0.5,
+      nearScaleY: 0.9,
+      farScaleY: 0.48,
+      nearYOffsetUnit: 0.24,
+      farYOffsetUnit: -0.22,
+      rootSkewUnit: 1.12,
+      depthTilt: 17,
+      bodyLeanUnit: 0.78,
+      bodyTiltDegrees: 11,
+      topWingCompression: 0.72
+    }
+  ];
+
+  let selected = presets.find((preset) => preset.id === forcedPreset) || selectWeightedRoughWingPreset(g, presets);
+  let nearSide = roughRandom(g, 0, 1) < 0.5 ? -1 : 1;
+  let yawJitter = roughRandom(g, -0.06, 0.06);
+  let pitchJitter = roughRandom(g, -0.05, 0.05);
+  let yaw = (selected.yaw + yawJitter) * nearSide;
+  let pitch = selected.pitch + pitchJitter;
+  let yawAmount = Math.abs(yaw);
+  let pitchAmount = Math.abs(pitch);
+
+  return {
+    id: selected.id,
+    yaw,
+    pitch,
+    phaseIndex: presets.findIndex((preset) => preset.id === selected.id),
+    phase: {
+      lift: selected.phase.lift + roughRandom(g, -0.04, 0.04),
+      spread: selected.phase.spread + roughRandom(g, -0.035, 0.035),
+      fold: selected.phase.fold + roughRandom(g, -0.035, 0.035),
+      rot: selected.phase.rot + roughRandom(g, -1.6, 1.6)
+    },
+    nearSide,
+    bodyScaleX: 1 - yawAmount * 0.08,
+    bodyScaleY: 1 - pitchAmount * 0.05,
+    bodyLeanX: nearSide * insectBaseUnit * selected.bodyLeanUnit,
+    bodyTiltDegrees: nearSide * selected.bodyTiltDegrees,
+    nearScale: selected.nearScale,
+    farScale: selected.farScale,
+    nearScaleY: selected.nearScaleY,
+    farScaleY: selected.farScaleY,
+    nearYOffset: insectBaseUnit * selected.nearYOffsetUnit,
+    farYOffset: insectBaseUnit * selected.farYOffsetUnit,
+    rootSkew: nearSide * insectBaseUnit * selected.rootSkewUnit,
+    depthTilt: nearSide * selected.depthTilt,
+    topWingCompression: selected.topWingCompression * (1 - pitchAmount * 0.05)
+  };
+}
+
+function getForcedRoughWingPosePreset() {
+  let source = typeof globalThis !== "undefined" ? globalThis : window;
+  let value = source && source.__flutterLensForcedRoughWingPosePreset;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function selectWeightedRoughWingPreset(g, presets) {
+  let totalWeight = presets.reduce((sum, preset) => sum + preset.weight, 0);
+  let roll = roughRandom(g, 0, totalWeight);
+
+  for (let preset of presets) {
+    roll -= preset.weight;
+    if (roll <= 0) return preset;
+  }
+
+  return presets[0];
+}
+
 function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color2, wingColorFillType = 0, wingColorLineType = 0, wingLineColorSet = 0, bodyPlan = null) {
   g.push();
   g.colorMode(HSB, 360, 100, 100, 255);
@@ -126,9 +242,10 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
 
   return {
     fore: {
-      yOff: rootY - roughRandom(g, 0.28 * u, 0.52 * u) + phase.lift * 0.28 * u,
+      hingeY: rootY,
+      rootOffsetY: -roughRandom(g, 0.12 * u, 0.22 * u) + phase.lift * 0.14 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.88, 1.08),
-      rotation: roughRandom(g, -0.13, -0.02) + phase.rot,
+      rotation: roughRandom(g, -7.2, -1.6) + phase.rot,
       scaleX: 1,
       scaleY: roughRandom(g, 0.72, 0.82) * (1 - portraitAmount * 0.1),
       params: {
@@ -139,9 +256,10 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
       }
     },
     hind: {
-      yOff: rootY + roughRandom(g, 2.05 * u, 2.75 * u) * hindDropCompression + phase.lift * 0.16 * u,
+      hingeY: rootY,
+      rootOffsetY: roughRandom(g, 0.24 * u, 0.46 * u) * hindDropCompression + phase.lift * 0.1 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.58, 0.76),
-      rotation: roughRandom(g, 0.22, 0.38) + phase.rot * 0.62,
+      rotation: roughRandom(g, 10.5, 18.0) + phase.rot * 0.62,
       scaleX: roughRandom(g, 0.9, 1.02),
       scaleY: roughRandom(g, 0.88, 1.06) * (1 - portraitAmount * 0.22),
       params: {
@@ -232,15 +350,19 @@ function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, 
 function drawRoughWingSideFromPlan(g, seedValue, side, pairPlan, pairRot, pairScaleX, pairScaleY, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan, posePlan) {
   let isNear = posePlan && side === posePlan.nearSide;
   let depthScale = posePlan ? (isNear ? posePlan.nearScale : posePlan.farScale) : 1;
+  let depthScaleY = posePlan ? (isNear ? posePlan.nearScaleY : posePlan.farScaleY) : 1;
   let depthY = posePlan ? (isNear ? posePlan.nearYOffset : posePlan.farYOffset) : 0;
-  let rootSkew = posePlan ? posePlan.rootSkew * (isNear ? 0.34 : -0.2) : 0;
+  let rootSkew = posePlan ? posePlan.rootSkew * (isNear ? 0.22 : -0.14) : 0;
   let depthRot = posePlan ? posePlan.depthTilt * (isNear ? 1 : -0.7) : 0;
   let strokeSeed = side > 0 ? seedValue : seedValue + 9999;
+  let hingeY = typeof pairPlan.hingeY === "number" ? pairPlan.hingeY : pairPlan.yOff;
+  let rootOffsetY = pairPlan.rootOffsetY || 0;
 
   g.push();
-  g.translate(side * pairPlan.rootHalfWidth + rootSkew, pairPlan.yOff + depthY);
+  g.translate(side * pairPlan.rootHalfWidth + rootSkew, hingeY + depthY);
   g.rotate(side * pairRot + depthRot);
-  g.scale(side * pairScaleX * depthScale, pairScaleY * (posePlan && !isNear ? 0.82 : 1));
+  g.translate(0, rootOffsetY);
+  g.scale(side * pairScaleX * depthScale, pairScaleY * depthScaleY);
   drawRoughWing(g, strokeSeed, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
   g.pop();
 }
