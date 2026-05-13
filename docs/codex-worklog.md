@@ -2296,3 +2296,79 @@ CDP + fake camera 仍不能取代真實手機 AR 測試。所有 screen rotation
 
 #### 建議的下一步
 下一步可新增 debug / forced screen rotation plan 入口，讓測試能指定 `uprightHover`、`diagonalRiseLeft`、`diagonalRiseRight`、`sideDriftLeft`、`sideDriftRight` 逐張截圖比較。若使用者想先維持現狀，也可以回頭檢查 body / wing 內部 rotate 的角度模式，但應另開一輪。
+
+---
+
+### 2026-05-13 — rough butterfly 對稱斑點與亮暗斑點規則
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+將 rough butterfly 翅膀花紋中的斑點改成左右對稱分布，並依翅膀本體平均亮度切換亮斑或暗斑，同時保留未來擴充斑點分布模式的架構。
+
+#### 使用者需求
+使用者希望翅膀花紋上的斑點分布位置左右對稱，參考真蝴蝶圖像中左右翅相互呼應的斑點與眼斑。使用者進一步補充：若翅膀本體顏色主要偏暗，畫的可能就是白斑；若本體偏亮時則畫黑斑，之後也可能擴充斑點分布模式。
+
+#### 實作前理解
+`RoughInsectWings.js` 中同一對翅膀已共用 `baseOutline` 與 `roughPattern`，左右翅透過 `g.scale(side * ...)` 做鏡像，因此大輪廓可對稱。但斑點原本在 `drawRoughWingRimSpots()` 與 `drawRoughWingEyeSpots()` 內依單側繪製流程即時 random，加上左右翅使用不同 `strokeSeed`，導致左右斑點位置不會穩定對稱。正確做法應是先建立一份共用的斑點位置計畫，再讓左右翅在各自鏡像 transform 中畫同一份 local 座標。
+
+#### 實作方案
+在 `drawRoughWingPairFromPlan()` 產生 `baseOutline` 後，先計算 `bounds`、`center`、`colorProfile` 與 `symmetricSpotPlan`。新增 `createRoughWingSpotPlan()` 生成共用斑點資料，包含 `rimSpots`、`innerSpots`、`eyeSpots`，並保留 `rim-chain`、`inner-scatter`、`rim-and-inner` 三種模式骨架。新增 `createRoughWingSpotPalette()` 依 `averageBrightness` 決定 `dark-on-light` 或 `light-on-dark`，讓亮翅偏黑斑、暗翅偏白斑。`drawRoughWingButterflyPattern()` 若收到 `patternPlan.spotPlan`，改由 `drawRoughWingSpotPlan()` 使用共用座標繪製；若沒有 spot plan，仍保留舊 fallback。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+斑點對稱只鎖定「分布位置」，不是把整隻翅膀的所有筆觸變成完全一致。左右翅仍可保留外輪廓、粒子筆觸與 brush roughness 的手繪差異。斑點顏色被獨立成 `spotPalette`，避免未來新增分布模式時重寫明暗判斷。第一次截圖後，Codex 判斷斑點太含蓄，因此提高斑點 alpha、半徑與內側斑點數量，讓手機 viewport 上能看出新行為。
+
+#### 遇到的問題
+第一輪 `sym-spots-20260513` 截圖中，亮綠 fake camera 背景與亮綠翅膀讓暗斑不夠明顯，黑斑容易被翅脈線吃掉。`colorToBrushPaint()` 會用 fallback alpha 作為上限，初版 `getRoughWingSpotPaint()` 傳入的 alpha cap 偏低，也讓斑點可讀性不足。
+
+#### 嘗試過的解法
+先跑 `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 確認語法。接著跑 `scripts/run-cdp-visual-test.ps1 -RunId "sym-spots-20260513" -ForcedFinalPitch 0 -ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36` 做第一輪 CDP 截圖。觀察後調高 `rimSpots` / `innerSpots` 的數量與半徑，並提高 `getRoughWingSpotPaint()` 的 alpha cap，再跑第二輪 `sym-spots-20260513-v2`。
+
+#### 最終解法
+`drawRoughWingPairFromPlan()` 現在為每一對 forewing / hindwing 建立一份 `symmetricSpotPlan`，並包進 `resolvedWingStylePlan.pattern.spotPlan` 傳給左右翅。`createRoughWingSpotPlan()` 產生同一組 local 斑點座標，因此左右翅經由原本鏡像 transform 會自然對稱。`createRoughWingSpotPalette()` 依 `averageBrightness >= 58` 選擇 `dark-on-light` 或 `light-on-dark`，並提供 `primary`、`secondary`、`core` 三個 paint role 給 rim spots、inner spots 與 eye spots 使用。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 第一輪 Run id：`sym-spots-20260513`
+- 第二輪 Run id：`sym-spots-20260513-v2`
+- Camera：Chrome fake camera 預設亮綠畫面
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/sym-spots-20260513-v2/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：第二輪 compact viewport 中蝴蝶本體較清楚，可看到左右翅斑點與點列有成對呼應；portrait 中昆蟲與亮綠形狀部分重疊，仍能確認流程但不適合做細節審美判斷。
+
+#### Codex 審美自評
+本輪約 `7.1/10`。優點是斑點分布開始像真蝴蝶一樣左右呼應，而且明暗斑點規則與分布模式骨架已經清楚。弱點是 fake camera 的亮綠背景太極端，亮綠翅膀上的黑斑仍會和翅脈線競爭；目前是架構與方向成立，但還不到漂亮完成版。
+
+#### 使用者審美回饋
+使用者提出希望斑點分布位置左右對稱，並明確補充暗色翅膀可用白斑、亮色翅膀可用黑斑，之後可能擴充更多斑點分布模式。
+
+#### 尚未解決的風險
+尚未用真實手機 AR / camera 驗證，也尚未固定深色翅膀 seed 來檢查白斑效果。`rim-chain`、`inner-scatter`、`rim-and-inner` 目前是骨架，還不是完整的蝴蝶品種花紋語法。若斑點加太多，可能與 body 及翅脈搶視覺，後續需要依使用者回饋微調密度。
+
+#### 使用者回饋或修正
+等待使用者看截圖或實機後評估：斑點是否夠明顯、是否太像印章、黑斑 / 白斑規則是否符合預期，以及下一步想擴充哪一種分布模式。
+
+#### 建議的下一步
+建議下一步新增可 forced wing brightness / palette 的 debug 測試入口，分別固定暗色翅膀與亮色翅膀截圖，確認白斑與黑斑都可讀。若使用者想先做美術方向，可優先擴充「外緣珠串」或「翅中黑點群」兩種真蝴蝶常見模式。

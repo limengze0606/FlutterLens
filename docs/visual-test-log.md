@@ -1361,3 +1361,49 @@ Codex 自評：`7.4/10`。優點是 plan 差異終於清楚進到畫面，compac
 
 ### 備註 / 風險
 本輪只修正 `createRoughScreenRotationPlan()`；專案其他 `rotate()` 仍可能受到全域 `angleMode(DEGREES)` 影響，但依使用者要求，本輪沒有擴大修改。後續若檢查 body 或 wing 內部角度，應另開一輪避免混入本次地基修正。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+讓 rough butterfly 翅膀花紋上的斑點分布位置左右對稱，並依翅膀本體亮度選擇暗底白斑或亮底黑斑。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera：Chrome fake camera 預設亮綠畫面
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+同一對翅膀應共用一份 `spotPlan`，讓 rim spots、inner spots、eye spots 的分布位置經由既有左右鏡像 transform 呈現對稱。翅膀平均亮度偏暗時應產生白斑 / 淺斑，平均亮度偏亮時應產生黑斑 / 深斑。斑點位置應對稱，但筆刷粗糙邊緣仍可保留手繪感。
+
+### 實際觀察
+`sym-spots-20260513-v2` 中三個 viewport 都成功完成 Start → Scanning → Result；portrait 完成 Save / Back。compact viewport 中蝴蝶本體較清楚，可看到左右翅斑點與點列有成對呼應，不再像各側獨立亂數散布。因 fake camera 與翅膀顏色都偏亮綠，本輪實際呈現以暗斑為主；暗斑比第一輪加強後更可讀，但仍會與翅脈線競爭。
+
+### 截圖
+- portrait：`docs/cdp-runs/sym-spots-20260513-v2/screenshots/sym-spots-20260513-v2-default-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/sym-spots-20260513-v2/screenshots/sym-spots-20260513-v2-default-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/sym-spots-20260513-v2/screenshots/sym-spots-20260513-v2-default-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.1/10`。優點是斑點開始有真蝴蝶常見的左右呼應感，並且明暗斑點規則已進入可擴充架構。弱點是目前 fake camera 的亮綠背景讓亮綠翅膀與暗斑都不夠漂亮，黑點容易和翅脈混成一團；視覺方向成立，但還需要用更接近真實相機的背景測白斑 / 黑斑的細節比例。
+
+### 使用者審美回饋
+使用者希望翅膀花紋上的斑點分布位置左右對稱，並補充：若翅膀本體顏色偏暗，可能應畫白斑；若本體偏亮，則畫黑斑；之後也可能擴充不同斑點分布模式。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機相機背景下，暗底白斑與亮底黑斑是否都清楚
+- [ ] 斑點對稱是否自然，不會像太機械的印章
+- [ ] 小螢幕上斑點是否被翅脈、body 或 Save / Back 按鈕遮擋
+- [ ] 後續新增分布模式時，確認每種模式都保留左右對稱位置
+
+### 備註 / 風險
+本輪主要驗證 fake camera 和三個 viewport。尚未用真實手機 AR / camera 驗證，也尚未針對暗色翅膀 seed 截圖確認白斑效果。若後續要精修，應加入可指定或固定深色 / 淺色 wing palette 的測試入口。
