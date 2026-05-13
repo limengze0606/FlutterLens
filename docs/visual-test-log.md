@@ -1407,3 +1407,50 @@ Codex 自評：`7.1/10`。優點是斑點開始有真蝴蝶常見的左右呼應
 
 ### 備註 / 風險
 本輪主要驗證 fake camera 和三個 viewport。尚未用真實手機 AR / camera 驗證，也尚未針對暗色翅膀 seed 截圖確認白斑效果。若後續要精修，應加入可指定或固定深色 / 淺色 wing palette 的測試入口。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+將 rough butterfly 翅膀中的 p5.brush 筆刷設定抽出到獨立檔案，讓外輪廓、翅脈、底色粒子、斑點與高光等層次更容易集中調整。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+新增的 `RoughWingBrushSettings.js` 應在 `RoughInsectWings.js` 前載入。重構後應維持原本翅膀幾何與斑點分布，不因設定抽離而改變主要視覺；Start、Scanning、Result、Save / Back 流程應正常。
+
+### 實際觀察
+`rough-wing-brush-settings-refactor-2026-05-13` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。截圖中昆蟲、翅膀輪廓、翅脈、斑點、body 與觸角皆正常出現，未看到因新檔案載入順序造成的 `undefined` 或空白畫面。視覺大致維持重構前的方向；植物背景上黑色翅脈與斑點仍偏搶眼，但本輪沒有主動改粗細或密度。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-wing-brush-settings-refactor-2026-05-13/screenshots/rough-wing-brush-settings-refactor-2026-05-13-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-wing-brush-settings-refactor-2026-05-13/screenshots/rough-wing-brush-settings-refactor-2026-05-13-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-wing-brush-settings-refactor-2026-05-13/screenshots/rough-wing-brush-settings-refactor-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.0/10`。優點是重構沒有破壞既有手繪翅膀結構，斑點與翅脈仍可讀；現在也更容易分層調整筆刷強度。弱點是視覺本身沒有變漂亮，黑色線條在綠色植物背景中仍會與葉片紋理競爭；若下一輪要精修，可優先降低 `voronoi.strokeWeight` 或 `patternDot.strokeWeight`。
+
+### 使用者審美回饋
+使用者表示自己私下修改過翅膀斑點模式，日誌沒有紀錄；本輪要求將昆蟲翅膀中硬編碼的筆刷設定獨立出來，方便調整每個部份效果，並指定 `ROUGH_WING_BRUSH_SETTINGS` 可以獨立成一份檔案。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機相機背景下確認新設定檔載入穩定
+- [ ] 調整 `RoughWingBrushSettings.js` 後確認各層粗細變化是否符合預期
+- [ ] 檢查黑色翅脈與斑點在暗背景上是否太重
+- [ ] 若後續修改斑點模式，先保護使用者私下修改過的現行邏輯
+
+### 備註 / 風險
+本輪是設定抽離，不是美術精修。斑點分布與路徑邏輯刻意不重寫，因此使用者私下改過的斑點模式應以目前檔案內容延續。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
