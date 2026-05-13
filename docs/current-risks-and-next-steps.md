@@ -6,7 +6,7 @@
 
 - CDP + fake camera 不能取代真實手機 AR / camera 測試。
 - 真實手機上的相機權限、後鏡頭、HTTPS、DeviceOrientation、觸控手感與效能仍需人工確認。
-- Rough butterfly body 目前退回三個空心輪廓地基，並加回兩條簡單觸角；`brushWeight` helper option 已從 body 檔清掉，輪廓粗細統一由 `strokeWeight` 控制。加粗線條、拉長腹部與加入觸角後結構更可讀，但仍需使用者確認比例是否符合後續發展方向。
+- Rough butterfly body 已從三個空心輪廓推進到 p5.brush 填色版本，包含頭胸腹填色與腹部環狀紋理。Body 色彩可取自然黑 / 褐、翅膀主色或翅膀對比色；依使用者修正，主色或對比色不必一律降彩度。仍需使用者確認高彩度 body 是否太搶，以及深綠黑 body 在葉片背景上是否足夠可讀。
 - rough insect 的整體畫布方向已改成離散 `screen rotation plan`，並移除雙重 random rotate；目前只控制整隻昆蟲的畫面朝向，不改 body 編排或翅膀變形。因 `sketch.js` 設定 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 需直接使用 degree 數值。
 - rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱。一般 rim / inner 斑點仍依翅膀平均亮度切換亮斑 / 暗斑；只有 EyeSpots 改用獨立 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。仍需用多 seed 或強制模式確認互補色眼紋在不同底色下是否過飽和、過重或被翅脈吃掉。
 - 使用者在本輪前私下修改過翅膀斑點模式，日誌沒有完整記錄。後續若改斑點分布，必須先讀目前 `RoughInsectWings.js`，以現行程式為準，不可依舊 worklog 還原或覆蓋。
@@ -26,8 +26,8 @@
 
 目前最合理的下一輪方向取決於使用者對三輪廓 body 地基的評分：
 
-- 若頭、胸、腹與觸角比例可接受：下一步可逐層加回腹部分節或少量筆觸質感。
-- 若 body 線條太重或與翅膀內線搶視覺：先微調 `strokeWeight` 區間或降低翅膀內線干擾，不急著加姿態。
+- 若頭、胸、腹填色與環紋比例可接受：下一步可逐層加回姿態投影、腿部暗示或更細的觸角 / 頭部細節。
+- 若 body 色彩太搶或與翅膀內線競爭：先調 `createRoughBodyColorPlan()` 的亮度 / 彩度區間、`drawRoughFilledBodyOval()` 的 alpha / passes，或降低 body 輪廓與環紋重量，不急著加姿態。
 - 若使用者認為地基已穩：再開始設計離散 pose preset，並讓三輪廓 body 與 wing root 一起投影。
 - 若要先確認整體轉向：調整 `Pages/ResultPage/InsectGenerator/InsectManager.js` 的 `createRoughScreenRotationPlan()`，觀察 `baseAngle`、`jitter`、`weight` 是否讓不同 plan 的方向差異足夠明顯。
 - 若要繼續翅膀花紋：可在 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 擴充 `createRoughWingSpotPlan()` 的 mode，例如外緣珠串、翅中黑點群、眼斑列、翅脈旁點列；調整前應先決定每種模式對應的真蝴蝶參考語法。若要專門精修眼紋，建議先增加 forced eye-spot 測試入口，避免每輪都賭隨機 seed。

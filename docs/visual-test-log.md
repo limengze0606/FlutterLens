@@ -1640,3 +1640,50 @@ Codex 自評：`7.2/10`。優點是 palette 職責更準確，一般斑點不再
 
 ### 備註 / 風險
 本輪修正的是 palette 分流，視覺截圖可確認一般斑點未被互補色污染，但無法完整評估 EyeSpots 互補色本身。下一步若要審美判斷眼紋，仍建議新增 forced eye-spot 測試入口。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+替 rough butterfly 身體新增 p5.brush 填色與腹部環狀紋理。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+Body 不應再只有空心輪廓；頭、胸、腹應有手繪填色。Body 色彩可使用黑 / 褐、翅膀主色或翅膀對比色，且主色與對比色不必一律降彩度。腹部可出現低調環狀紋理。Start、Scanning、Result、Save / Back 流程不應回歸。
+
+### 實際觀察
+`body-color-fill-2026-05-14` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。portrait 截圖可見偏紫褐的頭胸腹填色與腹部細環紋；compact 截圖 body 偏深綠黑，與翅膀融合但仍能靠輪廓讀出頭胸腹；landscape 中昆蟲可見，但 Save / Back 按鈕靠近昆蟲，仍需注意構圖遮擋。
+
+### 截圖
+- portrait：`docs/cdp-runs/body-color-fill-2026-05-14/screenshots/body-color-fill-2026-05-14-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/body-color-fill-2026-05-14/screenshots/body-color-fill-2026-05-14-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/body-color-fill-2026-05-14/screenshots/body-color-fill-2026-05-14-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.5/10`。優點是 body 由空心輪廓變成有實體質感的中心結構，偏紫褐版本與綠色翅膀形成好看的色相差，腹部環紋讓昆蟲感更明確。弱點是深綠黑版本在葉片背景中仍略低調，環紋在小尺寸下需要依靠輪廓才看得清；landscape 中按鈕仍接近昆蟲。這輪沒有再做第二次視覺調整，原因是目前 body 已可讀，若再加重填色或環紋可能回到中心線條太重、與翅膀搶視覺的問題。
+
+### 使用者審美回饋
+使用者提出身體上色方向：筆刷先比照翅膀，頭胸腹顏色可不同也可相同，可使用常見黑或褐色、翅膀主色或其對比色，腹部也可加環狀紋理。使用者後續修正：body 色彩不一定要將主色和對比色調成低彩度。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機相機確認高彩度 body 在不同背景上不會過飽和
+- [ ] 用多 seed 檢查黑 / 褐、主色、對比色 body 的出現比例與可讀性
+- [ ] 若 body 太搶，先降低 `createRoughBodyColorPlan()` 的 brightness 或 `drawRoughFilledBodyOval()` 的 alpha / passes
+- [ ] 若腹部環紋太弱，先增加 `abdomenBandWeight` 或 `abdomenBandCount`
+
+### 備註 / 風險
+本輪 CDP + fixture 可確認 UI 流程與初步視覺，但不能取代真實手機 AR / camera 測試。Body palette 仍是 seed 隨機，尚未做多 seed 截圖矩陣。

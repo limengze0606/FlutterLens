@@ -182,8 +182,7 @@ function createRoughButterflyWingStylePlan(g, color1, color2) {
     colorProfile,
     pattern: {
       highContrast,
-      //useEyeSpots: !highContrast && archetypeRoll > 0.78,
-      useEyeSpots: true,
+      useEyeSpots: !highContrast && archetypeRoll > 0.78,
       useRadialBands: highContrast || archetypeRoll < 0.72
     }
   };
@@ -1265,7 +1264,7 @@ function drawRoughWingButterflyPattern(g, root, center, outline, bounds, colorPr
     ? patternPlan.useRadialBands
     : highContrast || roughRandom(g, 0, 1) < 0.72;
 
-  drawRoughWingRimBand(g, center, outline, colorProfile);
+  //drawRoughWingRimBand(g, center, outline, colorProfile);
   if (useRadialBands) drawRoughWingRadialBands(g, root, center, outline, bounds, colorProfile, highContrast);
   if (patternPlan && patternPlan.spotPlan) {
     drawRoughWingSpotPlan(g, root, center, outline, bounds, colorProfile, patternPlan.spotPlan, useEyeSpots);

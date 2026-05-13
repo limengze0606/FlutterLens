@@ -152,7 +152,7 @@ function drawRoughInsect(insectLayer, x, y) {
         let color1 = topColors[0];
         let color2 = topColors[1];
         drawRoughInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet, roughBodyPlan);
-        drawRoughInsectBody(insectLayer, roughBodyPlan, currentSeed);
+        drawRoughInsectBody(insectLayer, roughBodyPlan, currentSeed, color1, color2);
         // drawInsectBody(insectLayer, insectType, currentSeed);
     }
     

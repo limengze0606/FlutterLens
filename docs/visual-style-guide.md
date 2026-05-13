@@ -25,15 +25,15 @@
 - 已加入第一版偽 3D pose / flap phase，讓左右翅有近遠側差異與半收翅 silhouette。
 - 使用者對 pose / flap v2 給 `6.5/10`：有變化，但不夠明顯，body 不夠帶動全身。
 - 後續強化 body axis 後，Codex 自評約 `7/10`，使用者認同「body 已較清楚，但下一步應做離散 pose preset」的方向。
-- 最新版本依使用者要求回頭打地基：先停用 rough butterfly posePlan，將 body 簡化為頭、胸、腹三個空心輪廓，不填色、不畫分節。後續清理 `brushWeight` / `strokeWeight` 混淆，身體線寬統一交給 `strokeWeight`，並把輪廓加粗、腹部拉長；最新加入兩條簡單觸角線。Codex 自評約 `7.2/10`，優點是結構更清楚、腹部更像昆蟲主軸，觸角讓頭部方向更像昆蟲；弱點是觸角仍偏符號，黑線較重，會與翅膀內部線條競爭。
+- 最新 body 版本在頭、胸、腹三輪廓地基上新增 p5.brush 填色與腹部環狀紋理。Body palette 會在自然黑 / 褐色、翅膀主色、翅膀對比色之間選擇，且不強制把主色或對比色降成低彩度；有些 seed 可保留較高彩度，讓中心身體也有設計感。Codex 以 `greenPlants.jpg` fixture 自評約 `7.5/10`：優點是 body 不再空心，紫褐或深綠黑的頭胸腹能壓住中心結構，腹部環紋增加昆蟲感；弱點是深綠黑版本在葉片背景上仍可能偏隱，landscape 中 Save / Back 按鈕仍靠近昆蟲。
 - 2026-05-13 起，rough butterfly 的翅膀斑點改成 plan-based 對稱分布：同一對翅膀共用 `spotPlan`，左右翅藉由既有鏡像 transform 呈現對稱位置；後續依使用者澄清，只有 EyeSpots 使用不看 `averageBrightness` 的高彩度 hue 互補色，`rim-chain` 與 `inner-scatter` 等一般斑點仍使用原本 `spotPalette` 的亮斑 / 暗斑規則。
 - 使用者後續曾私下修改翅膀斑點模式，日誌未完整記錄；未來若調整斑點圖案，需以目前 `RoughInsectWings.js` 的實際程式為準，避免用舊紀錄覆蓋使用者手改的視覺意圖。
 - 翅膀各層 p5.brush 視覺強度目前集中於 `RoughWingBrushSettings.js`。依 `docs/llms.txt`，`brush.set()` 第三參數與 `brush.strokeWeight()` 都是 weight multiplier，因此目前不再暴露 `brushLoad`；視覺調參時可優先從各層 `strokeWeight`、`pressureBase`、`pressureTaper`、`vertexPressure`、`alpha` 下手，而不是直接改分布邏輯。斑點已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`：rim-chain 可偏乾、偏細；inner-scatter 可較柔、較厚；眼紋可外圈穩、中層柔、核心銳利。
 
 ## 目前視覺弱點
 
-- Body 在深綠或暗背景上仍可能被吃掉，仍偏依賴黑色輪廓與少量 highlight。
-- Body 目前是三個空心輪廓加兩條簡單觸角，結構比前一版更單純，腹部已拉長、輪廓已加粗；若後續加回細節，需避免黑色線條過重，或讓中心結構再次被翅膀內線與裝飾淹沒。
+- Body 已有 p5.brush 填色與腹部環紋，但深綠黑版本在 greenPlants 這類背景上仍可能偏隱，仍需靠黑色輪廓保住可讀性。
+- Body 目前仍是三輪廓加兩條簡單觸角的地基，只是新增填色與環紋；若後續加回姿態或更多細節，需避免黑色線條、彩色 body 與翅膀內線互相競爭。
 - 翅膀斑點已能左右呼應；一般斑點保留亮斑 / 暗斑規則，避免整片斑點都變成互補色。EyeSpots 已獨立接上高彩度互補色 palette，但目前仍需用多 seed 或強制眼紋模式確認紫色眼紋在不同背景上的比例與層次。
 - Pose 系統仍偏連續隨機值，缺乏一眼可辨的離散姿態 preset。
 - Landscape forced spawn 曾讓昆蟲靠近畫面上緣，評估構圖時需調整 spawn ratio。
@@ -49,7 +49,7 @@
 
 ## 後續審美優先順序
 
-1. 先請使用者評估三輪廓 body 地基是否成立，尤其是頭、胸、腹比例與可讀性。
-2. 若地基成立，再逐步加回觸角、分節、筆觸質感或少量內部結構，每次只加一層。
+1. 先請使用者評估 body 填色與腹部環紋是否讓頭、胸、腹比例更成立，尤其是高彩度 body 是否太搶或剛好。
+2. 若地基成立，再逐步加回姿態、觸角細節、腿部暗示或少量內部結構，每次只加一層。
 3. 做離散 pose preset 前，需決定三輪廓 body 如何隨姿態投影，而不是直接回到連續隨機變形。
 4. 用固定 spawn 與 fixtures 做多 viewport 截圖，確保判讀不被 UI 遮擋。

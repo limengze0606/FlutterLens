@@ -6,13 +6,13 @@ function createRoughInsectBodyPlan(g, seedValue, insectType) {
   let u = insectBaseUnit;
   let centerDriftX = roughRandom(g, -0.12 * u, 0.12 * u);
   let rootY = roughRandom(g, 0.12 * u, 0.26 * u);
-  let headY = rootY - roughRandom(g, 1.24 * u, 1.46 * u);
-  let thoraxY = rootY + roughRandom(g, 0.18 * u, 0.36 * u);
-  let abdomenY = rootY + roughRandom(g, 0.9 * u, 1.2 * u);
+  let headY = rootY - roughRandom(g, 0.6 * u, 0.7 * u);
+  let thoraxY = rootY + roughRandom(g, 0.18 * u, 0.25 * u);
+  let abdomenY = rootY + roughRandom(g, 0.6 * u, 0.8 * u);
   let bottomY = abdomenY + roughRandom(g, 6 * u, 8 * u);
-  let headRx = roughRandom(g, 0.5 * u, 0.62 * u);
-  let thoraxRx = roughRandom(g, 0.76 * u, 0.94 * u);
-  let abdomenRx = roughRandom(g, 0.66 * u, 0.82 * u);
+  let headRx = roughRandom(g, 0.4 * u, 0.5 * u);
+  let thoraxRx = roughRandom(g, 0.4 * u, 0.5 * u);
+  let abdomenRx = roughRandom(g, 0.35 * u, 0.45 * u);
 
   return {
     insectType,
@@ -36,7 +36,7 @@ function createRoughInsectBodyPlan(g, seedValue, insectType) {
         x: centerDriftX,
         y: thoraxY,
         rx: thoraxRx,
-        ry: roughRandom(g, 0.96 * u, 1.18 * u),
+        ry: roughRandom(g, 0.7 * u, 0.9 * u),
         rotation: 0
       },
       abdomen: {
@@ -53,7 +53,7 @@ function createRoughInsectBodyPlan(g, seedValue, insectType) {
   };
 }
 
-function drawRoughInsectBody(g, bodyPlan, seedValue) {
+function drawRoughInsectBody(g, bodyPlan, seedValue, wingColor1 = null, wingColor2 = null) {
   if (!bodyPlan || bodyPlan.insectType !== 0) return;
 
   setRoughSeed(g, seedValue + 719);
@@ -63,10 +63,221 @@ function drawRoughInsectBody(g, bodyPlan, seedValue) {
 
   let u = insectBaseUnit;
   let ink = "#050504";
+  let colorPlan = createRoughBodyColorPlan(g, seedValue, wingColor1, wingColor2);
 
+  drawRoughBodyColorMasses(g, bodyPlan, colorPlan, u);
   drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
 
   g.pop();
+}
+
+function createRoughBodyColorPlan(g, seedValue, wingColor1, wingColor2) {
+  setRoughSeed(g, seedValue + 947);
+
+  let first = makeRoughBodyWingColorStats(wingColor1, 28, 42, 22);
+  let second = makeRoughBodyWingColorStats(wingColor2, wrapHue(first.h + 142), 48, 28);
+  let stronger = first.s + first.b * 0.32 >= second.s + second.b * 0.32 ? first : second;
+  let quieter = stronger === first ? second : first;
+  let complement = {
+    h: wrapHue(stronger.h + roughRandom(g, 154, 206)),
+    s: g.constrain(stronger.s + roughRandom(g, -8, 18), 24, 96),
+    b: g.constrain(stronger.b + roughRandom(g, -24, 8), 18, 78)
+  };
+
+  let naturalPalettes = [
+    {
+      headThorax: { h: 34, s: 28, b: 10 },
+      abdomen: { h: 30, s: 44, b: 20 },
+      bands: { h: 28, s: 34, b: 7 }
+    },
+    {
+      headThorax: { h: 24, s: 52, b: 18 },
+      abdomen: { h: 18, s: 64, b: 28 },
+      bands: { h: 20, s: 48, b: 9 }
+    },
+    {
+      headThorax: { h: 0, s: 0, b: 7 },
+      abdomen: { h: 38, s: 34, b: 18 },
+      bands: { h: 0, s: 0, b: 4 }
+    }
+  ];
+
+  let linkedPalettes = [
+    {
+      headThorax: tuneRoughBodyHSB(g, stronger, { sat: [-8, 10], bri: [-36, -12] }),
+      abdomen: tuneRoughBodyHSB(g, quieter, { sat: [-6, 16], bri: [-30, -6] }),
+      bands: tuneRoughBodyHSB(g, stronger, { sat: [-10, 8], bri: [-48, -26] })
+    },
+    {
+      headThorax: tuneRoughBodyHSB(g, complement, { sat: [-4, 12], bri: [-34, -8] }),
+      abdomen: tuneRoughBodyHSB(g, stronger, { sat: [0, 18], bri: [-28, 2] }),
+      bands: tuneRoughBodyHSB(g, complement, { sat: [4, 18], bri: [-48, -24] })
+    },
+    {
+      headThorax: tuneRoughBodyHSB(g, stronger, { sat: [4, 20], bri: [-24, 0] }),
+      abdomen: tuneRoughBodyHSB(g, complement, { sat: [2, 22], bri: [-26, 4] }),
+      bands: tuneRoughBodyHSB(g, quieter, { sat: [-2, 18], bri: [-42, -18] })
+    }
+  ];
+
+  let paletteRoll = roughRandom(g, 0, 1);
+  let palettes = paletteRoll < 0.38 ? naturalPalettes : linkedPalettes;
+  let selected = palettes[Math.min(palettes.length - 1, Math.floor(roughRandom(g, 0, palettes.length)))];
+  let sameBodyColor = roughRandom(g, 0, 1) < 0.34;
+  let headThorax = selected.headThorax;
+  let abdomen = sameBodyColor ? selected.headThorax : selected.abdomen;
+
+  return {
+    head: makeRoughBodyPaint(headThorax, roughRandom(g, 176, 222)),
+    thorax: makeRoughBodyPaint(headThorax, roughRandom(g, 184, 232)),
+    abdomen: makeRoughBodyPaint(abdomen, roughRandom(g, 164, 218)),
+    band: makeRoughBodyPaint(selected.bands, roughRandom(g, 136, 196)),
+    fillPasses: Math.floor(roughRandom(g, 2, 4.99)),
+    abdomenBandCount: Math.floor(roughRandom(g, 4, 7.99)),
+    abdomenBandWeight: roughRandom(g, 0.42, 0.72),
+    abdomenBandChance: roughRandom(g, 0, 1) < 0.82 ? 1 : 0
+  };
+}
+
+function makeRoughBodyWingColorStats(sourceColor, fallbackH, fallbackS, fallbackB) {
+  if (!sourceColor || typeof sourceColor.h_adj !== "number") {
+    return { h: fallbackH, s: fallbackS, b: fallbackB };
+  }
+
+  return {
+    h: wrapHue(sourceColor.h_adj),
+    s: Math.max(0, Math.min(100, sourceColor.s_adj)),
+    b: Math.max(0, Math.min(100, sourceColor.b_adj))
+  };
+}
+
+function tuneRoughBodyHSB(g, source, ranges) {
+  return {
+    h: wrapHue(source.h + roughRandom(g, -10, 10)),
+    s: g.constrain(source.s + roughRandom(g, ranges.sat[0], ranges.sat[1]), 12, 100),
+    b: g.constrain(source.b + roughRandom(g, ranges.bri[0], ranges.bri[1]), 8, 82)
+  };
+}
+
+function makeRoughBodyPaint(hsb, alphaValue) {
+  let rgb = hsbToRgb(hsb.h, hsb.s, hsb.b);
+  return {
+    roughPaintColor: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+    roughPaintAlpha: alphaValue,
+    levels: [rgb.r, rgb.g, rgb.b, alphaValue]
+  };
+}
+
+function drawRoughBodyColorMasses(g, plan, colorPlan, u) {
+  if (!plan.anatomy || !colorPlan) return;
+
+  drawRoughFilledBodyOval(g, plan.anatomy.abdomen, colorPlan.abdomen, {
+    passes: colorPlan.fillPasses + 1,
+    strokeWeight: [1.6, 2.8],
+    wobble: 0.07 * u,
+    pressureBase: 0.24,
+    pressureTaper: 0.42
+  });
+  if (colorPlan.abdomenBandChance > 0) {
+    drawRoughAbdomenRingBands(g, plan.anatomy.abdomen, colorPlan, u);
+  }
+  drawRoughFilledBodyOval(g, plan.anatomy.thorax, colorPlan.thorax, {
+    passes: colorPlan.fillPasses,
+    strokeWeight: [1.8, 3.1],
+    wobble: 0.06 * u,
+    pressureBase: 0.26,
+    pressureTaper: 0.46
+  });
+  drawRoughFilledBodyOval(g, plan.anatomy.head, colorPlan.head, {
+    passes: Math.max(2, colorPlan.fillPasses - 1),
+    strokeWeight: [1.35, 2.25],
+    wobble: 0.045 * u,
+    pressureBase: 0.28,
+    pressureTaper: 0.38
+  });
+}
+
+function drawRoughFilledBodyOval(g, oval, paint, options = {}) {
+  let rotation = oval.rotation || 0;
+  let passes = options.passes || 2;
+  let wobble = options.wobble || 0;
+  let paintInfo = colorToBrushPaint(paint, 200);
+
+  if (typeof brush !== "undefined") {
+    if (typeof brush.noHatch === "function") brush.noHatch();
+
+    for (let pass = 0; pass < passes; pass++) {
+      if (typeof brush.fill === "function") brush.fill(paintInfo.color, paintInfo.alpha);
+      if (typeof brush.fillBleed === "function") brush.fillBleed(roughRandom(g, 0.001, 0.006), "out");
+      if (typeof brush.fillTexture === "function") brush.fillTexture(roughRandom(g, 0.05, 0.13), 0.04, false);
+      brush.noStroke();
+      brush.set("marker1", paintInfo.color, 1);
+      brush.beginShape(0.08);
+      let count = 18;
+      for (let i = 0; i <= count; i++) {
+        let t = (i / count) * Math.PI * 2;
+        let taper = Math.sin((i / count) * Math.PI);
+        let grain = roughRandom(g, 0.88, 1.08);
+        let localX = Math.cos(t) * oval.rx * grain + roughRandom(g, -wobble, wobble);
+        let localY = Math.sin(t) * oval.ry * grain + roughRandom(g, -wobble, wobble);
+        let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
+        let pressure = options.pressureBase + taper * options.pressureTaper + roughRandom(g, -0.08, 0.08);
+        brush.vertex(point.x, point.y, Math.max(0.12, Math.min(0.78, pressure)));
+      }
+      brush.endShape(true);
+    }
+
+    brush.noFill();
+    brush.set("marker1", paintInfo.color, 1);
+    brush.stroke(paintInfo.color, Math.min(160, paintInfo.alpha));
+    brush.strokeWeight(roughRandom(g, options.strokeWeight[0], options.strokeWeight[1]) * 0.55);
+    brush.beginShape(0.1);
+    let count = 22;
+    for (let i = 0; i <= count; i++) {
+      let t = (i / count) * Math.PI * 2;
+      let localX = Math.cos(t) * (oval.rx + roughRandom(g, -wobble, wobble));
+      let localY = Math.sin(t) * (oval.ry + roughRandom(g, -wobble, wobble));
+      let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
+      brush.vertex(point.x, point.y, roughRandom(g, 0.18, 0.48));
+    }
+    brush.endShape(true);
+    return;
+  }
+
+  g.push();
+  g.translate(oval.x, oval.y);
+  g.rotate(rotation);
+  g.noStroke();
+  g.fill(paintInfo.color);
+  g.ellipse(0, 0, oval.rx * 1.82, oval.ry * 1.88);
+  g.pop();
+}
+
+function drawRoughAbdomenRingBands(g, abdomen, colorPlan, u) {
+  let count = colorPlan.abdomenBandCount;
+  let bandPaint = colorToBrushPaint(colorPlan.band, 172);
+  let rotation = abdomen.rotation || 0;
+
+  for (let i = 1; i <= count; i++) {
+    let t = i / (count + 1);
+    let localY = g.map(t, 0, 1, -abdomen.ry * 0.72, abdomen.ry * 0.72);
+    let widthRatio = Math.sqrt(Math.max(0, 1 - Math.pow(localY / abdomen.ry, 2)));
+    let halfLen = abdomen.rx * widthRatio * roughRandom(g, 0.76, 0.96);
+    let bow = Math.sin(t * Math.PI) * u * roughRandom(g, 0.025, 0.075);
+    let left = rotateLocalPoint(abdomen.x, abdomen.y, -halfLen, localY - bow, rotation);
+    let mid = rotateLocalPoint(abdomen.x, abdomen.y, roughRandom(g, -0.08 * u, 0.08 * u), localY + bow, rotation);
+    let right = rotateLocalPoint(abdomen.x, abdomen.y, halfLen, localY - bow, rotation);
+
+    drawRoughAntennaLine(g, [
+      [left.x, left.y],
+      [mid.x, mid.y],
+      [right.x, right.y]
+    ], bandPaint.color, {
+      strokeWeight: colorPlan.abdomenBandWeight * roughRandom(g, 0.8, 1.22),
+      jitter: 0.012 * u,
+      alpha: bandPaint.alpha
+    });
+  }
 }
 
 function drawRoughBodySimpleOutline(g, plan, ink, u) {
@@ -122,7 +333,7 @@ function drawRoughAntennaLine(g, points, ink, options = {}) {
   if (typeof brush !== "undefined") {
     brush.noFill();
     brush.set("pencil1", ink, 1);
-    brush.stroke(ink, 238);
+    brush.stroke(ink, options.alpha || 238);
     brush.strokeWeight(options.strokeWeight || 1);
     brush.beginShape(0.18);
     for (let point of points) {

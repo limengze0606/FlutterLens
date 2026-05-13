@@ -61,10 +61,10 @@ var ROUGH_WING_BRUSH_SETTINGS = {
 
   // 邊緣色帶 (對應 drawRoughWingRimBand)
   rimBand: {
-    brushName: "marker1",
-    strokeWeight: [1.15, 2.05],
-    shapeRoughness: 0.05,
-    vertexPressure: [0.18, 0.44] // 頂點壓力，控制顏色的深淺與邊緣模糊度
+    brushName: "marker2",
+    strokeWeight: [6, 8],
+    shapeRoughness: 30,
+    vertexPressure: [0.05, 0.07] // 頂點壓力，控制顏色的深淺與邊緣模糊度
   },
 
   // 放射狀色帶 (對應 drawRoughWingRadialBands)

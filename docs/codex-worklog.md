@@ -2762,3 +2762,81 @@ CDP 測試腳本仍沒有 forced eye-spot 參數；本輪隨機結果沒有抽�
 
 #### 建議的下一步
 若要繼續精修，建議新增 forced eye-spot 測試入口。一般斑點顏色調整應改 `createRoughWingSpotPalette()`；EyeSpots 互補色調整應改 `createRoughWingEyeSpotPalette()`；EyeSpots 形狀與粗細調整仍在 `RoughWingBrushSettings.js` 的 `eyeSpot.ring / middle / core.strokeWeight`。
+
+---
+
+### 2026-05-14 — Rough Butterfly Body 填色與腹部環紋
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+替 rough butterfly 的頭、胸、腹新增 p5.brush 手繪填色，並在腹部加入可隨 seed 變化的環狀紋理。
+
+#### 使用者需求
+使用者希望接著替身體上色，上色筆刷先比照翅膀。頭、胸、腹顏色可以不同也可以完全相同，例如頭胸一個顏色、腹部另一個顏色。顏色範圍可包含常見黑或褐色、翅膀主色或其對比色，腹部也可加環狀紋理。使用者後續修正：body 色彩不一定要將主色和對比色調成低彩度。
+
+#### 實作前理解
+目前 `RoughInsectBody.js` 的 butterfly body 是頭、胸、腹三個空心輪廓加兩條觸角，沒有填色。翅膀先畫、body 後畫，因此 body 填色會位於翅膀上方。翅膀色彩來源是 `InsectManager.js` 中的 `topColors[0]` 與 `topColors[1]`，body 若要引用翅膀主色或對比色，需要從 `drawRoughInsectBody()` 傳入 `color1` / `color2`。
+
+#### 實作方案
+在 `RoughInsectBody.js` 新增 `createRoughBodyColorPlan()`，用 seed 從自然黑 / 褐、翅膀主色、翅膀對比色之間選擇 body palette。主色與對比色不強制低彩度，而是用 brightness / saturation 範圍控制可讀性，保留部分高彩度結果。新增 `drawRoughBodyColorMasses()` 與 `drawRoughFilledBodyOval()`，使用 `marker1`、`brush.fill()`、`fillBleed()`、`fillTexture()` 產生手繪填色。新增 `drawRoughAbdomenRingBands()`，在腹部橢圓內畫 4 到 7 條略彎環紋。最後仍由 `drawRoughBodySimpleOutline()` 畫黑色 pencil 輪廓與觸角，保住結構。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `index.html`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇讓 body 直接重用 `RoughInsectWings.js` 已載入的 `wrapHue()`、`hsbToRgb()`、`colorToBrushPaint()`，避免再建立一套重複色彩轉換。Body palette 保留自然黑褐色，也保留主色 / 對比色高彩度可能性，以符合使用者修正。填色先畫在輪廓之前，輪廓與觸角仍位於最上方，避免填色削弱頭胸腹的可讀性。
+
+#### 遇到的問題
+初版填色若只沿橢圓邊緣走筆，容易變成有色輪廓而不是真正身體上色。因此改用 `brush.fill()`、`fillBleed()`、`fillTexture()` 填滿封閉橢圓，再補一圈較淡的 marker 邊緣筆觸。
+
+#### 嘗試過的解法
+先新增 body color plan 與環紋，再以 parser 檢查 `RoughInsectWings.js`、`RoughInsectBody.js`、`InsectManager.js`。視覺上確認填色語法後，調整 `drawRoughFilledBodyOval()`，讓 body fill 成為真正的封閉形狀填色，而不是只沿邊緣描線。
+
+#### 最終解法
+`drawRoughInsectBody()` 現在可接收 `wingColor1` / `wingColor2`，由 `InsectManager.js` 傳入翅膀色彩。`createRoughBodyColorPlan()` 產生 head、thorax、abdomen、band paint，以及填色 pass、腹部環紋數量與線寬。`drawRoughBodyColorMasses()` 依序畫腹部填色、腹部環紋、胸部填色、頭部填色，再交給既有 `drawRoughBodySimpleOutline()` 畫輪廓與觸角。
+
+#### 視覺驗證紀錄
+- 語法檢查：以 Node `new Function()` parse `RoughInsectWings.js`、`RoughInsectBody.js`、`InsectManager.js`，皆通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`body-color-fill-2026-05-14`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/body-color-fill-2026-05-14/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：三個 viewport 都成功進入 Result，portrait 完成 Save / Back。portrait 可見偏紫褐 body 與腹部細環紋；compact 可見偏深綠黑 body，較融合但仍可讀；landscape 可見昆蟲，但按鈕仍靠近昆蟲。
+
+#### Codex 審美自評
+本輪約 `7.5/10`。優點是 body 不再只是空心三輪廓，中心有實體手繪質感；偏紫褐 body 與綠色翅膀形成舒服的色相差，腹部環紋讓昆蟲感更明確。弱點是深綠黑 body 在葉片背景上仍偏低調，小尺寸下環紋要靠輪廓才容易讀到。這輪沒有再做第二次視覺調整，因為 body 已可讀，再加重填色或環紋可能讓中心與翅膀內線搶視覺。
+
+#### 使用者審美回饋
+使用者提出 body 上色方向，並修正「body 色彩不一定要將主色和對比色調成低彩度」。此回饋已同步到摘要文件。
+
+#### 尚未解決的風險
+尚未用多 seed 檢查黑 / 褐、主色、對比色 body 的比例與穩定性。高彩度 body 在真實手機相機背景上可能過飽和，也可能與翅膀斑點競爭。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
+
+#### 使用者回饋或修正
+等待使用者確認 body 填色、主色 / 對比色彩度、腹部環紋密度是否符合期待。
+
+#### 建議的下一步
+若要調 body 色彩，優先改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `createRoughBodyColorPlan()`：`naturalPalettes` 控制黑 / 褐自然體色，`linkedPalettes` 控制主色與對比色策略，`tuneRoughBodyHSB()` 的 `sat` / `bri` 範圍控制彩度與亮度。若要調填色厚度，改 `drawRoughBodyColorMasses()` 傳給 `drawRoughFilledBodyOval()` 的 `passes`、`strokeWeight`、`pressureBase`、`pressureTaper`；數值提高會讓 body 更重、更顯眼，降低會更透明。若要調腹部環紋，改 `createRoughBodyColorPlan()` 的 `abdomenBandCount`、`abdomenBandWeight` 與 `abdomenBandChance`；數量或線寬提高會更像分節，降低會更簡潔。
