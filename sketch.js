@@ -87,6 +87,19 @@ async function setup() {
     markerTip: true,
     image: {src: "assets/brushTips/marker1.jpg"},
   });
+
+  await brush.add("marker2", {
+    type:    "image",
+    weight:  12,
+    scatter: 1,
+    opacity: 200,
+    spacing: 0.8,
+    noise:   1,
+    pressure: [0.8, 1.2],
+    rotate:  "random",
+    markerTip: true,
+    image: {src: "assets/brushTips/marker1.jpg"},
+  });
 }
 
 function draw() {

@@ -10,7 +10,7 @@
 - rough insect 的整體畫布方向已改成離散 `screen rotation plan`，並移除雙重 random rotate；目前只控制整隻昆蟲的畫面朝向，不改 body 編排或翅膀變形。因 `sketch.js` 設定 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 需直接使用 degree 數值。
 - rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱，並依翅膀平均亮度切換亮斑 / 暗斑。已保留分布模式骨架，但目前只用 fake camera 驗證，仍需用真實背景或 fixtures 觀察斑點是否過淡、過密或被翅脈吃掉。
 - 使用者在本輪前私下修改過翅膀斑點模式，日誌沒有完整記錄。後續若改斑點分布，必須先讀目前 `RoughInsectWings.js`，以現行程式為準，不可依舊 worklog 還原或覆蓋。
-- rough butterfly 翅膀筆刷設定已抽到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`，包含外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、radial band、accent、specular、wash、loose patch 等 p5.brush 材質與粗細參數。後續調視覺強度優先改 settings 檔，除非要改斑點分布或筆觸路徑。
+- rough butterfly 翅膀筆刷設定已抽到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`，包含外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、radial band、accent、specular、wash、loose patch 等參數。依 `docs/llms.txt`，目前已移除容易混淆的 `brushLoad`，`brush.set()` 第三參數固定為 `1`，後續調粗細優先改 `strokeWeight`，調頂點濃淡 / 收筆優先改 pressure 相關參數。斑點筆刷目前已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，但仍需用多 seed 或強制模式確認三種模式的視覺差異是否足夠明顯。
 - 姿態暫時固定 / 停用 posePlan，尚未完成使用者期待的 body / wing 離散 pose preset。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，測試時需使用 forced spawn 或調整生成位置。
 - Landscape 構圖與 forced spawn 位置仍需再評估。

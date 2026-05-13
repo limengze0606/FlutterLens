@@ -1454,3 +1454,96 @@ Codex 自評：`7.0/10`。優點是重構沒有破壞既有手繪翅膀結構，
 
 ### 備註 / 風險
 本輪是設定抽離，不是美術精修。斑點分布與路徑邏輯刻意不重寫，因此使用者私下改過的斑點模式應以目前檔案內容延續。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+依 `docs/llms.txt` 釐清 p5.brush weight multiplier 語意，從 rough wing settings 移除容易混淆的 `brushLoad`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+`RoughWingBrushSettings.js` 不應再暴露 `brushLoad`、`initialBrushLoad`、`darkBrushLoad`、`brightBrushLoad` 或 `brushLoadJitter`。`RoughInsectWings.js` 應將 `brush.set(name, color, weight)` 的第三參數固定為 `1`，並由 `strokeWeight` 與 `brush.vertex(..., pressure)` 控制可調粗細與頂點壓力。
+
+### 實際觀察
+`rough-wing-remove-brushload-2026-05-13` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。截圖中翅膀輪廓、翅脈、斑點、body 與觸角皆正常出現，未觀察到因移除 `brushLoad` 造成空白、消失或線條突然爆粗。不同 seed / pose 會讓畫面和上一輪不同，因此本輪只判斷功能與大致視覺穩定性。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-wing-remove-brushload-2026-05-13/screenshots/rough-wing-remove-brushload-2026-05-13-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-wing-remove-brushload-2026-05-13/screenshots/rough-wing-remove-brushload-2026-05-13-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-wing-remove-brushload-2026-05-13/screenshots/rough-wing-remove-brushload-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.0/10`。優點是設定語意更乾淨，視覺仍正常可讀，且未新增明顯錯誤。弱點是本輪仍非美術精修，翅脈與斑點在植物背景上偏重的問題仍在；下一輪若要美術調整，應直接微調 `voronoi.strokeWeight`、`patternDot.strokeWeight` 或 pressure 相關參數。
+
+### 使用者審美回饋
+使用者要求回答必須依據 `docs/llms.txt`，並指出若可以捨棄 `brushLoad` 就去掉，避免誤會。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機相機背景下確認移除 `brushLoad` 後線條粗細仍可接受
+- [ ] 後續調參時確認使用者能直覺理解 `strokeWeight` 與 pressure 參數差異
+- [ ] 若要降低黑線干擾，優先調 `voronoi.strokeWeight` 與 `patternDot.strokeWeight`
+
+### 備註 / 風險
+本輪是語意清理，不是視覺精修。`brush.set()` 第三參數固定為 `1` 是為了避免與 `brush.strokeWeight()` 同時控制 weight multiplier；未來若真的需要回到雙重 weight 控制，需先在文件中明確說明用途。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+將 rough butterfly 的 `rim-chain`、`inner-scatter` 與眼紋斑點分別接上獨立的 p5.brush 設定。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+`rim-chain` 應使用 `rimChainSpot`，`inner-scatter` 應使用 `innerScatterSpot`，眼紋外圈 / 中層 / 核心應分別使用 `eyeSpot.ring`、`eyeSpot.middle`、`eyeSpot.core`。若新設定缺漏，應回退到 `patternDot`，避免斑點消失或 runtime error。Start、Scanning、Result、Save / Back 流程不應回歸。
+
+### 實際觀察
+`rough-wing-spot-brush-split-2026-05-13` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。截圖中昆蟲、翅膀輪廓、翅脈、body 與觸角皆正常出現，未觀察到因斑點筆刷拆分造成的空白畫面、`brush` 錯誤或線條爆粗。本次隨機結果沒有明顯生成大眼紋，因此只能確認接口穩定與一般斑點渲染正常；三種斑點模式的審美差異仍需後續多 seed 或強制模式驗證。
+
+### 截圖
+- portrait：`docs/cdp-runs/rough-wing-spot-brush-split-2026-05-13/screenshots/rough-wing-spot-brush-split-2026-05-13-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/rough-wing-spot-brush-split-2026-05-13/screenshots/rough-wing-spot-brush-split-2026-05-13-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/rough-wing-spot-brush-split-2026-05-13/screenshots/rough-wing-spot-brush-split-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.1/10`。優點是筆刷控制接口更細，rim-chain、inner-scatter、眼紋之後可以各自調粗細與筆刷材質，不必修改斑點分布邏輯；本次截圖中整體昆蟲仍保持可讀。弱點是視覺差異目前偏細微，尤其在 greenPlants 背景上，黑色翅脈與細小斑點仍容易和葉片紋理混在一起。這輪未做第二次視覺調整，原因是使用者需求是拆分筆刷設定，而不是重塑斑點外觀；過度加粗會混入未經確認的美術方向。
+
+### 使用者審美回饋
+使用者希望 `rim-chain`、`inner-scatter` 與眼紋能分別套用不同筆刷設定，並同意先依方案拆分設定與呼叫路徑。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機背景確認三種斑點筆刷在深色 / 淺色背景上都可讀
+- [ ] 用多 seed 或強制斑點模式分別檢查 `rim-chain`、`inner-scatter`、眼紋
+- [ ] 若眼紋過重，先降 `eyeSpot.ring.strokeWeight`
+- [ ] 若 inner-scatter 太糊，先降 `innerScatterSpot.strokeWeight` 或改成較乾的筆刷
+
+### 備註 / 風險
+本輪刻意不改 `createRoughWingSpotPlan()` 的分布邏輯，以延續使用者先前私下修改過的斑點模式。CDP + fixture 仍不能取代真實手機 AR / camera 測試。

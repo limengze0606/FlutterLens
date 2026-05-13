@@ -28,7 +28,7 @@
 - 最新版本依使用者要求回頭打地基：先停用 rough butterfly posePlan，將 body 簡化為頭、胸、腹三個空心輪廓，不填色、不畫分節。後續清理 `brushWeight` / `strokeWeight` 混淆，身體線寬統一交給 `strokeWeight`，並把輪廓加粗、腹部拉長；最新加入兩條簡單觸角線。Codex 自評約 `7.2/10`，優點是結構更清楚、腹部更像昆蟲主軸，觸角讓頭部方向更像昆蟲；弱點是觸角仍偏符號，黑線較重，會與翅膀內部線條競爭。
 - 2026-05-13 起，rough butterfly 的翅膀斑點改成 plan-based 對稱分布：同一對翅膀共用 `spotPlan`，左右翅藉由既有鏡像 transform 呈現對稱位置；斑點顏色依翅膀平均亮度選擇，暗底偏白斑、亮底偏黑斑，並保留 `rim-chain`、`inner-scatter`、`rim-and-inner` 等可擴充分布模式。
 - 使用者後續曾私下修改翅膀斑點模式，日誌未完整記錄；未來若調整斑點圖案，需以目前 `RoughInsectWings.js` 的實際程式為準，避免用舊紀錄覆蓋使用者手改的視覺意圖。
-- 翅膀各層 p5.brush 筆刷強度目前集中於 `RoughWingBrushSettings.js`，視覺調參時可優先從外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、accent、specular、wash、loose patch 的設定下手，而不是直接改分布邏輯。
+- 翅膀各層 p5.brush 視覺強度目前集中於 `RoughWingBrushSettings.js`。依 `docs/llms.txt`，`brush.set()` 第三參數與 `brush.strokeWeight()` 都是 weight multiplier，因此目前不再暴露 `brushLoad`；視覺調參時可優先從各層 `strokeWeight`、`pressureBase`、`pressureTaper`、`vertexPressure`、`alpha` 下手，而不是直接改分布邏輯。斑點已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`：rim-chain 可偏乾、偏細；inner-scatter 可較柔、較厚；眼紋可外圈穩、中層柔、核心銳利。
 
 ## 目前視覺弱點
 

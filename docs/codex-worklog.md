@@ -2454,3 +2454,160 @@ CDP + fixture 不能取代真實手機 AR / camera 測試。settings 抽離雖�
 
 #### 建議的下一步
 建議下一步可用 settings 做一輪小型視覺調參：先只降低 `voronoi.strokeWeight` 或 `patternDot.strokeWeight`，比較翅脈、斑點與 body 的視覺競爭是否改善。若使用者要繼續擴充斑點模式，應先備註目前私下修改過的模式規則，再改 `createRoughWingSpotPlan()`。
+
+---
+
+### 2026-05-13 — 移除 rough wing settings 的 brushLoad
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者要求與 `docs/llms.txt` 的 p5.brush API 說明，移除 `RoughWingBrushSettings.js` 中容易混淆的 `brushLoad` 類參數，讓 rough wing 的可調粗細集中於 `strokeWeight`，頂點壓力集中於 `brush.vertex(..., pressure)` 對應的 pressure 設定。
+
+#### 使用者需求
+使用者先要求確認 `RoughWingBrushSettings.js` 中註解是否正確，且參數是否都有對應到 `docs/llms.txt`。在釐清 `brush.set(name, color, weight)` 與 `brush.strokeWeight(weight)` 都是 weight multiplier 後，使用者要求若可以捨棄 `brushLoad` 就移除，避免誤會。
+
+#### 實作前理解
+`docs/llms.txt` 明確寫出 `brush.set(name, color, weight)` 的第三參數是 weight multiplier，`brush.strokeWeight(weight)` 也是設定 weight multiplier。若 settings 同時暴露 `brushLoad` 與 `strokeWeight`，使用者會誤以為前者是墨水量、後者是粗細，但依文件兩者其實都屬於 weight multiplier。更乾淨的做法是讓 `brush.set()` 固定第三參數 `1`，只用 `strokeWeight` 調整線寬 / weight，用 `brush.vertex(x, y, pressure?)` 的第三參數調整筆畫過程中的 pressure。
+
+#### 實作方案
+從 `RoughWingBrushSettings.js` 移除 `brushLoad`、`initialBrushLoad`、`darkBrushLoad`、`brightBrushLoad`、`brushLoadJitter`。在 `RoughInsectWings.js` 將所有 `brush.set(settings.brushName, color, ...)` 的第三參數固定為 `1`。更新 `drawRoughWingPatternStroke()` 與 `drawRoughWingGlintStroke()` 的函式簽名，不再傳入 brush load。順便將 `radialWash.fillTextureScale` 改名為 `fillTextureBorderIntensity`，因 `docs/llms.txt` 中 `brush.fillTexture(textureStrength, borderIntensity, scatter?)` 的第二參數是 `borderIntensity`，不是 scale。
+
+#### 檢視過的檔案
+- `docs/llms.txt`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇徹底移除 `brushLoad`，而不是保留並加註說明，因使用者明確希望避免誤會。`brush.set()` 第三參數固定為 `1`，讓該呼叫只負責選擇筆刷與顏色；真正可調的 weight multiplier 交給 `strokeWeight`，筆畫中段的濃淡 / 收筆交給 pressure 相關參數。這與先前 body 清理 `brushWeight` / `strokeWeight` 混淆的方向一致。
+
+#### 遇到的問題
+需要小心更新所有呼叫簽名，避免 `drawRoughWingPatternStroke()` 或 `drawRoughWingGlintStroke()` 仍用舊參數順序。另需注意移除 `brushLoad` 後可能讓線條視覺有所差異，因此不能只跑語法檢查。
+
+#### 嘗試過的解法
+先用 `rg` 搜尋 `brushLoad`、`initialBrushLoad`、`darkBrushLoad`、`brightBrushLoad`、`brushLoadJitter` 與相關函式呼叫。移除 settings 中的欄位後，將 renderer 中所有 `brush.set()` 第三參數改為 `1`，並更新 `fillTextureBorderIntensity` 的名稱與使用位置。接著跑語法檢查、搜尋確認與 CDP 視覺測試。
+
+#### 最終解法
+`RoughWingBrushSettings.js` 已不再包含任何 `brushLoad` 類欄位。`RoughInsectWings.js` 中所有 rough wing 筆刷初始化都使用 `brush.set(..., 1)`，後續再呼叫 `brush.strokeWeight()` 或 `brush.vertex(..., pressure)` 控制可調效果。`radialWash.fillTextureBorderIntensity` 現在正確對應 `brush.fillTexture()` 第二參數。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughWingBrushSettings.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 搜尋檢查：`rg -n "brushLoad|initialBrushLoad|darkBrushLoad|brightBrushLoad"` 只剩歷史文件紀錄，程式檔中無結果
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-wing-remove-brushload-2026-05-13`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-wing-remove-brushload-2026-05-13/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：三個 viewport 都成功進入 Result，portrait 完成 Save / Back。翅膀輪廓、翅脈、斑點、body 與觸角皆正常出現，未觀察到空白、消失或線條突然爆粗。
+
+#### Codex 審美自評
+本輪約 `7.0/10`。優點是設定語意更貼近 `docs/llms.txt`，未來調參更不容易混淆，且視覺仍正常可讀。弱點是本輪不是美術精修，黑色翅脈與斑點在植物背景中仍偏重；但這應透過 `strokeWeight` 或 pressure 參數調整，而不是重新引入 `brushLoad`。
+
+#### 使用者審美回饋
+使用者要求回答必須依據 `docs/llms.txt`，並在理解 `brushLoad` 容易造成誤會後，指示「如果可以捨棄 brushLoad 就去掉，避免誤會」。
+
+#### 尚未解決的風險
+CDP + fixture 仍不能替代真實手機 AR / camera 測試。移除 `brushLoad` 後目前只驗證 greenPlants fixture 與三個 viewport；若後續使用者調整 `strokeWeight` 或 pressure，仍需逐輪截圖確認。歷史 worklog 中仍會保留過去提到 `brushLoad` 的紀錄，但最新摘要已說明目前狀態。
+
+#### 使用者回饋或修正
+等待使用者確認新的 settings 命名是否符合調參習慣，尤其是 `fillTextureBorderIntensity` 是否比原本的 `fillTextureScale` 更清楚。
+
+#### 建議的下一步
+若要繼續整理註解，可逐項標註哪些是 p5.brush 直接 API 對應，哪些是專案自訂生成參數。若要做視覺調整，建議先小幅降低 `voronoi.strokeWeight` 或 `patternDot.strokeWeight`，觀察黑線與斑點是否更不搶 body。
+
+---
+
+### 2026-05-13 — 拆分 rough wing 斑點筆刷設定
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者要求，讓 rough butterfly 的 `rim-chain`、`inner-scatter` 與眼紋分別套用不同的 p5.brush 設定，避免所有斑點都共用 `patternDot`。
+
+#### 使用者需求
+使用者希望 `rim-chain`、`inner-scatter` 及眼紋能分別套用不同筆刷設定。Codex 先閱讀目前 `RoughWingBrushSettings.js` 與 `RoughInsectWings.js`，提出拆分設定、保留 fallback、只改呼叫路徑不重寫斑點分布的方案；使用者回覆「好」後開始實作。
+
+#### 實作前理解
+目前斑點分布由 `createRoughWingSpotPlan()` 產生，`rimSpots`、`innerSpots`、`eyeSpots` 最後都呼叫 `drawRoughWingPatternDot()`，因此共用 `ROUGH_WING_BRUSH_SETTINGS.patternDot`。若要讓三種模式有不同筆刷，不需要改分布邏輯，只要讓各繪製函式傳入不同 settings。眼紋有 ring / middle / core 三層，應再細分成三組 brush settings，方便之後調外圈穩定度、中層柔度與核心銳利度。
+
+#### 實作方案
+在 `RoughWingBrushSettings.js` 新增 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，保留 `patternDot` 作為 fallback。在 `RoughInsectWings.js` 新增 `getRoughWingSpotBrushSettings(settingsKey, nestedKey)`，並讓 `drawRoughWingPatternDot()` 可接收指定 settings。`drawRoughWingRimSpotPlan()` 使用 `rimChainSpot`，`drawRoughWingInnerSpotPlan()` 使用 `innerScatterSpot`，`drawRoughWingEyeSpotPlan()` 分別使用眼紋三層設定。舊 fallback 函式 `drawRoughWingRimSpots()` 與 `drawRoughWingEyeSpots()` 也接上同樣設定。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇只拆分筆刷設定，不改 `createRoughWingSpotPlan()` 的 mode / count / position，因使用者先前私下修改過斑點模式，必須以現行程式為準延續。`patternDot` 保留為 fallback，避免未來 settings 漏填時造成斑點消失或 runtime error。初始視覺意圖為：`rimChainSpot` 偏乾、偏細；`innerScatterSpot` 稍厚、稍柔；`eyeSpot` 外圈較穩、中層柔、核心較銳利。
+
+#### 遇到的問題
+本次 CDP 隨機結果沒有明顯生成大眼紋，因此截圖只能確認接口穩定與一般斑點繪製正常，無法完整審美比較 `rim-chain`、`inner-scatter` 與眼紋三種模式。另在 `git diff` 中看到前一輪尚未提交的 `brushLoad` 清理變更，Codex 沒有回復或覆蓋，只在本輪新增斑點筆刷拆分。
+
+#### 嘗試過的解法
+先用 `node --check` 檢查兩個 JS 檔。接著用 `scripts/run-cdp-visual-test.ps1` 搭配 `greenPlants` fixture、`ForcedFinalPitch 0` 與 forced spawn 跑三個 viewport。視覺上確認 Result 有昆蟲且沒有新增錯誤；因需求是接口拆分，不做額外加粗或改色的自我調參，以免混入未經使用者確認的美術方向。
+
+#### 最終解法
+`RoughWingBrushSettings.js` 現在包含 `patternDot` fallback、`rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`。`RoughInsectWings.js` 的 plan-based 與 fallback 斑點繪製路徑都會依類型傳入對應 settings。未來調整不同斑點筆刷時，可只修改 settings 檔。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughWingBrushSettings.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`rough-wing-spot-brush-split-2026-05-13`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/rough-wing-spot-brush-split-2026-05-13/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：三個 viewport 都成功進入 Result，portrait 完成 Save / Back。翅膀輪廓、翅脈、body 與觸角正常出現，未觀察到斑點筆刷拆分造成空白或爆粗。
+
+#### Codex 審美自評
+本輪約 `7.1/10`。優點是筆刷控制接口更細，日後可以獨立調整 rim-chain、inner-scatter、眼紋的材質與粗細；截圖中昆蟲仍可讀，沒有破壞整體。弱點是本次 seed 的斑點差異偏細微，沒有大眼紋可直接審美判斷；greenPlants 背景上，黑色翅脈與細小斑點仍容易和植物紋理競爭。這輪沒有做視覺加粗或改色，因需求主要是拆分設定。
+
+#### 使用者審美回饋
+使用者希望 `rim-chain`、`inner-scatter` 與眼紋能分別套用不同筆刷設定，並同意 Codex 先拆分設定與呼叫路徑。尚未提供本輪截圖分數。
+
+#### 尚未解決的風險
+尚未用多 seed 或強制模式分別驗證 `rim-chain`、`inner-scatter`、眼紋三種模式的視覺差異。CDP + fixture 仍不能取代真實手機 AR / camera 測試。若未來調大眼紋外圈，需注意不要讓眼紋壓過 body 或翅脈。
+
+#### 使用者回饋或修正
+等待使用者確認三組筆刷設定命名與初始粗細是否符合調參習慣。
+
+#### 建議的下一步
+若要視覺化三種設定差異，建議新增或臨時使用 forced spot mode / 多 seed 測試，分別截出 `rim-chain`、`inner-scatter`、眼紋。調參時可先改 `RoughWingBrushSettings.js` 的 `rimChainSpot.strokeWeight`、`innerScatterSpot.strokeWeight`、`eyeSpot.ring.strokeWeight`、`eyeSpot.middle.strokeWeight`、`eyeSpot.core.strokeWeight`。
