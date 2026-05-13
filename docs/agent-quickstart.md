@@ -24,7 +24,7 @@
 - 已建立可重跑的 CDP 視覺測試流程，可操作 Start -> Scanning -> Result。
 - 測試腳本支援 fake camera、camera fixtures、forced pitch、forced spawn ratio、Save / Back 驗證與 console event 摘要。
 - Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹、三輪廓 body 地基、screen rotation plan、離散 wing perspective preset。
-- 最新狀態：`createRoughScreenRotationPlan()` 仍只控制整隻昆蟲的螢幕朝向，並使用 degree 數值。`createRoughWingPerspectivePlan()` 已重新啟用 rough butterfly 的內部翅膀姿態，先提供 `frontOpen`、`threeQuarterRise`、`sideFold` 三個 preset。最新修正把 body 三段改成共用 thorax / wing root 附近 anchor 做姿態轉位，前後翅也共用 side hinge，再只做小幅 local root offset，降低胸腹與翅根斷開感。body 仍是頭、胸、腹三個空心輪廓加觸角，尚未回到填色或分節。
+- 最新狀態：`createRoughScreenRotationPlan()` 仍只控制整隻昆蟲的螢幕朝向，並使用 degree 數值。`createRoughWingPerspectivePlan()` 已重新啟用 rough butterfly 的內部翅膀姿態，提供 `frontOpen`、`threeQuarterRise`、`sideFold`、`sideProfileFold` preset。`sideProfileFold` 會在 `sideDriftLeft/Right` screen plan 中自然出現，也可用 `-ForcedRoughWingPosePreset sideProfileFold` 測試；v2 已將側面姿態收斂成 fore / hind 兩片主翅集中在身體同一側，但下方小翅仍偏弱，尚未完全達到參考圖那種兩片翅膀都飽滿可讀。
 
 ## 目前使用者偏好
 

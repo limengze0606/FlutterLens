@@ -69,10 +69,11 @@ function createRoughInsectPosePlan(g, seedValue) {
   };
 }
 
-function createRoughWingPerspectivePlan(g, seedValue) {
+function createRoughWingPerspectivePlan(g, seedValue, screenRotationPlan = null) {
   setRoughSeed(g, seedValue + 4517);
 
   let forcedPreset = getForcedRoughWingPosePreset();
+  let screenPlanId = screenRotationPlan && screenRotationPlan.id ? screenRotationPlan.id : "";
   let presets = [
     {
       id: "frontOpen",
@@ -127,10 +128,41 @@ function createRoughWingPerspectivePlan(g, seedValue) {
       bodyLeanUnit: 0.78,
       bodyTiltDegrees: 11,
       topWingCompression: 0.72
+    },
+    {
+      id: "sideProfileFold",
+      weight: 4,
+      screenPlanIds: ["sideDriftLeft", "sideDriftRight"],
+      sideProfile: true,
+      yaw: 0.96,
+      pitch: 0.16,
+      phase: { lift: -0.16, spread: 0.78, fold: 0.52, rot: -4 },
+      nearScale: 1.18,
+      farScale: 0.72,
+      nearScaleY: 0.88,
+      farScaleY: 0.7,
+      nearYOffsetUnit: -0.52,
+      farYOffsetUnit: -0.34,
+      rootSkewUnit: 0.34,
+      depthTilt: 8,
+      bodyLeanUnit: 0.9,
+      bodyTiltDegrees: 3.5,
+      topWingCompression: 0.66,
+      profileRootFactor: 0.24,
+      profileLiftUnit: -1.22,
+      profileOverlapUnit: 0.28,
+      profileForeLiftUnit: -0.22,
+      profileHindDropUnit: 0.48,
+      profileFarTuckUnit: 0.38,
+      profileNearFanDegrees: 3,
+      profileFarFanDegrees: -5
     }
   ];
 
-  let selected = presets.find((preset) => preset.id === forcedPreset) || selectWeightedRoughWingPreset(g, presets);
+  let allowedPresets = presets.filter((preset) => {
+    return !preset.screenPlanIds || preset.screenPlanIds.includes(screenPlanId);
+  });
+  let selected = presets.find((preset) => preset.id === forcedPreset) || selectWeightedRoughWingPreset(g, allowedPresets);
   let nearSide = roughRandom(g, 0, 1) < 0.5 ? -1 : 1;
   let yawJitter = roughRandom(g, -0.06, 0.06);
   let pitchJitter = roughRandom(g, -0.05, 0.05);
@@ -163,7 +195,16 @@ function createRoughWingPerspectivePlan(g, seedValue) {
     farYOffset: insectBaseUnit * selected.farYOffsetUnit,
     rootSkew: nearSide * insectBaseUnit * selected.rootSkewUnit,
     depthTilt: nearSide * selected.depthTilt,
-    topWingCompression: selected.topWingCompression * (1 - pitchAmount * 0.05)
+    topWingCompression: selected.topWingCompression * (1 - pitchAmount * 0.05),
+    sideProfile: !!selected.sideProfile,
+    profileRootFactor: selected.profileRootFactor || 1,
+    profileLift: insectBaseUnit * (selected.profileLiftUnit || 0),
+    profileOverlap: insectBaseUnit * (selected.profileOverlapUnit || 0),
+    profileForeLift: insectBaseUnit * (selected.profileForeLiftUnit || 0),
+    profileHindDrop: insectBaseUnit * (selected.profileHindDropUnit || 0),
+    profileFarTuck: insectBaseUnit * (selected.profileFarTuckUnit || 0),
+    profileNearFanDegrees: selected.profileNearFanDegrees || 0,
+    profileFarFanDegrees: selected.profileFarFanDegrees || 0
   };
 }
 
@@ -242,6 +283,7 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
 
   return {
     fore: {
+      role: "fore",
       hingeY: rootY,
       rootOffsetY: -roughRandom(g, 0.12 * u, 0.22 * u) + phase.lift * 0.14 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.88, 1.08),
@@ -256,6 +298,7 @@ function createRoughButterflyWingPairPlans(g, bodyPlan) {
       }
     },
     hind: {
+      role: "hind",
       hingeY: rootY,
       rootOffsetY: roughRandom(g, 0.24 * u, 0.46 * u) * hindDropCompression + phase.lift * 0.1 * u,
       rootHalfWidth: rootHalfWidth * roughRandom(g, 0.58, 0.76),
@@ -322,6 +365,29 @@ function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, 
   let wingParams = pairPlan.params;
   let baseOutline = generateWingOutline(wingParams.length, wingParams.width, wingParams.tipY, wingParams.noiseStrength, wingStyle);
   let roughPattern = createRoughVoronoiPattern(g, wingParams.length, wingParams.width, wingParams.tipY, baseOutline);
+
+  if (posePlan && posePlan.sideProfile) {
+    drawRoughWingSideProfileFromPlan(
+      g,
+      seedValue,
+      pairPlan,
+      pairRot,
+      pairScaleX,
+      pairScaleY,
+      color1,
+      color2,
+      wingStyle,
+      wingParams,
+      fillType,
+      wingColorLineType,
+      baseOutline,
+      roughPattern,
+      wingStylePlan,
+      posePlan
+    );
+    return;
+  }
+
   let sideOrder = posePlan && posePlan.nearSide < 0 ? [1, -1] : [-1, 1];
 
   for (let side of sideOrder) {
@@ -364,6 +430,29 @@ function drawRoughWingSideFromPlan(g, seedValue, side, pairPlan, pairRot, pairSc
   g.translate(0, rootOffsetY);
   g.scale(side * pairScaleX * depthScale, pairScaleY * depthScaleY);
   drawRoughWing(g, strokeSeed, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
+  g.pop();
+}
+
+function drawRoughWingSideProfileFromPlan(g, seedValue, pairPlan, pairRot, pairScaleX, pairScaleY, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan, posePlan) {
+  let side = posePlan.nearSide || 1;
+  let hingeY = typeof pairPlan.hingeY === "number" ? pairPlan.hingeY : pairPlan.yOff;
+  let rootOffsetY = pairPlan.rootOffsetY || 0;
+  let roleLift = pairPlan.role === "hind" ? posePlan.profileHindDrop : posePlan.profileForeLift;
+  let rootX = side * pairPlan.rootHalfWidth * posePlan.profileRootFactor + posePlan.rootSkew * 0.12;
+  let rootY = hingeY + posePlan.profileLift + roleLift + rootOffsetY * 0.36;
+  let roleFan = pairPlan.role === "hind" ? 8 : -2;
+  let roleScale = pairPlan.role === "hind" ? posePlan.farScale : posePlan.nearScale;
+  let roleScaleY = pairPlan.role === "hind" ? posePlan.farScaleY : posePlan.nearScaleY;
+  let roleOverlap = pairPlan.role === "hind" ? posePlan.profileOverlap : 0;
+  let roleRotation = pairPlan.role === "hind"
+    ? posePlan.profileFarFanDegrees + roleFan
+    : posePlan.profileNearFanDegrees + roleFan;
+
+  g.push();
+  g.translate(rootX + side * roleOverlap, rootY + posePlan.nearYOffset + roleOverlap * 0.3);
+  g.rotate(side * (pairRot + roleRotation) + posePlan.depthTilt * 0.18);
+  g.scale(side * pairScaleX * roleScale, pairScaleY * roleScaleY);
+  drawRoughWing(g, seedValue, color1, color2, wingStyle, wingParams, fillType, wingColorLineType, baseOutline, roughPattern, wingStylePlan);
   g.pop();
 }
 

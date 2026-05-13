@@ -14,6 +14,7 @@
 - 身體本身要有角度變化，並能帶動全身姿態，而不是翅膀單獨變形。
 - 姿態差異要明顯，一眼能看出不同角度或飛行瞬間。
 - 參考方向是多個蝴蝶在不同姿態中飛行：側飛、翻轉、展平、半收翅、上拍或下拍。
+- 最新側面參考圖的重點是：從蝴蝶側面看時，兩片翅膀會幾乎重疊，並集中在身體上方；這應搭配身體角度接近水平的特定 plan，而不是只把正面展翅蝴蝶整體旋轉。
 - 截圖與判讀必須真的看到蝴蝶本體；若被 Save / Back 按鈕遮擋或沒有取到 body，不能算視覺驗證通過。
 - 測試應使用 fixtures 中的圖片做背景壓力測試，不能只看預設 fake camera。
 
@@ -26,13 +27,13 @@
 - 使用者對 pose / flap v2 給 `6.5/10`：有變化，但不夠明顯，body 不夠帶動全身。
 - 後續強化 body axis 後，Codex 自評約 `7/10`，使用者認同「body 已較清楚，但下一步應做離散 pose preset」的方向。
 - 最新版本依使用者要求回頭打地基：先停用 rough butterfly posePlan，將 body 簡化為頭、胸、腹三個空心輪廓，不填色、不畫分節。後續清理 `brushWeight` / `strokeWeight` 混淆，身體線寬統一交給 `strokeWeight`，並把輪廓加粗、腹部拉長；最新加入兩條簡單觸角線。Codex 自評約 `7.2/10`，優點是結構更清楚、腹部更像昆蟲主軸，觸角讓頭部方向更像昆蟲；弱點是觸角仍偏符號，黑線較重，會與翅膀內部線條競爭。
-- 目前已新增第一版離散 `wing perspective preset`：`frontOpen`、`threeQuarterRise`、`sideFold`。使用者確認透視的目標不是精準對位，而是強調方向與立體感；因此 preset 可使用誇張的近遠側比例、root skew、draw order 與輕量 body lean，讓姿態像手繪速寫中可讀的飛行瞬間。使用者指出前版旋轉軸心不對，body 橢圓各自繞圓心轉會讓胸腹斷開，翅膀也不該各自偏離身體基準點；最新修正已改為共同 anchor / side hinge。
+- 目前已新增離散 `wing perspective preset`：`frontOpen`、`threeQuarterRise`、`sideFold`、`sideProfileFold`。使用者確認透視的目標不是精準對位，而是強調方向與立體感；因此 preset 可使用誇張的近遠側比例、root skew、draw order 與輕量 body lean，讓姿態像手繪速寫中可讀的飛行瞬間。使用者指出前版旋轉軸心不對，body 橢圓各自繞圓心轉會讓胸腹斷開，翅膀也不該各自偏離身體基準點；後續修正已改為共同 anchor / side hinge。最新 `sideProfileFold` v2 將側面姿態收斂成 fore / hind 兩片主翅集中在身體同一側，比 v1 四層 echo 乾淨，但下方小翅仍偏弱。
 
 ## 目前視覺弱點
 
 - Body 在深綠或暗背景上仍可能被吃掉，仍偏依賴黑色輪廓與少量 highlight。
 - Body 目前是三個空心輪廓加兩條簡單觸角，結構比前一版更單純，腹部已拉長、輪廓已加粗，且 pose transform 已改用共同 anchor；但三個輪廓本質上仍是分離圖形，若要更像一體，下一步應考慮加入非常輕的胸腹連接筆觸或 body axis，而不是再讓每段獨立旋轉。
-- 離散 wing perspective preset 已開始取代連續隨機 pose，但目前仍是第一版；`sideFold` 的側身感最明顯，`threeQuarterRise` 有近遠側差異，`frontOpen` 較穩但也較保守。
+- 離散 wing perspective preset 已開始取代連續隨機 pose；`sideProfileFold` 目前最接近使用者側面參考圖的方向，但還需要強化下方翅膀飽滿度與根部共點感。`sideFold` 的側身感明顯，`threeQuarterRise` 有近遠側差異，`frontOpen` 較穩但也較保守。
 - Landscape forced spawn 曾讓昆蟲靠近畫面上緣，評估構圖時需調整 spawn ratio。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，視覺測試應使用 forced spawn 避免誤判。
 
@@ -48,5 +49,5 @@
 
 1. 先請使用者評估三輪廓 body 地基是否成立，尤其是頭、胸、腹比例與可讀性。
 2. 若地基成立，再逐步加回觸角、分節、筆觸質感或少量內部結構，每次只加一層。
-3. 下一步請使用者評估三個 wing perspective preset 的方向：是否足夠立體、是否像蝴蝶、是否需要更誇張的側身或半收。
+3. 下一步請使用者評估 wing perspective preset 的方向：尤其是 `sideProfileFold` 是否符合側面參考圖，以及 hind wing 是否需要更大、更靠近上翅或更飽滿。
 4. 用固定 spawn 與 fixtures 做多 viewport 截圖，確保判讀不被 UI 遮擋。

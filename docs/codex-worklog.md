@@ -2533,3 +2533,84 @@ CDP + fixture 不能取代真實手機 AR / camera 測試。`sideFold` 在小尺
 
 #### 建議的下一步
 若使用者認可軸心修正，下一步可選擇：一、加非常細的 body axis / 胸腹連接筆觸，讓三個空心輪廓更像一體；二、再調 `sideFold` 的壓縮比例，避免側身時 body 被翅膀吃掉；三、開始新增俯視下拍或仰角半收 preset。
+
+---
+
+### 2026-05-13 — 新增 sideProfileFold 側面疊翅 preset
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者提供的側面蝴蝶參考圖，重構 rough butterfly 的特定翅膀位置繪製邏輯，新增 `sideProfileFold` preset，讓身體接近水平時翅膀集中在身體同一側並形成重疊側面輪廓。
+
+#### 使用者需求
+使用者表示目前結果仍不太滿意，提出是否能重構翅膀位置的繪製邏輯。使用者提供側面蝴蝶參考圖，指出從蝴蝶側面看時，兩片翅膀會幾乎重疊，都在身體上方，應用來搭配身體角度接近水平時的特定 plan。使用者同意先實作第一版 `sideProfileFold`。
+
+#### 實作前理解
+目前已有 `createRoughWingPerspectivePlan()`、`frontOpen`、`threeQuarterRise`、`sideFold`，且測試腳本已支援 `-ForcedRoughWingPosePreset`。但既有側身邏輯仍主要是左右鏡像翅膀加 near / far scale，視覺上像正面蝴蝶被旋轉，沒有參考圖那種側面時兩片翅膀集中在身體上方、幾乎重疊的結構。這次應該動 wing root placement、draw order 與 overlap，不只是加大整體 rotate。
+
+#### 實作方案
+在 `RoughInsectWings.js` 新增 `sideProfileFold` preset，並將它限制在 `sideDriftLeft / sideDriftRight` screen plan 中自然出現。測試時若強制 `sideProfileFold`，`createRoughScreenRotationPlan()` 會只從 `sideDriftLeft / sideDriftRight` 選，確保身體角度接近水平。新增 `drawRoughWingSideProfileFromPlan()`，讓 `posePlan.sideProfile` 時不走原本左右對稱 side loop，而是把 fore / hind 兩片主翅畫在同一側。
+
+#### 檢視過的檔案
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/agent-quickstart.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `scripts/run-cdp-visual-test.ps1`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+第一版 v1 曾讓 fore / hind 各自畫 near / far echo，因此側面時像四層翅膀輪廓，過於雜亂。依照參考圖「兩片翅膀幾乎重疊」的重點，自我調整為 v2：side-profile 分支只保留 fore / hind 兩片主翅，減少雜訊。Body 結構不重寫，只透過既有 `bodyPlan.posePlan` 的 lean / tilt 輕量配合。
+
+#### 遇到的問題
+若只靠整體 screen rotation，蝴蝶像貼紙旋轉，不像側面觀察。若側面分支保留 near / far echo，會變成四片翅膀雜訊。v2 變乾淨後，下方 hind wing 又偏小偏弱，尚未達到參考圖中兩片翅膀都飽滿可讀的狀態。
+
+#### 嘗試過的解法
+先新增 `sideProfileFold`，讓 `drawRoughWingPairFromPlan()` 在 `posePlan.sideProfile` 時改走 `drawRoughWingSideProfileFromPlan()`。v1 畫 near / far 兩層以模擬遠近側，但截圖後判斷太吵；v2 改成每個 pair 只畫一片主翅，利用 fore / hind 的 pair 本身形成兩片側面翅膀。
+
+#### 最終解法
+`sideProfileFold` 目前只在 `sideDriftLeft / sideDriftRight` screen plan 中自然出現；強制測試 `sideProfileFold` 時也會讓 screen rotation 從 sideDrift 兩個 plan 中選。`drawRoughWingSideProfileFromPlan()` 使用同側 root，依 fore / hind role 設定 lift、overlap、fan angle 與 scale，讓兩片主翅集中到身體同一側。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\InsectManager.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- v1 Run id：`side-profile-fold-v1-2026-05-13`
+- v2 Run id：`side-profile-fold-v2-2026-05-13`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Forced wing preset：`-ForcedRoughWingPosePreset sideProfileFold`
+- 截圖：位於 `docs/cdp-runs/side-profile-fold-v1-2026-05-13/screenshots/` 與 `docs/cdp-runs/side-profile-fold-v2-2026-05-13/screenshots/`
+- Console 錯誤：v1 / v2 每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：v1 方向正確但四層翅膀太吵；v2 更乾淨，側面語意更清楚，但下方小翅偏弱。
+
+#### Codex 審美自評
+v1 約 `6.3/10`，有側面重疊方向但輪廓雜訊太多。v2 約 `7.0/10`，比純 screen rotation 明顯更像側面蝴蝶，也更符合「兩片主翅」的參考方向；但 hind wing 太瘦，兩片翅膀的共同根部與飽滿度還不夠。這輪選擇停在 v2，因為已完成第一版結構分支，後續應由使用者決定要更寬下翅，還是更窄更真側影。
+
+#### 使用者審美回饋
+使用者提供側面蝴蝶參考圖並指出：從側面看時，兩片翅膀會幾乎重疊，都在身體上方，用來搭配身體角度接近水平時的特定 plan。這是後續 `sideProfileFold` 的主要審美標準。
+
+#### 尚未解決的風險
+CDP + fake camera 不能取代真實手機 AR / camera 測試。`sideProfileFold` v2 尚未完全達到參考圖的翅膀飽滿度；body 與 wing root 的共點感仍可更強。Landscape 中昆蟲靠近畫面上方且 UI 佔比高，判讀較弱。後續若大幅加寬 hind wing，可能重新變成展翅而不是側影。
+
+#### 使用者回饋或修正
+等待使用者評估 v2 側面疊翅是否方向正確，尤其是下方小翅是否應更大、更靠近上翅，或更像參考圖的紅蝶下翅比例。
+
+#### 建議的下一步
+若使用者認可方向，下一輪優先調 `sideProfileFold` 的 hind wing scale / lift / overlap，讓兩片翅膀更飽滿且根部更集中；若使用者覺得仍不像側面，應先重新定義側面 wing silhouette，再調參。

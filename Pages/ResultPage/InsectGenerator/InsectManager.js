@@ -74,12 +74,17 @@ function createRoughScreenRotationPlan(seedValue) {
         { id: "sideDriftLeft", baseAngle: -58, jitter: 7, weight: 1 },
         { id: "sideDriftRight", baseAngle: 58, jitter: 7, weight: 1 }
     ];
+    let selectablePlans = plans;
 
-    let totalWeight = plans.reduce((sum, plan) => sum + plan.weight, 0);
+    if (typeof getForcedRoughWingPosePreset === "function" && getForcedRoughWingPosePreset() === "sideProfileFold") {
+        selectablePlans = plans.filter((plan) => plan.id === "sideDriftLeft" || plan.id === "sideDriftRight");
+    }
+
+    let totalWeight = selectablePlans.reduce((sum, plan) => sum + plan.weight, 0);
     let roll = seededUnit(seedValue, 17) * totalWeight;
-    let selectedPlan = plans[0];
+    let selectedPlan = selectablePlans[0];
 
-    for (let plan of plans) {
+    for (let plan of selectablePlans) {
         roll -= plan.weight;
         if (roll <= 0) {
             selectedPlan = plan;
@@ -135,7 +140,7 @@ function drawRoughInsect(insectLayer, x, y) {
     wingLineColorSet = floor(random(20)); // 調整稀有度
     let roughBodyPlan = (insectType === 0) ? createRoughInsectBodyPlan(insectLayer, currentSeed, insectType) : null;
     let roughPosePlan = (insectType === 0 && typeof createRoughWingPerspectivePlan === "function")
-        ? createRoughWingPerspectivePlan(insectLayer, currentSeed)
+        ? createRoughWingPerspectivePlan(insectLayer, currentSeed, roughScreenRotationPlan)
         : null;
 
     if (roughPosePlan) {

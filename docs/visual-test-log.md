@@ -1460,3 +1460,57 @@ Codex 自評：`7.8/10`。優點是使用者指出的軸心問題被明確改善
 
 ### 備註 / 風險
 本輪只修正共同旋轉基準，不新增分節、填色或 body 連接筆觸。若後續繼續強化 body 一體感，應避免重新造成黑線過密或壓過翅膀圖案。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+新增 rough butterfly `sideProfileFold` 側面疊翅 preset，讓身體接近水平時，翅膀收束到身體同一側，而不是把正面展翅蝴蝶整體旋轉。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- Forced wing preset：`-ForcedRoughWingPosePreset sideProfileFold`
+
+### 預期行為
+`sideProfileFold` 應搭配 `sideDriftLeft/Right` screen rotation，讓 body 接近水平；翅膀應從左右展開改成在身體同一側重疊。v2 目標是只保留 fore / hind 兩片主翅，避免 v1 的 near/far echo 讓側面姿態看起來像四片翅膀雜訊。
+
+### 實際觀察
+v1：`side-profile-fold-v1-2026-05-13` 成功讓翅膀集中到側面，但 fore / hind 各自又畫 near/far echo，畫面變成四層輪廓，太吵，不符合使用者參考圖「兩片翅膀幾乎重疊」的重點。
+
+v2：`side-profile-fold-v2-2026-05-13` 改成 fore / hind 兩片主翅。portrait / compact 都能看到一個較大的上方翅膀與一個較小的下方翅膀集中在身體同一側，方向比單純整體 rotate 更像側面蝴蝶。landscape 仍受畫面高度與按鈕遮擋風險影響。v2 缺點是下方小翅偏弱，兩片翅膀尚未像參考圖那樣都飽滿可讀。
+
+### 截圖
+- v1 portrait：`docs/cdp-runs/side-profile-fold-v1-2026-05-13/screenshots/side-profile-fold-v1-2026-05-13-greenPlants-portrait-390x844-result.png`
+- v1 compact：`docs/cdp-runs/side-profile-fold-v1-2026-05-13/screenshots/side-profile-fold-v1-2026-05-13-greenPlants-compact-360x740-result.png`
+- v1 landscape：`docs/cdp-runs/side-profile-fold-v1-2026-05-13/screenshots/side-profile-fold-v1-2026-05-13-greenPlants-landscape-844x390-result.png`
+- v2 portrait：`docs/cdp-runs/side-profile-fold-v2-2026-05-13/screenshots/side-profile-fold-v2-2026-05-13-greenPlants-portrait-390x844-result.png`
+- v2 compact：`docs/cdp-runs/side-profile-fold-v2-2026-05-13/screenshots/side-profile-fold-v2-2026-05-13-greenPlants-compact-360x740-result.png`
+- v2 landscape：`docs/cdp-runs/side-profile-fold-v2-2026-05-13/screenshots/side-profile-fold-v2-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：v1 約 `6.3/10`，方向正確但太像四片疊影，視覺雜訊重。v2 約 `7.0/10`，側面語意更清楚、輪廓更乾淨，也比純 screen rotation 更接近參考圖；弱點是 hind wing 太瘦太弱，兩片翅膀的共同根部與飽滿度仍不夠。
+
+### 使用者審美回饋
+使用者表示目前結果仍不滿意，提出可重構翅膀位置繪製邏輯，並提供側面蝴蝶參考圖：從側面看時兩片翅膀幾乎重疊，都在身體上方，用來搭配身體角度接近水平的特定 plan。使用者同意實作第一版 `sideProfileFold`。
+
+### Console 錯誤
+v1 / v2 每個 viewport 仍各有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真實手機上側面疊翅是否仍可讀，不會被植物背景吃掉
+- [ ] 側面 plan 的 body 是否需要更水平或更貼近翅膀根部
+- [ ] hind wing 是否需要加寬、放大或提高位置
+- [ ] Save / Back 是否遮擋側面蝴蝶
+- [ ] 若使用者認可方向，再考慮加強 body 與 wing root 的共點感
+
+### 備註 / 風險
+本輪已動到翅膀位置繪製邏輯，但仍避免重寫 body 結構。`sideProfileFold` 目前是第一版地基，不是最終審美；它證明側面疊翅分支可行，但還需要使用者判斷要往「更大下翅」或「更窄真側影」哪邊調。
