@@ -2611,3 +2611,154 @@ CDP + fixture 仍不能替代真實手機 AR / camera 測試。移除 `brushLoad
 
 #### 建議的下一步
 若要視覺化三種設定差異，建議新增或臨時使用 forced spot mode / 多 seed 測試，分別截出 `rim-chain`、`inner-scatter`、眼紋。調參時可先改 `RoughWingBrushSettings.js` 的 `rimChainSpot.strokeWeight`、`innerScatterSpot.strokeWeight`、`eyeSpot.ring.strokeWeight`、`eyeSpot.middle.strokeWeight`、`eyeSpot.core.strokeWeight`。
+
+---
+
+### 2026-05-13 — 眼紋改用高彩度 hue 互補色
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者要求，將 rough butterfly 的眼紋顏色從「依平均亮度選深斑 / 淺斑」改成「只依 hue 取互補色」，並把彩度範圍拉高。
+
+#### 使用者需求
+使用者先詢問目前眼斑顏色如何決定與使用的顏色模式。確認目前是 HSB 決策、轉 RGB 給 p5.brush 後，使用者要求改成不考慮 `averageBrightness`，只計算 hue 使用對比色，並補充「彩度可以範圍取高一點的」。
+
+#### 實作前理解
+眼紋顏色集中在 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 的 `createRoughWingSpotPalette()`。舊版先用 `averageBrightness >= 70` 決定 `useDarkSpots`，再分成暗斑或亮斑兩套路徑。實際繪製仍是 HSB 計算後用 `hsbToRgb()` 轉成 `rgb(r, g, b)` 字串，透過 `drawRoughWingEyeSpotPlan()` 的 `ring / middle / core` 三層畫出。
+
+#### 實作方案
+保留三層眼紋結構，但刪除 `useDarkSpots` 與 `averageBrightness` 分支。改用 `complementHue = wrapHue(stronger.h + 180)` 作基準，外圈在互補色附近小幅 jitter，中層在互補色兩側更大偏移，核心則接近外圈但亮度較低。彩度 clamp 改成偏高範圍：外圈約 `68-96`、中層約 `62-90`、核心約 `54-84`。最後清理函式簽名，讓 `createRoughWingSpotPalette(g, stronger)` 不再接收未使用的亮度與對比參數。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇讓「是否取對比色」只依 hue 決定，不再用 `averageBrightness` 切換深斑或淺斑。亮度仍給固定值，原因是完全只改 hue 而不控制 brightness 會讓眼紋在不同底色上可能太灰或太刺；本輪的解讀是決策不看平均亮度，但顏料本身仍需要穩定的亮度層次。三層 brightness 固定為外圈 `58`、中層 `78`、核心 `18`，讓核心保持眼點感。
+
+#### 遇到的問題
+既有 CDP 測試腳本沒有 forced eye-spot 參數，原本可能只能驗證 Result 沒壞，無法保證截圖有眼紋。這次 `greenPlants` fixture 的隨機結果剛好抽到可見紫色眼紋，因此可做初步審美判讀，但未來若要精修仍需要多 seed 或 forced eye-spot 測試入口。
+
+#### 嘗試過的解法
+先用 `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 做語法檢查，接著用 `scripts/run-cdp-visual-test.ps1 -RunId eye-spot-complement-hue-2026-05-13 -CameraFixture greenPlants -ForcedFinalPitch 0 -ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36` 跑三個 viewport。視覺確認後，又清理 `createRoughWingSpotPalette()` 的未使用參數並重新執行 `node --check`。
+
+#### 最終解法
+`createRoughWingSpotPalette()` 現在只接收 `g` 與 `stronger`。外圈、內圈、核心都從 `stronger.h + 180` 附近產生高彩度互補色，回傳 `tone: "hue-complement"`。呼叫端 `analyzeRoughWingColorPair()` 也改成 `createRoughWingSpotPalette(g, stronger)`。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`eye-spot-complement-hue-2026-05-13`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/eye-spot-complement-hue-2026-05-13/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：三個 viewport 都成功進入 Result，portrait 完成 Save / Back。portrait 可見較大的紫色眼紋，compact 與 landscape 可見較小紫點。綠色翅膀上的紫色互補斑比舊亮度規則更醒目。
+
+#### Codex 審美自評
+本輪約 `7.4/10`。優點是眼紋色相差更清楚，紫色互補斑在綠色翅膀上有明確存在感，符合使用者要求的 hue 對比與較高彩度。弱點是外圈仍偏像紫色圓點，還不是很自然的蝴蝶眼紋層次；小 viewport 中紫點會與黑色翅脈競爭。這輪沒有做第二次視覺調整，因為配色方向已達成，下一步應先讓使用者判斷彩度是否過高或剛好。
+
+#### 使用者審美回饋
+使用者要求「不考慮 averageBrightness，只計算 hue 來使用對比色」，並補充「彩度可以範圍取高一點的」。尚未對本輪截圖給分。
+
+#### 尚未解決的風險
+尚未用多 seed 或強制眼紋模式驗證所有主色 hue 下的互補色結果。高彩度互補色在真實手機相機背景中可能過飽和，也可能與黑色翅脈競爭。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
+
+#### 使用者回饋或修正
+等待使用者確認 purple / complementary eyespot 的彩度、亮度與三層比例是否符合期待。
+
+#### 建議的下一步
+若要繼續精修眼紋，建議新增 forced eye-spot 測試入口或臨時多 seed 截圖，避免每次靠隨機抽到眼紋。可調參數集中在 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 的 `createRoughWingSpotPalette()`：`primaryHue / secondaryHue / coreHue` 的 jitter 控制色相分離；三個 saturation clamp 控制彩度；三個 brightness 數值控制外圈、中層與核心明暗。形狀與筆刷粗細則在 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js` 的 `eyeSpot.ring / middle / core.strokeWeight`。
+
+---
+
+### 2026-05-13 — 修正互補色只套用 EyeSpots
+
+#### 日期
+2026-05-13
+
+#### 任務摘要
+依使用者澄清，修正前一輪實作，讓高彩度 hue 互補色只套用於 EyeSpots，一般 `rim-chain` / `inner-scatter` 斑點維持原本 `spotPalette`。
+
+#### 使用者需求
+使用者指出剛才沒有說明清楚：「只有 EyeSpots 的需要這樣使用對比色」。這表示一般斑點不應一起使用 hue 互補色。
+
+#### 實作前理解
+前一輪把 `createRoughWingSpotPalette()` 整個改成互補色，但 `getRoughWingSpotPaint()` 同時供 `drawRoughWingRimSpotPlan()`、`drawRoughWingInnerSpotPlan()` 與 `drawRoughWingEyeSpotPlan()` 使用，因此一般斑點也會被改成互補色。正確架構應該是保留一般 `spotPalette`，再新增只給眼紋用的 `eyeSpotPalette`。
+
+#### 實作方案
+恢復 `createRoughWingSpotPalette(g, stronger, quieter, averageBrightness, hueDistance, alreadyContrasty)` 的舊亮斑 / 暗斑規則，供 rim / inner 一般斑點使用。新增 `createRoughWingEyeSpotPalette(g, stronger)`，把 hue 互補色與較高彩度 clamp 移到這個專用函式。`analyzeRoughWingColorPair()` 同時回傳 `spotPalette` 與 `eyeSpotPalette`。新增 `getRoughWingEyeSpotPaint()`，讓 plan-based `drawRoughWingEyeSpotPlan()` 與 fallback `drawRoughWingEyeSpots()` 只從 eye palette 取色。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇分離 palette，而不是在 `getRoughWingSpotPaint()` 裡用 role 或呼叫者條件判斷，因為 EyeSpots 是明確不同的語意層。這樣未來若調高互補色彩度，只會影響 `eyeSpotPalette`，不會污染 rim-chain 或 inner-scatter。
+
+#### 遇到的問題
+CDP 測試腳本仍沒有 forced eye-spot 參數；本輪隨機結果沒有抽到大 EyeSpots，因此只能確認流程穩定與一般斑點未被互補色污染，無法完整評估互補色眼紋本身。
+
+#### 嘗試過的解法
+先檢視 `RoughInsectWings.js` 中 `analyzeRoughWingColorPair()`、`createRoughWingSpotPalette()`、`drawRoughWingEyeSpotPlan()` 與 fallback `drawRoughWingEyeSpots()` 的關係。修改後執行 `node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js`，再用 `scripts/run-cdp-visual-test.ps1 -RunId eye-spot-complement-only-2026-05-13 -CameraFixture greenPlants -ForcedFinalPitch 0 -ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36` 驗證三個 viewport。
+
+#### 最終解法
+`spotPalette` 已恢復為一般斑點使用的亮斑 / 暗斑 palette；新增 `eyeSpotPalette` 專供 EyeSpots 使用高彩度 hue 互補色。`drawRoughWingRimSpotPlan()` 與 `drawRoughWingInnerSpotPlan()` 仍走 `getRoughWingSpotPaint()`；`drawRoughWingEyeSpotPlan()` 與 `drawRoughWingEyeSpots()` 改走 `getRoughWingEyeSpotPaint()`。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- Run id：`eye-spot-complement-only-2026-05-13`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：位於 `docs/cdp-runs/eye-spot-complement-only-2026-05-13/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：三個 viewport 都成功進入 Result，portrait 完成 Save / Back。本輪沒有抽到大 EyeSpots，但一般小斑點未整體變成互補紫色，昆蟲、翅膀、body 與觸角正常。
+
+#### Codex 審美自評
+本輪約 `7.2/10`。優點是職責更準確，只有 EyeSpots 會取得互補色，一般斑點回到原本與翅膀亮度關係較一致的視覺語法。弱點是本輪截圖無法評估 EyeSpots 互補色本身，仍需要 forced eye-spot 或多 seed 截圖。
+
+#### 使用者審美回饋
+使用者澄清只有 EyeSpots 需要使用對比色，一般斑點不應使用互補色。此回饋已同步到摘要文件。
+
+#### 尚未解決的風險
+尚未以 forced eye-spot 穩定驗證互補色眼紋。真實手機背景上，EyeSpots 的互補色仍可能過飽和或與翅脈競爭。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
+
+#### 使用者回饋或修正
+等待使用者確認新的分流是否符合預期：一般斑點維持原本 palette，只有 EyeSpots 使用互補色。
+
+#### 建議的下一步
+若要繼續精修，建議新增 forced eye-spot 測試入口。一般斑點顏色調整應改 `createRoughWingSpotPalette()`；EyeSpots 互補色調整應改 `createRoughWingEyeSpotPalette()`；EyeSpots 形狀與粗細調整仍在 `RoughWingBrushSettings.js` 的 `eyeSpot.ring / middle / core.strokeWeight`。

@@ -1547,3 +1547,96 @@ Codex 自評：`7.1/10`。優點是筆刷控制接口更細，rim-chain、inner-
 
 ### 備註 / 風險
 本輪刻意不改 `createRoughWingSpotPlan()` 的分布邏輯，以延續使用者先前私下修改過的斑點模式。CDP + fixture 仍不能取代真實手機 AR / camera 測試。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+將 rough butterfly 眼紋顏色改成只依 hue 取高彩度互補色。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+眼紋 palette 不應再用 `averageBrightness` 決定深斑或淺斑，而應以 `stronger.h + 180` 附近的互補色為主。彩度範圍需比舊版高，讓綠色翅膀能產生較醒目的紫色系眼紋；Start、Scanning、Result、Save / Back 流程不應回歸。
+
+### 實際觀察
+`eye-spot-complement-hue-2026-05-13` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。這次隨機結果有抽到可見眼紋：portrait 可看到較大的紫色眼斑，compact 與 landscape 可看到較小紫色斑點。眼紋在 greenPlants fixture 的綠色翅膀上比舊的亮度深淺規則更有 hue 對比；沒有觀察到斑點消失、空白畫面或 brush runtime error。
+
+### 截圖
+- portrait：`docs/cdp-runs/eye-spot-complement-hue-2026-05-13/screenshots/eye-spot-complement-hue-2026-05-13-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/eye-spot-complement-hue-2026-05-13/screenshots/eye-spot-complement-hue-2026-05-13-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/eye-spot-complement-hue-2026-05-13/screenshots/eye-spot-complement-hue-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.4/10`。優點是紫色互補眼紋在綠色翅膀上終於有明確色相差，視覺意圖比「亮底黑斑 / 暗底白斑」更清楚，也比較接近使用者要求的 hue 對比。弱點是外圈仍略像一團紫色圓點，尚未完全像自然蝴蝶眼紋的層次；小 viewport 中紫點會和黑色翅脈競爭。這輪沒有再做第二次視覺調整，因目前已達成使用者指定的配色方向，下一步更適合由使用者看截圖後決定彩度或亮度是否過重。
+
+### 使用者審美回饋
+使用者要求眼斑不要考慮 `averageBrightness`，只計算 hue 取對比色，並補充彩度範圍可以取高一點。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機相機背景確認高彩度互補眼紋不會過飽和
+- [ ] 用多 seed 或強制眼紋模式確認不同主色 hue 下的互補色是否都可讀
+- [ ] 若紫色眼紋過重，先降低 `createRoughWingSpotPalette()` 的 saturation clamp 或 alpha
+- [ ] 若眼紋層次不夠，調整 `eyeSpot.ring / middle / core` 的 `strokeWeight`
+
+### 備註 / 風險
+目前測試剛好抽到眼紋，因此可做初步審美判斷；但仍缺少 forced eye-spot 測試入口，未來精修眼紋時建議新增或臨時注入固定模式，避免靠隨機 seed 判斷。
+
+---
+
+### 日期
+2026-05-13
+
+### 任務 / 功能
+修正互補色規則，讓只有 EyeSpots 使用 hue 互補色，一般斑點維持原本 palette。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Camera size：`720x1280`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+`rim-chain` 與 `inner-scatter` 等一般斑點應繼續使用 `spotPalette` 的亮斑 / 暗斑規則；只有 `drawRoughWingEyeSpotPlan()` 與 fallback `drawRoughWingEyeSpots()` 應使用 `eyeSpotPalette` 的高彩度 hue 互補色。Start、Scanning、Result、Save / Back 流程不應回歸。
+
+### 實際觀察
+`eye-spot-complement-only-2026-05-13` 三個 viewport 都成功進入 Result，portrait 完成 Save / Back。這次隨機結果沒有抽到大 EyeSpots，因此無法審美評估紫色互補眼紋；但一般小斑點沒有再整體變成互補紫色，翅膀、body、觸角與按鈕流程皆正常。
+
+### 截圖
+- portrait：`docs/cdp-runs/eye-spot-complement-only-2026-05-13/screenshots/eye-spot-complement-only-2026-05-13-greenPlants-portrait-390x844-result.png`
+- compact：`docs/cdp-runs/eye-spot-complement-only-2026-05-13/screenshots/eye-spot-complement-only-2026-05-13-greenPlants-compact-360x740-result.png`
+- landscape：`docs/cdp-runs/eye-spot-complement-only-2026-05-13/screenshots/eye-spot-complement-only-2026-05-13-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.2/10`。優點是 palette 職責更準確，一般斑點不再被使用者只想給 EyeSpots 的互補色規則污染；畫面整體維持原本綠色系與黑線結構。弱點是本輪未抽到 EyeSpots，因此無法確認互補色眼紋的最終審美效果；若要精修，需要 forced eye-spot 或多 seed 測試。
+
+### 使用者審美回饋
+使用者澄清「只有 EyeSpots 的需要這樣使用對比色」，表示一般斑點不應套用 hue 互補色。
+
+### Console 錯誤
+每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用 forced eye-spot 或多 seed 確認 EyeSpots 仍會出現高彩度互補色
+- [ ] 確認 rim-chain / inner-scatter 在真實背景上維持亮斑 / 暗斑，不被互補色規則影響
+- [ ] 若 EyeSpots 過飽和，只調 `eyeSpotPalette`，不要動一般 `spotPalette`
+
+### 備註 / 風險
+本輪修正的是 palette 分流，視覺截圖可確認一般斑點未被互補色污染，但無法完整評估 EyeSpots 互補色本身。下一步若要審美判斷眼紋，仍建議新增 forced eye-spot 測試入口。

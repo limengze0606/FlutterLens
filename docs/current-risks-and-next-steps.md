@@ -8,7 +8,7 @@
 - 真實手機上的相機權限、後鏡頭、HTTPS、DeviceOrientation、觸控手感與效能仍需人工確認。
 - Rough butterfly body 目前退回三個空心輪廓地基，並加回兩條簡單觸角；`brushWeight` helper option 已從 body 檔清掉，輪廓粗細統一由 `strokeWeight` 控制。加粗線條、拉長腹部與加入觸角後結構更可讀，但仍需使用者確認比例是否符合後續發展方向。
 - rough insect 的整體畫布方向已改成離散 `screen rotation plan`，並移除雙重 random rotate；目前只控制整隻昆蟲的畫面朝向，不改 body 編排或翅膀變形。因 `sketch.js` 設定 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 需直接使用 degree 數值。
-- rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱，並依翅膀平均亮度切換亮斑 / 暗斑。已保留分布模式骨架，但目前只用 fake camera 驗證，仍需用真實背景或 fixtures 觀察斑點是否過淡、過密或被翅脈吃掉。
+- rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱。一般 rim / inner 斑點仍依翅膀平均亮度切換亮斑 / 暗斑；只有 EyeSpots 改用獨立 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。仍需用多 seed 或強制模式確認互補色眼紋在不同底色下是否過飽和、過重或被翅脈吃掉。
 - 使用者在本輪前私下修改過翅膀斑點模式，日誌沒有完整記錄。後續若改斑點分布，必須先讀目前 `RoughInsectWings.js`，以現行程式為準，不可依舊 worklog 還原或覆蓋。
 - rough butterfly 翅膀筆刷設定已抽到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`，包含外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、radial band、accent、specular、wash、loose patch 等參數。依 `docs/llms.txt`，目前已移除容易混淆的 `brushLoad`，`brush.set()` 第三參數固定為 `1`，後續調粗細優先改 `strokeWeight`，調頂點濃淡 / 收筆優先改 pressure 相關參數。斑點筆刷目前已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，但仍需用多 seed 或強制模式確認三種模式的視覺差異是否足夠明顯。
 - 姿態暫時固定 / 停用 posePlan，尚未完成使用者期待的 body / wing 離散 pose preset。
@@ -30,7 +30,7 @@
 - 若 body 線條太重或與翅膀內線搶視覺：先微調 `strokeWeight` 區間或降低翅膀內線干擾，不急著加姿態。
 - 若使用者認為地基已穩：再開始設計離散 pose preset，並讓三輪廓 body 與 wing root 一起投影。
 - 若要先確認整體轉向：調整 `Pages/ResultPage/InsectGenerator/InsectManager.js` 的 `createRoughScreenRotationPlan()`，觀察 `baseAngle`、`jitter`、`weight` 是否讓不同 plan 的方向差異足夠明顯。
-- 若要繼續翅膀花紋：可在 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 擴充 `createRoughWingSpotPlan()` 的 mode，例如外緣珠串、翅中黑點群、眼斑列、翅脈旁點列；調整前應先決定每種模式對應的真蝴蝶參考語法。
+- 若要繼續翅膀花紋：可在 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 擴充 `createRoughWingSpotPlan()` 的 mode，例如外緣珠串、翅中黑點群、眼斑列、翅脈旁點列；調整前應先決定每種模式對應的真蝴蝶參考語法。若要專門精修眼紋，建議先增加 forced eye-spot 測試入口，避免每輪都賭隨機 seed。
 
 建議的 pose preset：
 

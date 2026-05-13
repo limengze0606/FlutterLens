@@ -25,7 +25,7 @@
 - 測試腳本支援 fake camera、camera fixtures、forced pitch、forced spawn ratio、Save / Back 驗證與 console event 摘要。
 - Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹。
 - 最新一次成果是回頭重打 `RoughInsectBody.js` 地基：暫時固定 rough butterfly pose，不再套用 yaw / pitch / roll，身體簡化成頭、胸、腹三個空心輪廓，內部不填色、不畫分節。後續已清理 body 檔中的 `brushWeight` helper option，粗細統一由 `strokeWeight` 控制，並加粗輪廓、拉長腹部；已在頭部上方加回兩條簡單觸角線，用 `greenPlants.jpg` fixture 補測。rough insect 的整體畫布旋轉已改由 `createRoughScreenRotationPlan()` 選離散 degree plan，再只套用一次 `rotate()`。
-- Rough butterfly 翅膀斑點目前有 plan-based 對稱分布與亮斑 / 暗斑規則。使用者之後私下修改過斑點模式，日誌不一定完整記錄，因此後續改 `createRoughWingSpotPlan()` 前需以目前檔案內容為準，不要用舊日誌覆蓋。
+- Rough butterfly 翅膀斑點目前有 plan-based 對稱分布；一般 rim / inner 斑點仍使用 `spotPalette` 的亮斑 / 暗斑規則，只有 EyeSpots 另外使用 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。一般斑點模式曾被使用者私下修改過，日誌不一定完整記錄，因此後續改 `createRoughWingSpotPlan()` 前需以目前檔案內容為準，不要用舊日誌覆蓋。
 - 翅膀 p5.brush 筆刷材質與粗細已集中到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`。依 `docs/llms.txt`，`brush.set(name, color, weight)` 與 `brush.strokeWeight(weight)` 都是 weight multiplier；為避免混淆，rough wing 目前不再暴露 `brushLoad`，`brush.set()` 第三參數固定為 `1`，可調粗細集中在 `strokeWeight`，頂點濃淡 / 收筆則用 `pressureBase`、`pressureTaper`、`vertexPressure`。2026-05-13 已進一步將斑點筆刷拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，讓 rim-chain、inner-scatter、眼紋可分別調整筆刷。
 
 ## 目前使用者偏好
