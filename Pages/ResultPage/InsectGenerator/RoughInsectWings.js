@@ -1292,13 +1292,21 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
   let rimSpots = [];
   let innerSpots = [];
   let eyeSpots = [];
-  let offset = rimCount > 0 ? roughRandom(g, 0, perimeter / Math.max(1, rimCount)) : 0;
+  // 設定邊緣斑點出現的進度區間 (避開 0~0.15 的上緣根部，與 0.85~1.0 的下緣根部)
+  let startProgress = roughRandom(g, 0.15, 0.25);
+  let endProgress = roughRandom(g, 0.75, 0.85);
+  let progressRange = endProgress - startProgress;
+  let progressStep = rimCount > 1 ? progressRange / (rimCount - 1) : 0;
 
-  // 產生邊緣斑點 (如果 mode 是 none 或 inner-scatter，這裡的 rimCount 會是 0，直接跳過)
   for (let i = 0; i < rimCount; i++) {
-    if (roughRandom(g, 0, 1) < 0.2) continue; 
+    if (roughRandom(g, 0, 1) < 0.2) continue; // 20% 機率不畫，產生自然留白
+    
+    // 計算該斑點的基準進度，並加上微小的隨機偏移
+    let baseProgress = startProgress + i * progressStep;
+    let spotProgress = baseProgress + roughRandom(g, -progressStep * 0.15, progressStep * 0.15);
+    
     rimSpots.push({
-      distance: offset + (perimeter * i) / Math.max(1, rimCount) + roughRandom(g, -perimeter / Math.max(1, rimCount) * 0.16, perimeter / Math.max(1, rimCount) * 0.16),
+      progress: g.constrain(spotProgress, 0.4, 0.7),
       inset: insectBaseUnit * roughRandom(g, 0.7, 1.12),
       radius: insectBaseUnit * roughRandom(g, 0.12, 0.24),
       paintRole: roughRandom(g, 0, 1) < 0.22 ? "secondary" : "primary"
@@ -1371,9 +1379,13 @@ function drawRoughWingSpotPlan(g, root, center, outline, bounds, colorProfile, s
 
 function drawRoughWingRimSpotPlan(g, center, outline, colorProfile, rimSpots) {
   for (let spot of rimSpots) {
-    let perimeterPoint = getPointOnOutlineAtDistance(outline, spot.distance);
-    if (!perimeterPoint) continue;
-    let point = nudgePointInsideOutline(perimeterPoint.x, perimeterPoint.y, center, outline, spot.inset);
+    // 【修改點】：使用 progress 來取得輪廓點 (回傳的是 [x, y] 陣列)
+    let pt = getWingOutlinePointAtProgress(g, outline, spot.progress, 0);
+    if (!pt) continue;
+    
+    // 將點往內推 (inset)，避免畫出界，注意這裡傳入的是 pt[0] 和 pt[1]
+    let point = nudgePointInsideOutline(pt[0], pt[1], center, outline, spot.inset);
+    
     drawRoughWingPatternDot(g, point[0], point[1], spot.radius, getRoughWingSpotPaint(colorProfile, spot.paintRole), 0.16);
   }
 }
