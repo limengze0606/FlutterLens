@@ -87,20 +87,20 @@ var ROUGH_WING_BRUSH_SETTINGS = {
   // rim-chain 邊緣珠串斑點：偏乾、偏小，讓外緣像一串手點上的顆粒
   rimChainSpot: {
     brushName: "marker2",
-    strokeWeight: [0.18, 0.36]
+    strokeWeight: [0.12, 0.24]
   },
 
   // inner-scatter 內部散點：比 rim-chain 稍厚、稍柔，避免像機械噴點
   innerScatterSpot: {
-    brushName: "marker1",
-    strokeWeight: [0.32, 0.68]
+    brushName: "marker2",
+    strokeWeight: [0.12, 0.24]
   },
 
   // 眼紋三層：外圈穩、中層柔、核心較銳利
   eyeSpot: {
     ring: {
       brushName: "marker1",
-      strokeWeight: [0.46, 0.82]
+      strokeWeight: [1.46, 1.82]
     },
     middle: {
       brushName: "marker1",

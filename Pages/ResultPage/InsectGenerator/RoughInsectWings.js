@@ -1163,7 +1163,7 @@ function analyzeRoughWingColorPair(g, color1, color2) {
 }
 
 function createRoughWingSpotPalette(g, stronger, quieter, averageBrightness, hueDistance, alreadyContrasty) {
-  let useDarkSpots = averageBrightness >= 100;
+  let useDarkSpots = averageBrightness >= 70;
   let primaryHue = useDarkSpots
     ? wrapHue(stronger.h + (alreadyContrasty ? 10 : 205))
     : wrapHue(stronger.h + roughRandom(g, -10, 14));
@@ -1299,7 +1299,7 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
   let progressStep = rimCount > 1 ? progressRange / (rimCount - 1) : 0;
 
   for (let i = 0; i < rimCount; i++) {
-    if (roughRandom(g, 0, 1) < 0.2) continue; // 20% 機率不畫，產生自然留白
+    if (roughRandom(g, 0, 1) < 0.5) continue; // 50% 機率不畫，產生自然留白
     
     // 計算該斑點的基準進度，並加上微小的隨機偏移
     let baseProgress = startProgress + i * progressStep;
@@ -1330,7 +1330,7 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
     let count = highContrast ? 1 : Math.floor(roughRandom(g, 1, 3));
     for (let i = 0; i < count; i++) {
       eyeSpots.push({
-        progress: g.constrain(roughRandom(g, 0.56, 0.86) - i * roughRandom(g, 0.04, 0.08), 0.48, 0.88),
+        progress: g.constrain(roughRandom(g, 0.75, 0.9) - i * roughRandom(g, 0.04, 0.08), 0.48, 0.88),
         yBias: roughRandom(g, -0.36, 0.36),
         radius: insectBaseUnit * roughRandom(g, 1.1, 1.3),
         coreOffsetX: -roughRandom(g, 0.08, 0.2),
@@ -1352,11 +1352,11 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
 function sampleSymmetricInnerSpotPoint(g, outline, bounds, center) {
   let root = outline && outline.length > 0 ? outline[0] : { x: 0, y: 0 };
 
-  for (let i = 0; i < 34; i++) {
-    let progress = roughRandom(g, 0.5, 0.6);
+  for (let i = 0; i < 20; i++) {
+    let progress = roughRandom(g, 0.4, 0.8);
     let edge = getWingOutlinePointAtProgress(g, outline, progress, -insectBaseUnit * roughRandom(g, 0.38, 0.6));
     if (!edge) continue;
-    let towardEdge = roughRandom(g, 0.82, 0.95);
+    let towardEdge = roughRandom(g, 0.78, 0.95);
     let x = root.x + (edge[0] - root.x) * towardEdge + roughRandom(g, -insectBaseUnit * 0.26, insectBaseUnit * 0.26);
     let y = root.y + (edge[1] - root.y) * towardEdge + roughRandom(g, -insectBaseUnit * 0.36, insectBaseUnit * 0.36);
     if (isPointInsideOrOnOutline(x, y, outline, insectBaseUnit * 0.08)) {
