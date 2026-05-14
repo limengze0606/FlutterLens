@@ -73,7 +73,9 @@ docs/cdp-runs/<runId>/
 - summary JSON
 - console JSON
 
-截圖命名通常包含 run id、viewport label 與 stage，例如 start、scanning、result、after-back。
+截圖命名通常包含 run id、viewport label 與 stage，例如 start、scanning、result、after-share、after-back。
+
+Result page 測試目前會從 runtime 呼叫 `getResultActionLayout()` 讀取 `save`、`share`、`back` 三顆按鈕的座標與 visible flag，避免測試腳本使用舊的固定座標。portrait 測試會點擊 Share、Save、Back；在 Chrome headless 中 Web Share API 只能驗證進入 `sharing` 或 fallback 狀態，不能代表真實手機分享面板或社群 app 接收狀態。
 
 ## 已知 console 狀態
 
@@ -92,6 +94,7 @@ docs/cdp-runs/<runId>/
 - 審美分數與簡短批評。
 - 有無自我調整；若沒有，原因是什麼。
 - 真機 mobile / AR 尚未確認的項目。
+- 若測試 Result page actions，記錄 Save / Share / Back 是否都在 viewport 內，以及 Share 在 headless 或不支援環境下的狀態。
 
 ## 真機限制
 

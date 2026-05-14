@@ -167,6 +167,8 @@ function handleInteraction() {
     case PagesState.RESULT:
       if (checkSaveButtonClicked(mouseX, mouseY)) {
         exportResultImage();
+      } else if (checkShareButtonClicked(mouseX, mouseY)) {
+        shareResultImage();
       } else if (checkBackButtonClicked(mouseX, mouseY)) {
         resetResultData();
         currentPagesState = PagesState.SCANNING;

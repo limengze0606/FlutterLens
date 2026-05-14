@@ -3141,3 +3141,86 @@ rough wing 底層使用 `generateWingOutline()` 產生填色與剪裁輪廓，�
 
 #### 建議的下一步
 若黑線還是不夠黑或不夠像外框，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughMothBlackStructureOverlay()`：提高 abdomen / thorax / head 的 `strokeWeight` 會讓 moth 專用黑框更重，提高 `passes` 會讓手繪複線更明顯。若觸角要更像蛾，調 `drawRoughMothFeatherAntennae()`：提高 `spread` 倍率會讓左右更外展，提高 `len` 倍率會讓觸角更長，提高主幹與羽枝 `strokeWeight` 會讓櫛齒感更黑；若畫面太重，先降低 `drawRoughMothBodyDetails()` 的 colored fur 數量或 alpha，而不是移除最後黑線。
+
+---
+
+### 2026-05-14 — Result 頁底部按鈕重排與 Web Share API
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+調整 Result page 底部操作 UI：返回按鈕移到右下角，儲存移到左下角，並在左下角新增分享按鈕。分享按鈕會嘗試透過 Web Share API 分享不含 UI 的生成 PNG，並在不支援時提供畫面提示。同步更新 CDP 測試腳本，使測試讀取新的 responsive action layout，涵蓋手機轉向後的按鈕可見性。
+
+#### 使用者需求
+使用者要求修改 Result 頁面，將返回按鈕移到右下角，儲存移到左下角，同時左下角新增分享按鈕，透過 Web Share API 讓使用者可以上傳生成結果至社群。使用者後續補充要考慮手機螢幕轉向時 UI 位置是否仍能正確顯示。
+
+#### 實作前理解
+原本 Result page 的 Save / Back 皆固定在畫面下方中央：Save 在 `height - 145`，Back 在 `height - 80`。這種固定座標在直向會遮住底部中央，在橫向短高度也沒有明確分區。新增 Share 後若仍用固定座標，繪製、點擊判定與 CDP 測試容易不同步。Web Share API 分享圖片檔需要 secure context、使用者手勢、`navigator.share`，檔案分享還需要 `navigator.canShare({ files })`，且 headless Chrome 不能代表真實手機系統分享面板。
+
+#### 實作方案
+在 `Pages/ResultPage/ResultPage.js` 新增 `getResultActionLayout()`，每次依目前 `width` / `height` 重新計算三顆按鈕的位置、尺寸、圓角與字級。直向與 compact 會將 `儲存`、`分享` 放在左下側，`返回` 放在右下角；landscape / 短高度會縮小按鈕高度與寬度，避免跑出 viewport。新增 `drawShareButton()`、`checkShareButtonClicked()`、`shareResultImage()` 與分享狀態提示。`sketch.js` 的 Result interaction 依序檢查 Save、Share、Back。測試腳本改由 runtime 呼叫 `getResultActionLayout()` 讀取 Save / Share / Back 座標與 visible flag，不再硬寫舊中央座標。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `Pages/pagesSettings.js`
+- `sketch.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `sketch.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 決策紀錄
+決定把 Result actions 的座標集中到 `getResultActionLayout()`，讓 draw、hit test 與 CDP 驗證共用同一份 layout，避免旋轉或 viewport 改變後位置不一致。分享輸出沿用「不含 UI」的原則：點擊分享時先清掉文字層並重畫 Result artwork，再用 canvas PNG blob 建立 `File`。若瀏覽器支援檔案分享，呼叫 `navigator.share({ files })`；若不支援檔案分享但支援文字分享，退回文字分享；若完全不支援，顯示「請先儲存圖片」提示。
+
+#### 遇到的問題
+CDP headless Chrome 中 `navigator.share()` 會進入等待系統分享面板的狀態，無法像真實手機一樣完成或取消。因此測試不能把 `shareState === shared` 當作通過條件，而是確認按鈕可點、狀態進入 `sharing`、沒有 JS exception，且後續 Save / Back 仍能運作。第一輪測試顯示 share 狀態停在 `preparing`，因此調整為取得 blob 並準備呼叫分享前，先將狀態改為 `sharing` / 「開啟分享面板...」，並立即 `loop()` 讓 UI 回到畫面上。
+
+#### 嘗試過的解法
+先閱讀 Result page、全域互動流程與 screen-space helper，確認 UI 實際繪在 `screenTextLayer`，匯出時可清掉 UI layer。接著以 `apply_patch` 重構 Result button layout、接上分享流程，再更新 CDP 腳本。先跑 `result-actions-share-2026-05-14`，發現 headless share 狀態文字需調整；修正後再跑 `result-actions-share-final-2026-05-14` 做最終驗證。
+
+#### 最終解法
+`getResultActionLayout()` 會依 viewport 設定 `buttonW`、`buttonH`、`bottomMargin`、`labelSize`，並回傳 `save`、`share`、`back` 三個座標。`drawResultActionButton()` 統一畫按鈕；`checkSaveButtonClicked()`、`checkShareButtonClicked()`、`checkBackButtonClicked()` 皆使用同一 layout 做 AABB hit test。`shareResultImage()` 會呼叫 `renderResultArtworkForCanvasExport()` 產生不含 UI 的 canvas 畫面，再透過 `getResultCanvasBlob()` 建立 PNG `File` 給 Web Share API。`scripts/run-cdp-visual-test.ps1` 新增 `after-share` 截圖 stage 與 summary 中的 `resultActions`、`shareState`、`shareMessage`。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\ResultPage.js` 通過
+- 語法檢查：`node --check sketch.js` 通過
+- PowerShell 解析：`[scriptblock]::Create((Get-Content -Raw scripts\run-cdp-visual-test.ps1))` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 最終 run id：`result-actions-share-final-2026-05-14`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+- 截圖：`docs/cdp-runs/result-actions-share-final-2026-05-14/screenshots/`
+- Result action visible：三個 viewport 的 Save / Share / Back 均為 `visible: true`
+- Portrait Save：下載 `FlutterLens-result.png`，大小 775,788 bytes
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Back：回到 `SCANNING`，`backCleared: true`
+- Console 錯誤：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。優點是底部操作變成清楚的左右分區，直向畫面中 `儲存`、`分享`、`返回` 三顆按鈕視覺重量一致，且不再堆在中央上下兩列。分享狀態提示是低調黑色 pill，資訊可見但不搶昆蟲與照片。橫向短高度下按鈕縮小後仍可讀，也沒有貼到邊界。弱點是三顆中文文字按鈕仍偏傳統，若未來要更精緻，可以改成 icon + tooltip 或 icon + short label；目前為了維持既有風格與可讀性，先不做更大視覺語言改版。
+
+#### 使用者審美回饋
+本輪使用者沒有提供審美分數或截圖評語。使用者補充的功能性回饋是要考慮手機螢幕轉向時 UI 位置是否仍正確顯示，本輪已把 layout 改為每次依 viewport 重算，並用 portrait / compact / landscape CDP 驗證。
+
+#### 尚未解決的風險
+Web Share API 的真實分享面板、社群 app 目標、iOS / Android 檔案分享支援度仍需真機測試。CDP headless 只能確認按鈕、狀態與 fallback 不造成 JS exception，不能確認使用者是否能在真實手機上成功送出到 Instagram、Threads、LINE 或其他社群。GitHub Pages HTTPS 應符合 secure context，但仍需部署後測。Result 按鈕仍位於底部，若昆蟲 spawn 非常低仍可能被按鈕遮住；本輪改善的是操作分區與旋轉位置，不是 spawn avoidance。
+
+#### 使用者回饋或修正
+等待使用者在真機或本機預覽中確認底部按鈕位置、分享提示文案與真實社群分享流程是否符合期待。
+
+#### 建議的下一步
+用手機開 GitHub Pages 或本機 HTTPS 預覽，測試 Share 按鈕是否能分享 `FlutterLens-result.png` 到目標社群。若要調整按鈕位置，改 `Pages/ResultPage/ResultPage.js` 的 `getResultActionLayout()`：提高 `marginX` 會讓左右按鈕離邊緣更遠；提高 `gap` 會拉開儲存與分享；提高 `buttonH` 會讓按鈕更高、更容易點但更佔底部畫面；提高 `maxButtonW` 會讓文字更寬鬆但更容易在窄螢幕擁擠；提高 `bottomMargin` 會讓按鈕往上，降低則更貼近底部。若要改提示外觀，調 `drawResultShareMessage()` 的 `messageW`、`messageH`、`fill` 與文字 `size`。

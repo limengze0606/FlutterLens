@@ -4,6 +4,8 @@ let resultCaptureScheduled = false;
 let resultRenderSeed = null;
 let resultExportPending = false;
 let resultExportReady = false;
+let resultShareStatus = { state: "idle", message: "" };
+let resultShareMessageUntil = 0;
 
 function setupResultPhoto() {
     if (typeof syncBrushToCanvas === "function") {
@@ -94,8 +96,10 @@ function drawResultInsect() {
 }
 
 function renderResultUi() {
-    drawBackButton(); 
     drawSaveButton();
+    drawShareButton();
+    drawBackButton();
+    drawResultShareMessage();
 }
 
 function updateSpawnPositionForViewport() {
@@ -107,32 +111,95 @@ function updateSpawnPositionForViewport() {
     };
 }
 
-function drawBackButton() {
-  // 畫在畫面正下方，或是你想放左上角也可以
-  let btnX = width / 2;
-  let btnY = height - 80;
-  
-  // 半透明白底圓角矩形
-  drawScreenRect(btnX, btnY, 140, 50, 25, { fill: [255, 255, 255, 200] });
+function getResultActionLayout() {
+  let marginX = width < 380 ? 12 : 18;
+  let gap = width < 380 ? 8 : 10;
+  let buttonH = height < 420 ? 42 : 50;
+  let maxButtonW = height < 420 ? 96 : 108;
+  let buttonW = constrain((width - marginX * 2 - gap * 2) / 3, 78, maxButtonW);
+  let bottomMargin = constrain(height * 0.06, 16, height < 420 ? 22 : 30);
+  let y = height - bottomMargin - buttonH / 2;
+  let radius = buttonH / 2;
+  let labelSize = height < 420 ? 16 : 18;
 
-  // 文字
-  drawScreenText("返回", btnX, btnY, {
+  return {
+    buttonW,
+    buttonH,
+    radius,
+    labelSize,
+    save: {
+      x: marginX + buttonW / 2,
+      y
+    },
+    share: {
+      x: marginX + buttonW * 1.5 + gap,
+      y
+    },
+    back: {
+      x: width - marginX - buttonW / 2,
+      y
+    }
+  };
+}
+
+function drawResultActionButton(button, label, fillColor) {
+  drawScreenRect(button.x, button.y, button.w, button.h, button.radius, { fill: fillColor });
+  drawScreenText(label, button.x, button.y, {
     fill: 0,
-    size: 18,
+    size: button.labelSize,
     alignX: CENTER,
     alignY: CENTER
   });
 }
 
 function drawSaveButton() {
-  let btnX = width / 2;
-  let btnY = height - 145;
+  let layout = getResultActionLayout();
+  drawResultActionButton({
+    ...layout.save,
+    w: layout.buttonW,
+    h: layout.buttonH,
+    radius: layout.radius,
+    labelSize: layout.labelSize
+  }, "\u5132\u5b58", [255, 255, 255, 220]);
+}
 
-  drawScreenRect(btnX, btnY, 140, 50, 25, { fill: [255, 255, 255, 220] });
+function drawShareButton() {
+  let layout = getResultActionLayout();
+  drawResultActionButton({
+    ...layout.share,
+    w: layout.buttonW,
+    h: layout.buttonH,
+    radius: layout.radius,
+    labelSize: layout.labelSize
+  }, "\u5206\u4eab", [255, 255, 255, 220]);
+}
 
-  drawScreenText("\u5132\u5b58", btnX, btnY, {
-    fill: 0,
-    size: 18,
+function drawBackButton() {
+  let layout = getResultActionLayout();
+  drawResultActionButton({
+    ...layout.back,
+    w: layout.buttonW,
+    h: layout.buttonH,
+    radius: layout.radius,
+    labelSize: layout.labelSize
+  }, "\u8fd4\u56de", [255, 255, 255, 200]);
+}
+
+function drawResultShareMessage() {
+  if (!resultShareStatus.message || millis() > resultShareMessageUntil) return;
+
+  let layout = getResultActionLayout();
+  let messageW = min(width - 36, max(220, resultShareStatus.message.length * 15));
+  let messageH = height < 420 ? 34 : 38;
+  let messageY = layout.save.y - layout.buttonH / 2 - messageH / 2 - 12;
+
+  drawScreenRect(width / 2, messageY, messageW, messageH, messageH / 2, {
+    fill: [0, 0, 0, 150],
+    stroke: [255, 255, 255, 90]
+  });
+  drawScreenText(resultShareStatus.message, width / 2, messageY, {
+    fill: 255,
+    size: height < 420 ? 13 : 14,
     alignX: CENTER,
     alignY: CENTER
   });
@@ -140,30 +207,37 @@ function drawSaveButton() {
 
 // 檢查是否點擊到「返回」按鈕的範圍
 function checkBackButtonClicked(mx, my) {
-  let btnX = width / 2;
-  let btnY = height - 80;
-  let btnW = 140;
-  let btnH = 50;
-
-  // 簡單的矩形碰撞偵測 (AABB)
-  if (mx > btnX - btnW/2 && mx < btnX + btnW/2 &&
-      my > btnY - btnH/2 && my < btnY + btnH/2) {
-    return true;
-  }
-  return false;
+  let layout = getResultActionLayout();
+  return isPointInResultButton(mx, my, layout.back, layout);
 }
 
 function checkSaveButtonClicked(mx, my) {
-  let btnX = width / 2;
-  let btnY = height - 145;
-  let btnW = 140;
-  let btnH = 50;
+  let layout = getResultActionLayout();
+  return isPointInResultButton(mx, my, layout.save, layout);
+}
 
-  if (mx > btnX - btnW/2 && mx < btnX + btnW/2 &&
-      my > btnY - btnH/2 && my < btnY + btnH/2) {
-    return true;
-  }
-  return false;
+function checkShareButtonClicked(mx, my) {
+  let layout = getResultActionLayout();
+  return isPointInResultButton(mx, my, layout.share, layout);
+}
+
+function isPointInResultButton(mx, my, button, layout) {
+  return mx > button.x - layout.buttonW / 2 &&
+      mx < button.x + layout.buttonW / 2 &&
+      my > button.y - layout.buttonH / 2 &&
+      my < button.y + layout.buttonH / 2;
+}
+
+function showResultShareMessage(message, state = "info") {
+    resultShareStatus = { state, message };
+    resultShareMessageUntil = millis() + 3000;
+    resultSceneFinalized = false;
+    loop();
+
+    setTimeout(() => {
+        resultSceneFinalized = false;
+        loop();
+    }, 3200);
 }
 
 function exportResultImage() {
@@ -194,6 +268,90 @@ function completeResultExportIfReady() {
     }, 0);
 }
 
+function renderResultArtworkForCanvasExport() {
+    clearScreenTextLayer();
+    background(0);
+    drawInScreenSpace(() => {
+        updateResultPhotoLayout();
+        updateSpawnPositionForViewport();
+        renderResultArtwork();
+    });
+
+    if (drawingContext && typeof drawingContext.finish === "function") {
+        drawingContext.finish();
+    }
+}
+
+function getResultCanvasBlob() {
+    let canvasElement = document.querySelector("canvas");
+
+    return new Promise((resolve, reject) => {
+        if (!canvasElement || typeof canvasElement.toBlob !== "function") {
+            reject(new Error("Canvas export is not available."));
+            return;
+        }
+
+        canvasElement.toBlob((blob) => {
+            if (blob) {
+                resolve(blob);
+            } else {
+                reject(new Error("Canvas export failed."));
+            }
+        }, "image/png");
+    });
+}
+
+async function shareResultImage() {
+    if (!resultPhoto) return;
+
+    if (!navigator.share) {
+        showResultShareMessage("\u6b64\u700f\u89bd\u5668\u4e0d\u652f\u63f4\u5206\u4eab\uff0c\u8acb\u5148\u5132\u5b58\u5716\u7247", "unsupported");
+        return;
+    }
+
+    resultShareStatus = { state: "preparing", message: "\u6e96\u5099\u5206\u4eab\u5716\u7247..." };
+
+    try {
+        renderResultArtworkForCanvasExport();
+        let blob = await getResultCanvasBlob();
+        let file = new File([blob], "FlutterLens-result.png", { type: "image/png" });
+        let fileShareData = {
+            title: "FlutterLens",
+            text: "\u6211\u7684 FlutterLens \u751f\u6210\u7d50\u679c",
+            files: [file]
+        };
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            resultShareStatus = { state: "sharing", message: "\u958b\u555f\u5206\u4eab\u9762\u677f..." };
+            resultShareMessageUntil = millis() + 3000;
+            resultSceneFinalized = false;
+            loop();
+            await navigator.share(fileShareData);
+            showResultShareMessage("\u5df2\u958b\u555f\u5206\u4eab", "shared");
+        } else {
+            resultShareStatus = { state: "text-only", message: "\u6b64\u88dd\u7f6e\u4e0d\u652f\u63f4\u5716\u7247\u76f4\u63a5\u5206\u4eab" };
+            resultShareMessageUntil = millis() + 3000;
+            resultSceneFinalized = false;
+            loop();
+            await navigator.share({
+                title: "FlutterLens",
+                text: "\u6211\u7684 FlutterLens \u751f\u6210\u7d50\u679c"
+            });
+            showResultShareMessage("\u6b64\u88dd\u7f6e\u4e0d\u652f\u63f4\u5716\u7247\u76f4\u63a5\u5206\u4eab", "text-only");
+        }
+    } catch (error) {
+        if (error && error.name === "AbortError") {
+            showResultShareMessage("\u5df2\u53d6\u6d88\u5206\u4eab", "cancelled");
+        } else {
+            console.warn("Result share failed:", error);
+            showResultShareMessage("\u5206\u4eab\u5931\u6557\uff0c\u8acb\u5148\u5132\u5b58\u5716\u7247", "error");
+        }
+    } finally {
+        resultSceneFinalized = false;
+        loop();
+    }
+}
+
 function resetResultData() {
     spawnPosition = null;
     spawnPositionRatio = null;
@@ -202,6 +360,8 @@ function resetResultData() {
     resultRenderSeed = null;
     resultExportPending = false;
     resultExportReady = false;
+    resultShareStatus = { state: "idle", message: "" };
+    resultShareMessageUntil = 0;
     resultPhoto = null;
     resultPhotoLayout = { x: 0, y: 0, w: 0, h: 0 };
     resultCaptureLayout = { x: 0, y: 0, w: 0, h: 0 };

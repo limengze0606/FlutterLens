@@ -1882,3 +1882,49 @@ Codex 自評：`7.4/10`。優點是使用者指出的「蛾線條好像跟著身
 
 ### 備註 / 風險
 本輪仍使用 Chrome fake camera，不能取代真機 AR / camera 驗證。這次修正保留既有 moth 彩色短毛 / band 筆觸，但在最後增加 moth-only 黑色 overlay；若未來想要更乾淨，可考慮降低 `drawRoughMothBodyDetails()` 的 colored fur alpha 或密度。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+Result page 底部操作重排：左下角 `儲存` / `分享`，右下角 `返回`，並新增 Web Share API 分享狀態提示與 responsive layout。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced spawn：`-ForcedSpawnRatioX 0.34 -ForcedSpawnRatioY 0.36`
+
+### 預期行為
+Result page 應顯示三顆底部按鈕：`儲存` 與 `分享` 在左下角，`返回` 在右下角。手機轉向或 viewport 改變後，三顆按鈕都應維持在可視範圍內，不互相重疊。Share 按鈕應嘗試用 Web Share API 分享不含 UI 的生成 PNG；在 headless 或不支援環境下不應造成 JavaScript exception，並應有可讀的狀態或 fallback。
+
+### 實際觀察
+`result-actions-share-final-2026-05-14` 中，portrait / compact / landscape 均完成 `START → SCANNING → RESULT`。三個 viewport 的 `resultActions.save.visible`、`resultActions.share.visible`、`resultActions.back.visible` 均為 true。portrait 測試點擊 Share 後進入 `shareState: "sharing"`，畫面顯示「開啟分享面板...」提示；接著 Save 仍下載 `FlutterLens-result.png`，Back 仍回到 `SCANNING` 並清空 result data。橫向短高度下按鈕縮為 96x42，仍位於底部可視範圍內。
+
+### 截圖
+- Portrait result：`docs/cdp-runs/result-actions-share-final-2026-05-14/screenshots/result-actions-share-final-2026-05-14-greenPlants-portrait-390x844-result.png`
+- Portrait after share：`docs/cdp-runs/result-actions-share-final-2026-05-14/screenshots/result-actions-share-final-2026-05-14-greenPlants-portrait-390x844-after-share.png`
+- Landscape result：`docs/cdp-runs/result-actions-share-final-2026-05-14/screenshots/result-actions-share-final-2026-05-14-greenPlants-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。優點是底部 UI 分區明確，左下角兩顆主要輸出動作和右下角返回形成穩定平衡；按鈕大小、透明白底和既有風格一致，不會突然變成另一套介面。分享提示用黑色半透明 pill 放在底部按鈕上方，可讀但不搶照片主體。弱點是三顆仍都是文字按鈕，視覺上偏基礎；未來若要更精緻，可改成 icon + label，但需重新確認觸控與辨識。
+
+### 使用者審美回饋
+本輪尚未收到使用者對截圖的審美分數或評語。使用者的補充需求是必須考慮手機螢幕轉向後 UI 是否仍正確顯示。
+
+### Console 錯誤
+`result-actions-share-final-2026-05-14` 三個 viewport 各有一筆既有 404 resource event，未阻止 Start、Scanning、Result、Share 狀態、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 在真實 iPhone Safari 測試 Share 按鈕是否能分享 PNG 檔案到目標社群 app
+- [ ] 在 Android Chrome 測試 `navigator.canShare({ files })` 與社群 app 接收結果
+- [ ] 在 GitHub Pages HTTPS 部署環境確認 Web Share API secure context 行為
+- [ ] 旋轉手機直向 / 橫向，確認三顆按鈕都在安全觸控範圍內
+- [ ] 檢查分享面板取消後 UI 是否回到 Result page 並保持可操作
+
+### 備註 / 風險
+Chrome headless 無法真正打開手機系統分享面板，也不能確認社群 app 是否接收 PNG；本輪只能驗證分享按鈕進入 `sharing` 狀態、沒有 JS exception，並確認後續 Save / Back 未被破壞。若部分瀏覽器不支援檔案分享，會退回文字分享或提示使用者先儲存圖片。

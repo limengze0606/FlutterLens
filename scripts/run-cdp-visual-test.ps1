@@ -33,7 +33,7 @@ New-Item -ItemType Directory -Force -Path $ScreenshotDir, $DownloadRoot, $Profil
 
 # 產物命名規則：
 # - 截圖：<runId>-<cameraLabel>-<viewportLabel>-<stage>.png
-# - stage 固定使用 start / scanning / result / after-back
+# - stage 固定使用 start / scanning / result / after-share / after-back
 # - 下載：downloads/<cameraLabel>/<viewportLabel>/FlutterLens-result.png
 # - 摘要：<runId>-summary.json
 # - Console：<runId>-console.json
@@ -466,6 +466,7 @@ try {
       $scan = $null
       $result = $null
       $saveResult = $null
+      $shareResult = $null
       $backResult = $null
       $downloads = @()
 
@@ -527,8 +528,23 @@ try {
   hasResultPhoto: !!resultPhoto,
   runtimeWidth: width,
   runtimeHeight: height,
-  save: { x: width / 2, y: height - 145 },
-  back: { x: width / 2, y: height - 80 },
+  actions: typeof getResultActionLayout === 'function'
+    ? (() => {
+        const layout = getResultActionLayout();
+        const visible = (button) =>
+          button.x - layout.buttonW / 2 >= 0 &&
+          button.x + layout.buttonW / 2 <= width &&
+          button.y - layout.buttonH / 2 >= 0 &&
+          button.y + layout.buttonH / 2 <= height;
+        return {
+          buttonW: layout.buttonW,
+          buttonH: layout.buttonH,
+          save: { x: layout.save.x, y: layout.save.y, visible: visible(layout.save) },
+          share: { x: layout.share.x, y: layout.share.y, visible: visible(layout.share) },
+          back: { x: layout.back.x, y: layout.back.y, visible: visible(layout.back) }
+        };
+      })()
+    : null,
   mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null,
   spawnPosition,
   spawnPositionRatio
@@ -536,8 +552,22 @@ try {
 "@
           Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "result")
 
-          if ($viewport.testButtons -and $result.state -eq "RESULT") {
-            Invoke-CdpClick -Socket $socket -Events $events -X $result.save.x -Y $result.save.y
+          if ($viewport.testButtons -and $result.state -eq "RESULT" -and $result.actions) {
+            Invoke-CdpClick -Socket $socket -Events $events -X $result.actions.share.x -Y $result.actions.share.y
+            Start-Sleep -Seconds 2
+
+            $shareResult = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
+(() => ({
+  state: currentPagesState,
+  hasNavigatorShare: !!navigator.share,
+  hasNavigatorCanShare: !!navigator.canShare,
+  shareStatus: typeof resultShareStatus !== 'undefined' ? resultShareStatus : null,
+  hasResultPhoto: !!resultPhoto
+}))()
+"@
+            Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "after-share")
+
+            Invoke-CdpClick -Socket $socket -Events $events -X $result.actions.save.x -Y $result.actions.save.y
             Start-Sleep -Seconds 5
 
             $saveResult = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
@@ -552,7 +582,7 @@ try {
             $downloads = @(Get-ChildItem -Path $downloadDir -File -ErrorAction SilentlyContinue |
               Select-Object Name, Length, LastWriteTime)
 
-            Invoke-CdpClick -Socket $socket -Events $events -X $result.back.x -Y $result.back.y
+            Invoke-CdpClick -Socket $socket -Events $events -X $result.actions.back.x -Y $result.actions.back.y
             Start-Sleep -Seconds 2
 
             $backResult = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
@@ -594,6 +624,9 @@ try {
         resultFinalPitch = if ($result) { $result.finalPitch } else { $null }
         videoReady = if ($scan) { [bool]$scan.videoReady } else { $null }
         hasResultPhoto = if ($result) { [bool]$result.hasResultPhoto } else { $null }
+        resultActions = if ($result) { $result.actions } else { $null }
+        shareState = if ($shareResult -and $shareResult.shareStatus) { $shareResult.shareStatus.state } else { $null }
+        shareMessage = if ($shareResult -and $shareResult.shareStatus) { $shareResult.shareStatus.message } else { $null }
         saveState = if ($saveResult) { $saveResult.state } else { $null }
         downloads = $downloads
         backState = if ($backResult) { $backResult.state } else { $null }
