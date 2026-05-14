@@ -1,9 +1,10 @@
 function createRoughInsectBodyPlan(g, seedValue, insectType) {
-  if (insectType !== 0) return null;
-
   setRoughSeed(g, seedValue + 313);
 
   let u = insectBaseUnit;
+  if (insectType === 1) return createRoughDragonflyBodyPlan(g, u, insectType);
+  if (insectType === 2) return createRoughMothBodyPlan(g, u, insectType);
+
   let centerDriftX = roughRandom(g, -0.12 * u, 0.12 * u);
   let rootY = roughRandom(g, 0.12 * u, 0.26 * u);
   let headY = rootY - roughRandom(g, 0.6 * u, 0.7 * u);
@@ -53,8 +54,102 @@ function createRoughInsectBodyPlan(g, seedValue, insectType) {
   };
 }
 
+function createRoughDragonflyBodyPlan(g, u, insectType) {
+  let centerDriftX = roughRandom(g, -0.08 * u, 0.08 * u);
+  let rootY = roughRandom(g, -0.06 * u, 0.08 * u);
+  let headY = rootY - roughRandom(g, 1.0 * u, 1.25 * u);
+  let thoraxY = rootY + roughRandom(g, 0.2 * u, 0.42 * u);
+  let abdomenY = rootY + roughRandom(g, 1.15 * u, 1.45 * u);
+  let bottomY = abdomenY + roughRandom(g, 10.5 * u, 13.5 * u);
+
+  return {
+    insectType,
+    centerX: centerDriftX,
+    topY: headY - 0.7 * u,
+    rootY,
+    headY,
+    bottomY,
+    curveX: roughRandom(g, -0.2 * u, 0.2 * u),
+    wingRootY: rootY + roughRandom(g, -0.04 * u, 0.12 * u),
+    wingRootHalfWidth: roughRandom(g, 0.42 * u, 0.56 * u),
+    anatomy: {
+      head: {
+        x: centerDriftX,
+        y: headY,
+        rx: roughRandom(g, 0.72 * u, 0.92 * u),
+        ry: roughRandom(g, 0.46 * u, 0.62 * u),
+        rotation: 0
+      },
+      thorax: {
+        x: centerDriftX,
+        y: thoraxY,
+        rx: roughRandom(g, 0.58 * u, 0.72 * u),
+        ry: roughRandom(g, 1.05 * u, 1.32 * u),
+        rotation: 0
+      },
+      abdomen: {
+        x: centerDriftX,
+        y: (abdomenY + bottomY) * 0.5,
+        rx: roughRandom(g, 0.22 * u, 0.34 * u),
+        ry: (bottomY - abdomenY) * 0.5,
+        rotation: 0
+      }
+    },
+    antennaSpread: 0,
+    antennaLength: 0,
+    gestureSide: 1
+  };
+}
+
+function createRoughMothBodyPlan(g, u, insectType) {
+  let centerDriftX = roughRandom(g, -0.1 * u, 0.1 * u);
+  let rootY = roughRandom(g, 0.02 * u, 0.22 * u);
+  let headY = rootY - roughRandom(g, 0.7 * u, 0.9 * u);
+  let thoraxY = rootY + roughRandom(g, 0.25 * u, 0.44 * u);
+  let abdomenY = rootY + roughRandom(g, 1.0 * u, 1.3 * u);
+  let bottomY = abdomenY + roughRandom(g, 4.8 * u, 6.4 * u);
+
+  return {
+    insectType,
+    centerX: centerDriftX,
+    topY: headY - 0.58 * u,
+    rootY,
+    headY,
+    bottomY,
+    curveX: roughRandom(g, -0.12 * u, 0.12 * u),
+    wingRootY: rootY + roughRandom(g, -0.18 * u, 0.04 * u),
+    wingRootHalfWidth: roughRandom(g, 0.5 * u, 0.68 * u),
+    anatomy: {
+      head: {
+        x: centerDriftX,
+        y: headY,
+        rx: roughRandom(g, 0.38 * u, 0.52 * u),
+        ry: roughRandom(g, 0.44 * u, 0.62 * u),
+        rotation: 0
+      },
+      thorax: {
+        x: centerDriftX,
+        y: thoraxY,
+        rx: roughRandom(g, 0.82 * u, 1.08 * u),
+        ry: roughRandom(g, 1.08 * u, 1.42 * u),
+        rotation: 0
+      },
+      abdomen: {
+        x: centerDriftX,
+        y: (abdomenY + bottomY) * 0.5,
+        rx: roughRandom(g, 0.54 * u, 0.72 * u),
+        ry: (bottomY - abdomenY) * 0.5,
+        rotation: 0
+      }
+    },
+    antennaSpread: roughRandom(g, 1.4 * u, 1.9 * u),
+    antennaLength: roughRandom(g, 3.1 * u, 4.0 * u),
+    gestureSide: 1
+  };
+}
+
 function drawRoughInsectBody(g, bodyPlan, seedValue, wingColor1 = null, wingColor2 = null) {
-  if (!bodyPlan || bodyPlan.insectType !== 0) return;
+  if (!bodyPlan || !bodyPlan.anatomy) return;
 
   setRoughSeed(g, seedValue + 719);
 
@@ -67,6 +162,7 @@ function drawRoughInsectBody(g, bodyPlan, seedValue, wingColor1 = null, wingColo
 
   drawRoughBodyColorMasses(g, bodyPlan, colorPlan, u);
   drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
+  drawRoughBodyTypeDetails(g, bodyPlan, ink, colorPlan, u);
 
   g.pop();
 }
@@ -298,7 +394,107 @@ function drawRoughBodySimpleOutline(g, plan, ink, u) {
     wobble: 0.04 * u,
     passes: 2
   });
-  drawRoughSimpleAntennae(g, plan.anatomy.head, ink, u);
+  if (plan.insectType === 0) drawRoughSimpleAntennae(g, plan.anatomy.head, ink, u);
+}
+
+function drawRoughBodyTypeDetails(g, plan, ink, colorPlan, u) {
+  if (plan.insectType === 1) {
+    drawRoughDragonflyBodyDetails(g, plan, ink, colorPlan, u);
+  } else if (plan.insectType === 2) {
+    drawRoughMothBodyDetails(g, plan, ink, colorPlan, u);
+  }
+}
+
+function drawRoughDragonflyBodyDetails(g, plan, ink, colorPlan, u) {
+  let head = plan.anatomy.head;
+  let abdomen = plan.anatomy.abdomen;
+
+  for (let side of [-1, 1]) {
+    drawRoughPressureDot(g, head.x + side * head.rx * 0.45, head.y - head.ry * 0.05, ink, roughRandom(g, 0.22 * u, 0.34 * u));
+  }
+
+  let count = 11;
+  let bandPaint = colorToBrushPaint(colorPlan.band, 188);
+  for (let i = 1; i <= count; i++) {
+    let t = i / (count + 1);
+    let localY = g.map(t, 0, 1, -abdomen.ry * 0.84, abdomen.ry * 0.84);
+    let widthRatio = Math.sqrt(Math.max(0, 1 - Math.pow(localY / abdomen.ry, 2)));
+    let halfLen = abdomen.rx * widthRatio * roughRandom(g, 0.82, 1.08);
+    let left = rotateLocalPoint(abdomen.x, abdomen.y, -halfLen, localY, abdomen.rotation || 0);
+    let right = rotateLocalPoint(abdomen.x, abdomen.y, halfLen, localY, abdomen.rotation || 0);
+
+    drawRoughAntennaLine(g, [
+      [left.x, left.y],
+      [right.x, right.y]
+    ], bandPaint.color, {
+      strokeWeight: roughRandom(g, 0.34, 0.54),
+      jitter: 0.01 * u,
+      alpha: bandPaint.alpha
+    });
+  }
+}
+
+function drawRoughMothBodyDetails(g, plan, ink, colorPlan, u) {
+  let head = plan.anatomy.head;
+  let thorax = plan.anatomy.thorax;
+  let softPaint = colorToBrushPaint(colorPlan.band, 150);
+
+  drawRoughMothFeatherAntennae(g, head, ink, plan, u);
+
+  for (let i = 0; i < 12; i++) {
+    let side = i % 2 === 0 ? -1 : 1;
+    let y = roughRandom(g, thorax.y - thorax.ry * 0.62, thorax.y + thorax.ry * 0.68);
+    let x = thorax.x + side * roughRandom(g, thorax.rx * 0.2, thorax.rx * 0.88);
+    let len = roughRandom(g, 0.35 * u, 0.92 * u);
+    drawRoughAntennaLine(g, [
+      [x, y],
+      [x + side * len, y + roughRandom(g, -0.16 * u, 0.22 * u)]
+    ], softPaint.color, {
+      strokeWeight: roughRandom(g, 0.24, 0.42),
+      jitter: 0.014 * u,
+      alpha: softPaint.alpha
+    });
+  }
+}
+
+function drawRoughMothFeatherAntennae(g, head, ink, plan, u) {
+  let baseY = head.y - head.ry * 0.62;
+  let baseGap = head.rx * 0.22;
+  let spread = plan.antennaSpread || 1.6 * u;
+  let len = plan.antennaLength || 3.4 * u;
+
+  for (let side of [-1, 1]) {
+    let points = [
+      [head.x + side * baseGap, baseY],
+      [head.x + side * spread * 0.32, baseY - len * 0.34],
+      [head.x + side * spread * 0.72, baseY - len * 0.7],
+      [head.x + side * spread, baseY - len]
+    ];
+
+    drawRoughAntennaLine(g, points, ink, {
+      strokeWeight: roughRandom(g, 0.56, 0.82),
+      jitter: 0.014 * u
+    });
+
+    for (let i = 1; i < points.length; i++) {
+      let p = points[i];
+      let branchLen = spread * roughRandom(g, 0.14, 0.24) * (1 - i * 0.08);
+      drawRoughAntennaLine(g, [
+        [p[0], p[1]],
+        [p[0] + side * branchLen, p[1] + branchLen * 0.22]
+      ], ink, {
+        strokeWeight: roughRandom(g, 0.28, 0.42),
+        jitter: 0.01 * u
+      });
+      drawRoughAntennaLine(g, [
+        [p[0], p[1]],
+        [p[0] - side * branchLen * 0.72, p[1] + branchLen * 0.18]
+      ], ink, {
+        strokeWeight: roughRandom(g, 0.22, 0.36),
+        jitter: 0.01 * u
+      });
+    }
+  }
 }
 
 function drawRoughSimpleAntennae(g, head, ink, u) {

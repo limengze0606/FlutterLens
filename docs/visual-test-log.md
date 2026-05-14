@@ -1687,3 +1687,54 @@ Codex 自評：`7.5/10`。優點是 body 由空心輪廓變成有實體質感的
 
 ### 備註 / 風險
 本輪 CDP + fixture 可確認 UI 流程與初步視覺，但不能取代真實手機 AR / camera 測試。Body palette 仍是 seed 隨機，尚未做多 seed 截圖矩陣。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+新增 rough dragonfly 與 rough moth 第一版手繪生成；蛾依使用者修正只保留一對翅膀，並加入大量眼斑。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：Chrome fake camera 預設畫面
+- Forced pitch：蜻蜓 `-ForcedFinalPitch 30`；蛾 `-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+
+### 預期行為
+rough mode 不應再硬鎖蝴蝶。`finalPitch > 20` 應產生蜻蜓，具備長細腹、寬頭與兩對狹長透明翅；`finalPitch < -50` 應產生蛾，蛾只需要一對大翅，但翅面應有多個眼斑。Start、Scanning、Result、Save / Back 流程不應回歸。
+
+### 實際觀察
+`rough-dragonfly-20260514` 與 `rough-moth-20260514` 的三個 viewport 都成功進入 Result，portrait 完成 Save / Back。蜻蜓 portrait 可見長細腹、兩對狹長翅與淡翅脈，類型辨識成立。蛾 portrait 可見一對大翅與多排紫色眼斑，符合使用者「一對翅膀、很多眼斑」方向。蛾 landscape 截圖中昆蟲靠近畫面上方並被 Save / Back 按鈕遮擋，不適合作為構圖通過判定。
+
+### 截圖
+- 蜻蜓 portrait：`docs/cdp-runs/rough-dragonfly-20260514/screenshots/rough-dragonfly-20260514-default-portrait-390x844-result.png`
+- 蜻蜓 compact：`docs/cdp-runs/rough-dragonfly-20260514/screenshots/rough-dragonfly-20260514-default-compact-360x740-result.png`
+- 蜻蜓 landscape：`docs/cdp-runs/rough-dragonfly-20260514/screenshots/rough-dragonfly-20260514-default-landscape-844x390-result.png`
+- 蛾 portrait：`docs/cdp-runs/rough-moth-20260514/screenshots/rough-moth-20260514-default-portrait-390x844-result.png`
+- 蛾 compact：`docs/cdp-runs/rough-moth-20260514/screenshots/rough-moth-20260514-default-compact-360x740-result.png`
+- 蛾 landscape：`docs/cdp-runs/rough-moth-20260514/screenshots/rough-moth-20260514-default-landscape-844x390-result.png`
+
+### 審美評分與評語
+蜻蜓 Codex 自評：`7.2/10`。優點是長腹與兩對窄翅讓類型一眼可分，翅脈比蝴蝶輕，沒有被蝴蝶斑點污染。弱點是姿態仍偏平面標本感，透明翅與身體角度還可更有飛行生命感。
+
+蛾 Codex 自評：`7.4/10`。優點是單一大翅對與大量眼斑已清楚回應使用者需求，和蝴蝶的雙翅 / 偶發眼斑區隔明顯。弱點是 body 容易被眼斑翅面吃掉，羽狀觸角與胸部毛感在小尺寸下不夠明顯；landscape 被 UI 遮擋。這輪沒有再做第二次視覺調整，原因是第一版已達到「類型可分」與「蛾多眼斑」的主要目標，下一步更適合依使用者對眼斑密度、蛾翅外形與蜻蜓透明感的偏好調整。
+
+### 使用者審美回饋
+使用者要求「雖然蝴蝶部分尚未完成，但希望套用同樣的模式畫出手繪蜻蜓及蛾」，並補充「蛾只要有一對翅膀，但是要有很多眼斑」。本輪已依此將蛾設定成單一翅對與多眼斑。
+
+### Console 錯誤
+兩個 run 的每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機確認 rough mode 依 pitch 產生三種昆蟲時的比例與 AR 疊合穩定性
+- [ ] 用真實背景確認蛾的多眼斑不會過度搶過 body
+- [ ] 用多 seed 確認蜻蜓翅膀仍保持透明、狹長，不會變成蝴蝶翅
+- [ ] 調整 landscape forced spawn 或 Result UI，避免昆蟲被 Save / Back 遮擋
+
+### 備註 / 風險
+本輪只做第一版 rough dragonfly / rough moth，尚未處理離散 pose preset。CDP + fake camera 可以驗證流程與初步造型，但不能取代真實手機 AR / camera 測試。

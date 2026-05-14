@@ -9,11 +9,13 @@
 - Rough butterfly body 已從三個空心輪廓推進到 p5.brush 填色版本，包含頭胸腹填色與腹部環狀紋理。Body 色彩可取自然黑 / 褐、翅膀主色或翅膀對比色；依使用者修正，主色或對比色不必一律降彩度。仍需使用者確認高彩度 body 是否太搶，以及深綠黑 body 在葉片背景上是否足夠可讀。
 - rough insect 的整體畫布方向已改成離散 `screen rotation plan`，並移除雙重 random rotate；目前只控制整隻昆蟲的畫面朝向，不改 body 編排或翅膀變形。因 `sketch.js` 設定 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 需直接使用 degree 數值。
 - rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱。一般 rim / inner 斑點仍依翅膀平均亮度切換亮斑 / 暗斑；只有 EyeSpots 改用獨立 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。仍需用多 seed 或強制模式確認互補色眼紋在不同底色下是否過飽和、過重或被翅脈吃掉。
+- rough insect 已解除 rough mode 中硬鎖 `insectType = 0` 的限制，並新增第一版 rough dragonfly / rough moth。蜻蜓目前以長細腹、寬頭、短胸與兩對狹長翅辨識；蛾依使用者要求只畫一對大翅，並強制多排眼斑。兩者已通過 CDP 預設 fake camera portrait / compact / landscape 基本流程，但尚未用真實手機或 fixtures 做完整審美壓力測試。
 - 使用者在本輪前私下修改過翅膀斑點模式，日誌沒有完整記錄。後續若改斑點分布，必須先讀目前 `RoughInsectWings.js`，以現行程式為準，不可依舊 worklog 還原或覆蓋。
 - rough butterfly 翅膀筆刷設定已抽到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`，包含外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、radial band、accent、specular、wash、loose patch 等參數。依 `docs/llms.txt`，目前已移除容易混淆的 `brushLoad`，`brush.set()` 第三參數固定為 `1`，後續調粗細優先改 `strokeWeight`，調頂點濃淡 / 收筆優先改 pressure 相關參數。斑點筆刷目前已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，但仍需用多 seed 或強制模式確認三種模式的視覺差異是否足夠明顯。
 - 姿態暫時固定 / 停用 posePlan，尚未完成使用者期待的 body / wing 離散 pose preset。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，測試時需使用 forced spawn 或調整生成位置。
 - Landscape 構圖與 forced spawn 位置仍需再評估。
+- 2026-05-14 rough moth landscape 截圖仍被 Save / Back 按鈕遮住，不可視為蛾構圖已通過；portrait 截圖較能判讀單翅對與多眼斑。
 
 ## 已知測試風險
 

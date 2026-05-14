@@ -2840,3 +2840,84 @@ CDP 測試腳本仍沒有 forced eye-spot 參數；本輪隨機結果沒有抽�
 
 #### 建議的下一步
 若要調 body 色彩，優先改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `createRoughBodyColorPlan()`：`naturalPalettes` 控制黑 / 褐自然體色，`linkedPalettes` 控制主色與對比色策略，`tuneRoughBodyHSB()` 的 `sat` / `bri` 範圍控制彩度與亮度。若要調填色厚度，改 `drawRoughBodyColorMasses()` 傳給 `drawRoughFilledBodyOval()` 的 `passes`、`strokeWeight`、`pressureBase`、`pressureTaper`；數值提高會讓 body 更重、更顯眼，降低會更透明。若要調腹部環紋，改 `createRoughBodyColorPlan()` 的 `abdomenBandCount`、`abdomenBandWeight` 與 `abdomenBandChance`；數量或線寬提高會更像分節，降低會更簡潔。
+
+---
+
+### 2026-05-14 — Rough Dragonfly / Moth 第一版
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+在 rough 手繪生成模式中新增蜻蜓與蛾，讓蝴蝶尚未完成的情況下，也能用同一套 p5.brush / rough wing 模式生成另外兩種昆蟲。
+
+#### 使用者需求
+使用者表示「雖然蝴蝶部分尚未完成，但希望套用同樣的模式畫出手繪蜻蜓及蛾」。在計畫確認後，使用者補充「蛾只要有一對翅膀，但是要有很多眼斑」。因此本輪蛾的重點不是雙翅層次，而是單一大翅對與大量眼斑。
+
+#### 實作前理解
+`drawRoughInsect()` 雖然會依 `finalPitch` 判斷 `insectType`，但後面硬性設定 `insectType = 0`，導致 rough mode 實際只會畫蝴蝶。`createRoughInsectBodyPlan()` 與 `drawRoughInsectBody()` 也只支援 type 0。舊版非 rough generator 已有 `drawDragonflyBody()`、`drawMothBody()`、`drawDragonflyWings()`、`drawMothWings()` 可作結構參考，但手繪版需要自己的 body plan、wing plan 與眼斑策略。
+
+#### 實作方案
+移除 rough mode 中的 `insectType = 0` 硬鎖，讓 `finalPitch` 判斷重新生效。擴充 `RoughInsectBody.js`：type 1 建立蜻蜓寬頭、短胸、極長細腹與密集腹節；type 2 建立蛾小頭、寬毛胸、短胖腹、羽狀觸角與胸部毛感。擴充 `RoughInsectWings.js`：type 1 使用兩對狹長 wing pair、淡化蝴蝶式斑點；type 2 使用一對大而圓鈍的 moth wing pair，並以 `createRoughMothEyeSpotPlan()` 強制產生多排眼斑。另在 `InsectWings.js` 的 `generateWingOutline()` 補上 `wingStyle = 2`，讓 rough moth 可共用既有單邊翅膀 renderer。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `scripts/run-cdp-visual-test.ps1`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/InsectWings.js`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+蛾採用「一對翅膀」的使用者指定方向，因此沒有做像蝴蝶一樣的 fore / hind 雙翅層。蛾的眼斑不使用蝴蝶的偶發 `useEyeSpots` 機率，而是走 `useMothEyeField` 與 `createRoughMothEyeSpotPlan()`，固定生成多排眼斑。蜻蜓為避免像蝴蝶，強制空 `spotPlan` 並關閉 radial bands / eye spots，保留較透明、翅脈主導的視覺。
+
+#### 遇到的問題
+rough wing 底層使用 `generateWingOutline()` 產生填色與剪裁輪廓，而手繪外輪廓使用 `generateBowedWingOutline()`。若只新增其中一個的 moth wing style，填色與外輪廓會不一致，因此兩處都補了 `wingStyle = 2` 的圓鈍蛾翅控制點。Landscape 截圖中蛾靠近上方並被 Save / Back 按鈕遮擋，仍是構圖驗證風險。
+
+#### 嘗試過的解法
+先擴充 body plan，再擴充 wing plan，最後移除 manager 的 rough type 硬鎖。語法檢查使用 `node --check` 分別檢查 `InsectManager.js`、`RoughInsectBody.js`、`RoughInsectWings.js`、`InsectWings.js`。視覺檢查用 CDP 腳本強制 `finalPitch`：`30` 驗證蜻蜓，`-60` 驗證蛾。
+
+#### 最終解法
+`drawRoughInsect()` 現在會建立三種昆蟲的 `roughBodyPlan`，並用同一流程先畫 rough wings、再畫 rough body。蜻蜓使用 `drawRoughDragonflyWingPairs()` 與 `createRoughDragonflyWingPairPlans()` 畫兩對窄翅，body details 追加大眼與密集腹節。蛾使用 `drawRoughMothWingPair()` 與 `createRoughMothEyeSpotPlan()` 畫一對大翅與大量眼斑，body details 追加羽狀觸角與胸部毛感。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check` 通過 `InsectManager.js`、`RoughInsectBody.js`、`RoughInsectWings.js`、`InsectWings.js`
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 蜻蜓 run id：`rough-dragonfly-20260514`
+- 蛾 run id：`rough-moth-20260514`
+- Camera fixture：Chrome fake camera 預設畫面
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：蜻蜓 `-ForcedFinalPitch 30`；蛾 `-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 截圖：位於 `docs/cdp-runs/rough-dragonfly-20260514/screenshots/` 與 `docs/cdp-runs/rough-moth-20260514/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：蜻蜓 portrait 可見長細腹、兩對狹長翅與淡翅脈；蛾 portrait 可見一對大翅與多排紫色眼斑。蛾 landscape 被 Save / Back 遮擋，不適合當作構圖通過判定。
+
+#### Codex 審美自評
+蜻蜓約 `7.2/10`。優點是類型辨識成立，長腹與兩對窄翅清楚避開蝴蝶語彙；弱點是姿態仍偏平面標本，透明翅的輕盈感與身體帶動姿態可再強化。蛾約 `7.4/10`。優點是單一大翅對與大量眼斑明確回應使用者需求；弱點是 body 在多眼斑翅面中偏弱，羽狀觸角與胸部毛感在手機尺寸不夠突出。這輪未再做第二次視覺調整，因為第一版已達成類型可分與蛾多眼斑的主要目標，下一輪更適合依使用者對眼斑密度、蛾翅形與蜻蜓透明感的回饋調整。
+
+#### 使用者審美回饋
+使用者明確要求蛾只要一對翅膀，但要有很多眼斑。此回饋已寫入 `docs/visual-style-guide.md`，作為後續判斷 rough moth 是否成功的重要標準。
+
+#### 尚未解決的風險
+尚未使用真實手機相機測試 rough dragonfly / moth 的 AR 疊合、相機權限、效能與觸控流程。尚未用多 seed 或 fixture 背景檢查蛾眼斑是否穩定好看，也尚未解決 landscape 中 Save / Back 可能遮擋昆蟲的問題。蜻蜓和蛾目前也尚未接入離散 pose preset。
+
+#### 使用者回饋或修正
+等待使用者確認蛾的眼斑密度是否足夠、單一翅對外形是否像蛾，以及蜻蜓是否需要更透明或更動態。
+
+#### 建議的下一步
+若要調蛾的眼斑密度，改 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 的 `createRoughMothEyeSpotPlan()`：`rows[].count` 增加會讓每排眼斑更多，`radiusScale` 增加會讓眼斑更大、更搶，`yBias` 會改變眼斑上下分布。若要調蛾翅外形，改 `createRoughMothWingPairPlan()` 的 `params.length`、`params.width`、`params.tipY`，或 `InsectWings.js` / `RoughInsectWings.js` 中 `wingStyle = 2` 的 bezier 控制點；`width` 增加會更厚、更像蛾，`tipY` 增加會讓翅尖下垂。若要調蜻蜓，改 `createRoughDragonflyWingPairPlans()` 的 `params.length` / `params.width` / `scaleY`；`length` 增加會更修長，`width` 或 `scaleY` 降低會更透明細窄。若要調身體，改 `createRoughDragonflyBodyPlan()` 的 `bottomY` 距離與 `abdomen.rx`，或 `createRoughMothBodyPlan()` 的 `thorax.rx` / `abdomen.rx`；數值增加會讓身體更有存在感。

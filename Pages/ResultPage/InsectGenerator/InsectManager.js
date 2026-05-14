@@ -128,13 +128,12 @@ function drawRoughInsect(insectLayer, x, y) {
     else {
         insectType = 1;
     }
-    insectType = 0;
     //flapAngle =random(-PI / 4, PI / 4);
     flapAngle = 0;
     wingColorFillType = floor(random(3)); // 0, 1, 或 2
     wingColorLineType = floor(random(2)); // 0 或 1
     wingLineColorSet = floor(random(20)); // 調整稀有度
-    let roughBodyPlan = (insectType === 0) ? createRoughInsectBodyPlan(insectLayer, currentSeed, insectType) : null;
+    let roughBodyPlan = createRoughInsectBodyPlan(insectLayer, currentSeed, insectType);
     let roughPosePlan = null;
 
     if (roughPosePlan) {
@@ -142,19 +141,10 @@ function drawRoughInsect(insectLayer, x, y) {
         roughBodyPlan.posePlan = roughPosePlan;
     }
 
-    if (insectType === 2) {
-        // drawInsectBody(insectLayer, insectType, currentSeed);
-        let color1 = topColors[0];
-        let color2 = topColors[1];
-        drawRoughInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet);
-    }
-    else {
-        let color1 = topColors[0];
-        let color2 = topColors[1];
-        drawRoughInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet, roughBodyPlan);
-        drawRoughInsectBody(insectLayer, roughBodyPlan, currentSeed, color1, color2);
-        // drawInsectBody(insectLayer, insectType, currentSeed);
-    }
+    let color1 = topColors[0];
+    let color2 = topColors[1];
+    drawRoughInsectWings(insectLayer, insectType, currentSeed, flapAngle, color1, color2, wingColorFillType, wingColorLineType, wingLineColorSet, roughBodyPlan);
+    drawRoughInsectBody(insectLayer, roughBodyPlan, currentSeed, color1, color2);
     
     insectLayer.pop();
 }

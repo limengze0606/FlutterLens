@@ -98,6 +98,10 @@ function drawRoughInsectWings(g, insectType, seedValue, flapAngle, color1, color
 
   if (insectType === 0 && bodyPlan) {
     drawRoughButterflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
+  } else if (insectType === 1 && bodyPlan) {
+    drawRoughDragonflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
+  } else if (insectType === 2 && bodyPlan) {
+    drawRoughMothWingPair(g, seedValue, bodyPlan, flapAngle, color1, color2, wingColorFillType, wingColorLineType);
   } else {
     drawRoughWingPair(g, seedValue, wingRootY, flapAngle, 1.0, color1, color2, wingStyle, wingColorFillType, wingColorLineType, wingRootHalfWidth);
   }
@@ -188,6 +192,128 @@ function createRoughButterflyWingStylePlan(g, color1, color2) {
   };
 }
 
+function drawRoughDragonflyWingPairs(g, seedValue, bodyPlan, flapAngle, color1, color2, fillType, wingColorLineType) {
+  setRoughSeed(g, seedValue + 2203);
+
+  let stylePlan = createRoughDragonflyWingStylePlan(g, color1, color2);
+  let wingSets = createRoughDragonflyWingPairPlans(g, bodyPlan);
+
+  drawRoughWingPairFromPlan(g, seedValue + 311, wingSets.rear, flapAngle * 0.2 - 6, color1, color2, 1, fillType, wingColorLineType, stylePlan, null);
+  drawRoughWingPairFromPlan(g, seedValue + 919, wingSets.front, flapAngle * 0.2 + 6, color1, color2, 1, fillType, wingColorLineType, stylePlan, null);
+}
+
+function createRoughDragonflyWingPairPlans(g, bodyPlan) {
+  let u = insectBaseUnit;
+  let screenMax = max(width, height);
+  let screenMin = min(width, height);
+  let wingBaseLen = (screenMax * 0.14 + screenMin * 0.44) * 0.01;
+  let rootY = bodyPlan.wingRootY;
+  let rootHalfWidth = bodyPlan.wingRootHalfWidth;
+
+  let frontLength = roughRandom(g, 22 * wingBaseLen, 30 * wingBaseLen);
+  let rearLength = frontLength * roughRandom(g, 0.9, 1.05);
+
+  return {
+    rear: {
+      yOff: rootY + roughRandom(g, 0.36 * u, 0.66 * u),
+      rootHalfWidth: rootHalfWidth * roughRandom(g, 0.82, 1.04),
+      rotation: roughRandom(g, 2, 7),
+      scaleX: roughRandom(g, 1.4, 1.5),
+      scaleY: roughRandom(g, 0.7, 0.8),
+      params: {
+        length: rearLength,
+        width: roughRandom(g, 3.2 * u, 4.8 * u),
+        tipY: roughRandom(g, -1.2 * u, 1.2 * u),
+        noiseStrength: roughRandom(g, 1.2, 3.2)
+      }
+    },
+    front: {
+      yOff: rootY - roughRandom(g, 0.22 * u, 0.46 * u),
+      rootHalfWidth: rootHalfWidth * roughRandom(g, 0.94, 1.14),
+      rotation: roughRandom(g, -9, -3),
+      scaleX: roughRandom(g, 1.5, 1.6),
+      scaleY: roughRandom(g, 0.8, 0.9),
+      params: {
+        length: frontLength,
+        width: roughRandom(g, 3.0 * u, 4.6 * u),
+        tipY: roughRandom(g, -1.4 * u, 1.0 * u),
+        noiseStrength: roughRandom(g, 1.0, 2.8)
+      }
+    }
+  };
+}
+
+function createRoughDragonflyWingStylePlan(g, color1, color2) {
+  let colorProfile = analyzeRoughWingColorPair(g, color1, color2);
+
+  colorProfile.contrastScore *= 0.38;
+  colorProfile.accentStrength *= 0.28;
+  colorProfile.specularStrength *= 0.72;
+
+  return {
+    colorProfile,
+    pattern: {
+      highContrast: false,
+      useEyeSpots: false,
+      useRadialBands: false,
+      spotPlan: {
+        mode: "dragonfly-clear",
+        rimSpots: [],
+        innerSpots: [],
+        eyeSpots: []
+      }
+    }
+  };
+}
+
+function drawRoughMothWingPair(g, seedValue, bodyPlan, flapAngle, color1, color2, fillType, wingColorLineType) {
+  setRoughSeed(g, seedValue + 3307);
+
+  let stylePlan = createRoughMothWingStylePlan(g, color1, color2);
+  let pairPlan = createRoughMothWingPairPlan(g, bodyPlan);
+
+  drawRoughWingPairFromPlan(g, seedValue + 1441, pairPlan, flapAngle + roughRandom(g, 12, 20), color1, color2, 2, fillType, wingColorLineType, stylePlan, null);
+}
+
+function createRoughMothWingPairPlan(g, bodyPlan) {
+  let u = insectBaseUnit;
+  let screenMax = max(width, height);
+  let screenMin = min(width, height);
+  let baseFromCanvas = (screenMax * 0.15 + screenMin * 0.4) * 0.01;
+  let rootY = bodyPlan.wingRootY;
+
+  return {
+    yOff: rootY - roughRandom(g, -0.5 * u, -1.5 * u),
+    rootHalfWidth: bodyPlan.wingRootHalfWidth * roughRandom(g, 0.5, 0.6),
+    rotation: roughRandom(g, -6, -8),
+    scaleX: roughRandom(g, 0.6, 0.7),
+    scaleY: roughRandom(g, 0.55, 0.65),
+    params: {
+      length: roughRandom(g, 20 * baseFromCanvas, 27 * baseFromCanvas),
+      width: roughRandom(g, 13.5 * u, 18.5 * u),
+      tipY: roughRandom(g, 3.8 * u, 7.2 * u),
+      noiseStrength: roughRandom(g, 3.0, 6.2)
+    }
+  };
+}
+
+function createRoughMothWingStylePlan(g, color1, color2) {
+  let colorProfile = analyzeRoughWingColorPair(g, color1, color2);
+
+  //colorProfile.accentStrength *= 0.72;
+  //colorProfile.specularStrength *= 0.36;
+
+  return {
+    colorProfile,
+    pattern: {
+      highContrast: false,
+      useEyeSpots: true,
+      useRadialBands: false,
+      useMothEyeField: true
+    }
+  };
+}
+
 /**
  * 繪製一對手繪翅膀 (確保大結構對稱，但筆觸獨立)
  */
@@ -229,7 +355,9 @@ function drawRoughWingPairFromPlan(g, seedValue, pairPlan, rot, color1, color2, 
     ? wingStylePlan.colorProfile
     : analyzeRoughWingColorPair(g, color1, color2);
   let patternPlan = wingStylePlan && wingStylePlan.pattern ? wingStylePlan.pattern : {};
-  let symmetricSpotPlan = createRoughWingSpotPlan(g, seedValue + 6047, baseOutline, bounds, center, colorProfile, patternPlan);
+  let symmetricSpotPlan = patternPlan && patternPlan.useMothEyeField
+    ? createRoughMothEyeSpotPlan(g, seedValue + 6047, baseOutline, bounds, center, colorProfile)
+    : createRoughWingSpotPlan(g, seedValue + 6047, baseOutline, bounds, center, colorProfile, patternPlan);
   let resolvedWingStylePlan = Object.assign({}, wingStylePlan || {}, {
     colorProfile,
     pattern: Object.assign({}, patternPlan, { spotPlan: symmetricSpotPlan })
@@ -1376,6 +1504,49 @@ function createRoughWingSpotPlan(g, seedValue, outline, bounds, center, colorPro
     root: outline && outline.length > 0 ? { x: outline[0].x, y: outline[0].y } : { x: 0, y: 0 },
     rimSpots,
     innerSpots,
+    eyeSpots
+  };
+}
+
+function createRoughMothEyeSpotPlan(g, seedValue, outline, bounds, center, colorProfile) {
+  setRoughSeed(g, seedValue + 831);
+
+  let eyeSpots = [];
+  let rows = [
+    { yBias: -0.84, count: Math.floor(roughRandom(g, 3, 5)), radiusScale: [0.34, 0.58] },
+    { yBias: -0.16, count: Math.floor(roughRandom(g, 2, 4)), radiusScale: [0.42, 0.72] },
+    { yBias: 0.54, count: Math.floor(roughRandom(g, 3, 5)), radiusScale: [0.34, 0.62] }
+  ];
+
+  for (let row of rows) {
+    for (let i = 0; i < row.count; i++) {
+      let t = row.count <= 1 ? 0.5 : i / (row.count - 1);
+      eyeSpots.push({
+        progress: g.constrain(g.map(t, 0, 1, 0.38, 0.88) + roughRandom(g, -0.035, 0.035), 0.32, 0.92),
+        yBias: row.yBias + roughRandom(g, -0.18, 0.18),
+        radius: insectBaseUnit * roughRandom(g, row.radiusScale[0], row.radiusScale[1]),
+        coreOffsetX: roughRandom(g, -0.08, 0.1),
+        coreOffsetY: roughRandom(g, -0.08, 0.1)
+      });
+    }
+  }
+
+  if (roughRandom(g, 0, 1) < 0.72) {
+    eyeSpots.push({
+      progress: roughRandom(g, 0.56, 0.72),
+      yBias: roughRandom(g, -0.34, 0.28),
+      radius: insectBaseUnit * roughRandom(g, 0.72, 0.96),
+      coreOffsetX: roughRandom(g, -0.06, 0.08),
+      coreOffsetY: roughRandom(g, -0.08, 0.08)
+    });
+  }
+
+  return {
+    mode: "moth-many-eye-spots",
+    tone: colorProfile.spotPalette ? colorProfile.spotPalette.tone : "auto",
+    root: outline && outline.length > 0 ? { x: outline[0].x, y: outline[0].y } : { x: 0, y: 0 },
+    rimSpots: [],
+    innerSpots: [],
     eyeSpots
   };
 }
