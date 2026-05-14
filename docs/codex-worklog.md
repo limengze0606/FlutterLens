@@ -2921,3 +2921,74 @@ rough wing 底層使用 `generateWingOutline()` 產生填色與剪裁輪廓，�
 
 #### 建議的下一步
 若要調蛾的眼斑密度，改 `Pages/ResultPage/InsectGenerator/RoughInsectWings.js` 的 `createRoughMothEyeSpotPlan()`：`rows[].count` 增加會讓每排眼斑更多，`radiusScale` 增加會讓眼斑更大、更搶，`yBias` 會改變眼斑上下分布。若要調蛾翅外形，改 `createRoughMothWingPairPlan()` 的 `params.length`、`params.width`、`params.tipY`，或 `InsectWings.js` / `RoughInsectWings.js` 中 `wingStyle = 2` 的 bezier 控制點；`width` 增加會更厚、更像蛾，`tipY` 增加會讓翅尖下垂。若要調蜻蜓，改 `createRoughDragonflyWingPairPlans()` 的 `params.length` / `params.width` / `scaleY`；`length` 增加會更修長，`width` 或 `scaleY` 降低會更透明細窄。若要調身體，改 `createRoughDragonflyBodyPlan()` 的 `bottomY` 距離與 `abdomen.rx`，或 `createRoughMothBodyPlan()` 的 `thorax.rx` / `abdomen.rx`；數值增加會讓身體更有存在感。
+
+---
+
+### 2026-05-14 — 修正蛾外框與蜻蜓側眼
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+重新檢查 rough moth 翅膀外框未顯示的原因，修正外框生成與 p5.brush 狀態設定；同時把 rough dragonfly 頭部兩個小黑點改成靠側面的兩個大黑圓 / 橢圓複眼。
+
+#### 使用者需求
+使用者質疑前一輪對蛾外框問題的推測，要求重新確認筆刷設定與函式呼叫順序。確認原因後，使用者要求除了修改蛾外，也把蜻蜓眼睛改成頭部靠側面的兩個大黑圓或橢圓。
+
+#### 實作前理解
+前一輪回答把蛾沒有外框主要歸因於外框太細或被眼斑視覺蓋掉，這不夠準確。重新沿著 `drawRoughWing()` 的順序檢查後，發現底色與花紋先由 `drawRoughWingColor()` 與 `drawRoughVoronoiPattern()` 畫完，再由 `generateBowedWingOutline()` 與 `drawEdgeWithOvershoot()` 畫外框。底色輪廓使用 `generateWingOutline()`，已支援 `wingStyle = 2`；但外框使用的 `generateBowedWingOutline()` 尚未支援 `wingStyle = 2`。同時 `drawEdgeWithOvershoot()` 只呼叫 `brush.set()` 與 `brush.strokeWeight()`，沒有重設 `brush.noFill()` 與 `brush.stroke()`，容易被前面 `brush.noStroke()` 狀態影響。
+
+#### 實作方案
+在 `RoughInsectWings.js` 的 `generateBowedWingOutline()` 補上 `case 2`，使用與 moth base outline 相同的圓鈍翅控制點，讓外框與底色輪廓一致。並在 `drawEdgeWithOvershoot()` 中每次畫外框前明確呼叫 `brush.noFill()` 與 `brush.stroke(settings.color)`，避免依賴上一層 brush 狀態。於 `RoughInsectBody.js` 新增 `drawRoughDragonflySideEyes()`，將原本 `drawRoughDragonflyBodyDetails()` 中的兩個小 `drawRoughPressureDot()` 改為左右側的黑色手繪填色橢圓。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+採納使用者對 root cause 的提醒，將蛾外框問題視為函式分歧與 brush 狀態問題，而非單純審美強度問題。蜻蜓眼睛不再用點狀暗示，改為使用 `drawRoughFilledBodyOval()` 產生手繪黑色側眼，讓材質與 rough body 其他填色一致。
+
+#### 遇到的問題
+`g.push()` / `g.pop()` 不會保護 p5.brush 的全域 stroke / fill 狀態，因此若外框函式沒有自行設定 stroke，前面圖層留下的 `brush.noStroke()` 可能讓外框消失。另一個問題是 moth 的 `wingStyle = 2` 先前只補到 base outline，沒有補到 bowed outline。
+
+#### 嘗試過的解法
+先用 `rg` 和局部檔案讀取確認 `drawRoughWing()` 呼叫順序，再檢查 `RoughWingBrushSettings.js` 的 outline 設定與 `drawEdgeWithOvershoot()` 的 brush 呼叫。確認問題後只做兩個小修正：補 bowed outline case 與重設 brush stroke；蜻蜓眼睛則替換成新的 side-eye helper。
+
+#### 最終解法
+`generateBowedWingOutline()` 現在支援 `wingStyle = 2`，蛾外框可依同一組 moth control points 生成。`drawEdgeWithOvershoot()` 在 `brush.beginShape()` 前會明確設定 `brush.noFill()`、`brush.stroke(settings.color)` 與 `brush.strokeWeight(strokeWeight)`。`drawRoughDragonflyBodyDetails()` 改呼叫 `drawRoughDragonflySideEyes()`，在頭部左右側畫兩個較大的黑色橢圓。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectWings.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 蛾 run id：`rough-moth-outline-20260514`
+- 蜻蜓 run id：`rough-dragonfly-eyes-20260514`
+- Camera fixture：Chrome fake camera 預設畫面
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：蛾 `-ForcedFinalPitch -60`；蜻蜓 `-ForcedFinalPitch 30`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 截圖：位於 `docs/cdp-runs/rough-moth-outline-20260514/screenshots/` 與 `docs/cdp-runs/rough-dragonfly-eyes-20260514/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：蛾 portrait 外框已恢復，單一大翅對輪廓更清楚；蜻蜓 portrait 頭部左右側可見大黑眼，不再是中央小黑點。
+
+#### Codex 審美自評
+蛾約 `7.8/10`。外框恢復後，多眼斑不再像漂浮在沒有邊界的色塊上，單一翅對更成立；弱點是外框仍偏細，複雜真實背景中可能需要 moth 專用外框強度。蜻蜓約 `7.5/10`。側眼方向比小黑點正確，寬頭複眼感更強；弱點是手機尺寸下眼睛仍略小，後續可再增加側向位移或 rx。
+
+#### 使用者審美回饋
+使用者指出應重新確認筆刷設定與函式呼叫順序，並要求蜻蜓眼睛改成頭部靠側面的兩個大黑圓或橢圓。這次修正直接回應該回饋。
+
+#### 尚未解決的風險
+尚未用真實手機背景確認蛾外框在複雜影像上是否足夠清楚。蜻蜓大側眼在不同 seed、不同 body 色彩與不同縮放下可能仍需調整大小與外凸程度。真機 AR / camera、DeviceOrientation、效能與觸控仍未驗證。
+
+#### 使用者回饋或修正
+等待使用者評估蛾外框是否符合預期，以及蜻蜓側眼是否夠大、夠靠外側。
+
+#### 建議的下一步
+若蛾外框仍偏弱，優先調 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js` 的 `outline.strokeWeightsByPass`，提高第一個值會讓主外框更重，提高第二個值會讓手繪複線更明顯；若只想影響蛾，可在 `drawEdgeWithOvershoot()` 增加 moth 專用參數。若蜻蜓眼睛要更大，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughDragonflySideEyes()`：提高 `rx` / `ry` 會放大眼睛，提高 `head.rx * 0.72` 的倍率會讓眼睛更靠頭部外側。

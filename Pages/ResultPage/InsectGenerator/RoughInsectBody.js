@@ -409,9 +409,7 @@ function drawRoughDragonflyBodyDetails(g, plan, ink, colorPlan, u) {
   let head = plan.anatomy.head;
   let abdomen = plan.anatomy.abdomen;
 
-  for (let side of [-1, 1]) {
-    drawRoughPressureDot(g, head.x + side * head.rx * 0.45, head.y - head.ry * 0.05, ink, roughRandom(g, 0.22 * u, 0.34 * u));
-  }
+  drawRoughDragonflySideEyes(g, head, ink, u);
 
   let count = 11;
   let bandPaint = colorToBrushPaint(colorPlan.band, 188);
@@ -430,6 +428,30 @@ function drawRoughDragonflyBodyDetails(g, plan, ink, colorPlan, u) {
       strokeWeight: roughRandom(g, 0.34, 0.54),
       jitter: 0.01 * u,
       alpha: bandPaint.alpha
+    });
+  }
+}
+
+function drawRoughDragonflySideEyes(g, head, ink, u) {
+  let eyePaint = {
+    roughPaintColor: ink,
+    roughPaintAlpha: 238,
+    levels: [5, 5, 4, 238]
+  };
+
+  for (let side of [-1, 1]) {
+    drawRoughFilledBodyOval(g, {
+      x: head.x + side * head.rx * 0.72,
+      y: head.y - head.ry * 0.02,
+      rx: roughRandom(g, 0.28 * u, 0.36 * u),
+      ry: roughRandom(g, 0.42 * u, 0.54 * u),
+      rotation: side * roughRandom(g, 0.06, 0.14)
+    }, eyePaint, {
+      passes: 2,
+      strokeWeight: [0.72, 1.06],
+      wobble: 0.025 * u,
+      pressureBase: 0.28,
+      pressureTaper: 0.4
     });
   }
 }

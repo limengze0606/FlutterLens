@@ -38,6 +38,7 @@
 - 翅膀斑點已能左右呼應；一般斑點保留亮斑 / 暗斑規則，避免整片斑點都變成互補色。EyeSpots 已獨立接上高彩度互補色 palette，但目前仍需用多 seed 或強制眼紋模式確認紫色眼紋在不同背景上的比例與層次。
 - 2026-05-14 第一版 rough moth 眼斑密度在 portrait 預設 fake camera 中可讀，Codex 自評約 `7.4/10`；優點是單一大翅對與多眼斑方向明確，弱點是身體容易被眼斑翅面吃掉，landscape 仍被 Save / Back 按鈕遮擋，不可用該截圖判定構圖完成。
 - 2026-05-14 第一版 rough dragonfly 在 portrait 預設 fake camera 中可讀，Codex 自評約 `7.2/10`；優點是長腹、兩對狹長翅與淡翅脈已有蜻蜓辨識度，弱點是目前姿態仍偏平面標本感，翅膀透明感與身體角度仍可再強化。
+- 2026-05-14 使用者指出蛾外框問題應重新檢查筆刷設定與函式呼叫順序；後續確認是 `generateBowedWingOutline()` 缺少 `wingStyle = 2`，且 `drawEdgeWithOvershoot()` 沒有重設 `brush.stroke()`。修正後蛾翅外框恢復。使用者也要求蜻蜓眼睛改成頭部靠側面的兩個大黑圓或橢圓；後續版本應避免回到頭部中央小黑點。
 - Pose 系統仍偏連續隨機值，缺乏一眼可辨的離散姿態 preset。
 - Landscape forced spawn 曾讓昆蟲靠近畫面上緣，評估構圖時需調整 spawn ratio。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，視覺測試應使用 forced spawn 避免誤判。

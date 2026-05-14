@@ -474,6 +474,8 @@ function drawEdgeWithOvershoot(g, points, strokeIndex = 0) {
   let endOvershootY = pLast.y + (pLast.y - pPrev.y) * roughRandom(g, minMultiplier, maxMultiplier);
 
   brush.set(settings.brushName, settings.color, 1);
+  brush.noFill();
+  brush.stroke(settings.color);
   brush.strokeWeight(strokeWeight);
 
   // 3. 繪製手繪曲線路徑
@@ -978,6 +980,16 @@ function generateBowedWingOutline(g, len, wid, tipY, noiseMax, wingStyle = 0) {
       t_cx1 = len * 0.95; t_cy1 = tipY + wid * 0.25; 
       t_cx2 = len * 0.5;  t_cy2 = wid * 0.5;         
       t_x2 = 0;           t_y2 = 0;   
+      break;
+    case 2:
+      l_x1 = 0;           l_y1 = 0;
+      l_cx1 = len * 0.2;  l_cy1 = -wid * 0.35;
+      l_cx2 = len * 0.72; l_cy2 = tipY - wid * 0.55;
+      l_x2 = len;         l_y2 = tipY;
+      t_x1 = len;         t_y1 = tipY;
+      t_cx1 = len * 0.86; t_cy1 = tipY + wid * 0.8;
+      t_cx2 = len * 0.24; t_cy2 = wid * 1.2;
+      t_x2 = 0;           t_y2 = 0;
       break;
   }
 

@@ -1738,3 +1738,54 @@ rough mode 不應再硬鎖蝴蝶。`finalPitch > 20` 應產生蜻蜓，具備長
 
 ### 備註 / 風險
 本輪只做第一版 rough dragonfly / rough moth，尚未處理離散 pose preset。CDP + fake camera 可以驗證流程與初步造型，但不能取代真實手機 AR / camera 測試。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+修正 rough moth 翅膀外框未顯示的真正原因，並將 rough dragonfly 頭部小黑點改成靠側面的兩個大黑橢圓眼。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：Chrome fake camera 預設畫面
+- Forced pitch：蜻蜓 `-ForcedFinalPitch 30`；蛾 `-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+
+### 預期行為
+蛾的一對大翅應有可見手繪外框線，且外框不應依賴前一層 brush 狀態。蜻蜓頭部不應再有兩個像裝飾小黑點的中心點，而應在頭部左右側出現較大的黑色圓或橢圓複眼。
+
+### 實際觀察
+`rough-moth-outline-20260514` 三個 viewport 都成功進入 Result，portrait 可見蛾翅外框已恢復，且外框沿著單一大翅對的外緣出現。`rough-dragonfly-eyes-20260514` 三個 viewport 都成功進入 Result，portrait 可見蜻蜓頭部左右側有黑色大眼，不再像頭部中央的小黑點。
+
+### 截圖
+- 蛾 portrait：`docs/cdp-runs/rough-moth-outline-20260514/screenshots/rough-moth-outline-20260514-default-portrait-390x844-result.png`
+- 蛾 compact：`docs/cdp-runs/rough-moth-outline-20260514/screenshots/rough-moth-outline-20260514-default-compact-360x740-result.png`
+- 蛾 landscape：`docs/cdp-runs/rough-moth-outline-20260514/screenshots/rough-moth-outline-20260514-default-landscape-844x390-result.png`
+- 蜻蜓 portrait：`docs/cdp-runs/rough-dragonfly-eyes-20260514/screenshots/rough-dragonfly-eyes-20260514-default-portrait-390x844-result.png`
+- 蜻蜓 compact：`docs/cdp-runs/rough-dragonfly-eyes-20260514/screenshots/rough-dragonfly-eyes-20260514-default-compact-360x740-result.png`
+- 蜻蜓 landscape：`docs/cdp-runs/rough-dragonfly-eyes-20260514/screenshots/rough-dragonfly-eyes-20260514-default-landscape-844x390-result.png`
+
+### 審美評分與評語
+蛾 Codex 自評：`7.8/10`。優點是外框回來後，單一大翅對的輪廓更成立，多眼斑也不再像漂浮在無邊界色塊上。弱點是外框目前仍偏細，若背景更複雜可能還需要提高 moth 專用 outline weight。
+
+蜻蜓 Codex 自評：`7.5/10`。優點是側邊大黑眼更接近蜻蜓寬頭複眼，不再像兩個不明小點；弱點是手機尺寸下眼睛仍略小，若要更昆蟲化可再加寬或讓眼睛更外凸。
+
+### 使用者審美回饋
+使用者指出蛾沒有翅膀外框線的原因可能不是前一輪推測，要求重新確認筆刷設定與函式呼叫順序；並要求除修正蛾外，也把蜻蜓眼睛改成頭部靠側面的兩個大黑圓或橢圓。重新檢查後確認使用者判斷正確：蛾外框問題來自 `generateBowedWingOutline()` 缺少 `wingStyle = 2`，以及 `drawEdgeWithOvershoot()` 沒有重設 `brush.stroke()` / `brush.noFill()`。
+
+### Console 錯誤
+兩個 run 的每個 viewport 仍有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實背景確認蛾外框在複雜背景上仍清楚
+- [ ] 若蛾外框仍偏弱，替 moth 增加專用 outline weight 或多一圈封閉外框
+- [ ] 用多 seed 確認蜻蜓大側眼不會被頭胸填色吃掉
+- [ ] 若蜻蜓眼睛仍不夠像複眼，將 `drawRoughDragonflySideEyes()` 的 `rx` 或側向位移提高
+
+### 備註 / 風險
+本輪修正了蛾外框的實際呼叫與 brush 狀態問題，但仍未處理 rough moth / dragonfly 的姿態 preset。CDP + fake camera 仍不能取代真實手機 AR / camera 測試。
