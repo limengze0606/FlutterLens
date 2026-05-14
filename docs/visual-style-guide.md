@@ -39,6 +39,8 @@
 - 2026-05-14 第一版 rough moth 眼斑密度在 portrait 預設 fake camera 中可讀，Codex 自評約 `7.4/10`；優點是單一大翅對與多眼斑方向明確，弱點是身體容易被眼斑翅面吃掉，landscape 仍被 Save / Back 按鈕遮擋，不可用該截圖判定構圖完成。
 - 2026-05-14 第一版 rough dragonfly 在 portrait 預設 fake camera 中可讀，Codex 自評約 `7.2/10`；優點是長腹、兩對狹長翅與淡翅脈已有蜻蜓辨識度，弱點是目前姿態仍偏平面標本感，翅膀透明感與身體角度仍可再強化。
 - 2026-05-14 使用者指出蛾外框問題應重新檢查筆刷設定與函式呼叫順序；後續確認是 `generateBowedWingOutline()` 缺少 `wingStyle = 2`，且 `drawEdgeWithOvershoot()` 沒有重設 `brush.stroke()`。修正後蛾翅外框恢復。使用者也要求蜻蜓眼睛改成頭部靠側面的兩個大黑圓或橢圓；後續版本應避免回到頭部中央小黑點。
+- 2026-05-14 使用者進一步指出蛾 body 框線與觸角也可能是在畫 body 前沒有設定到 brush。後續確認 rough body 同樣需要自行重設 p5.brush 狀態；`RoughInsectBody.js` 已加入 body 專用 stroke reset，並把蛾羽狀觸角移到 body outline 後最後繪製。後續若再調 body 線條，應避免依賴前一層翅膀留下的 brush stroke / fill 狀態。
+- 2026-05-14 使用者重新判斷，蛾 body 問題更像是框線跟著身體顏色走，而不是完全沒有共用 outline；蝴蝶與蜻蜓 body 黑框正常，表示後續應優先檢查 moth-only 的 body palette、band 短毛與最後黑色 overlay。`RoughInsectBody.js` 已新增 moth-only 的最後黑色結構層，讓蛾頭胸腹外框與羽狀觸角在彩色 body / band 筆觸之上重新用黑色壓住。
 - Pose 系統仍偏連續隨機值，缺乏一眼可辨的離散姿態 preset。
 - Landscape forced spawn 曾讓昆蟲靠近畫面上緣，評估構圖時需調整 spawn ratio。
 - Result page 的 Save / Back 按鈕可能遮擋昆蟲，視覺測試應使用 forced spawn 避免誤判。

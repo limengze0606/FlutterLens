@@ -160,9 +160,11 @@ function drawRoughInsectBody(g, bodyPlan, seedValue, wingColor1 = null, wingColo
   let ink = "#050504";
   let colorPlan = createRoughBodyColorPlan(g, seedValue, wingColor1, wingColor2);
 
+  resetRoughBodyBrushStroke(ink, 1, 248);
   drawRoughBodyColorMasses(g, bodyPlan, colorPlan, u);
-  drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
   drawRoughBodyTypeDetails(g, bodyPlan, ink, colorPlan, u);
+  drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
+  if (bodyPlan.insectType === 2) drawRoughMothBlackStructureOverlay(g, bodyPlan, ink, u);
 
   g.pop();
 }
@@ -457,11 +459,8 @@ function drawRoughDragonflySideEyes(g, head, ink, u) {
 }
 
 function drawRoughMothBodyDetails(g, plan, ink, colorPlan, u) {
-  let head = plan.anatomy.head;
   let thorax = plan.anatomy.thorax;
   let softPaint = colorToBrushPaint(colorPlan.band, 150);
-
-  drawRoughMothFeatherAntennae(g, head, ink, plan, u);
 
   for (let i = 0; i < 12; i++) {
     let side = i % 2 === 0 ? -1 : 1;
@@ -477,43 +476,83 @@ function drawRoughMothBodyDetails(g, plan, ink, colorPlan, u) {
       alpha: softPaint.alpha
     });
   }
+
+}
+
+function drawRoughMothBlackStructureOverlay(g, plan, ink, u) {
+  if (!plan || !plan.anatomy) return;
+
+  drawRoughOutlineOval(g, plan.anatomy.abdomen, ink, {
+    strokeWeight: roughRandom(g, 1.9, 2.35),
+    wobble: 0.04 * u,
+    passes: 1
+  });
+  drawRoughOutlineOval(g, plan.anatomy.thorax, ink, {
+    strokeWeight: roughRandom(g, 2.28, 2.86),
+    wobble: 0.035 * u,
+    passes: 1
+  });
+  drawRoughOutlineOval(g, plan.anatomy.head, ink, {
+    strokeWeight: roughRandom(g, 1.95, 2.42),
+    wobble: 0.03 * u,
+    passes: 1
+  });
+  drawRoughMothFeatherAntennae(g, plan.anatomy.head, ink, plan, u);
 }
 
 function drawRoughMothFeatherAntennae(g, head, ink, plan, u) {
-  let baseY = head.y - head.ry * 0.62;
-  let baseGap = head.rx * 0.22;
-  let spread = plan.antennaSpread || 1.6 * u;
-  let len = plan.antennaLength || 3.4 * u;
+  let baseY = head.y - head.ry * 0.95;
+  let baseGap = head.rx * 0.34;
+  let spread = (plan.antennaSpread || 1.6 * u) * 1.55;
+  let len = (plan.antennaLength || 3.4 * u) * 1.35;
+  let branchCount = Math.floor(roughRandom(g, 8, 10.99));
 
   for (let side of [-1, 1]) {
+    let ctrl1X = spread * roughRandom(g, 0.28, 0.38);
+    let ctrl1Y = len * roughRandom(g, 0.26, 0.36);
+    let ctrl2X = spread * roughRandom(g, 0.64, 0.78);
+    let ctrl2Y = len * roughRandom(g, 0.62, 0.76);
+    let tipLift = roughRandom(g, -0.12 * u, 0.18 * u);
     let points = [
       [head.x + side * baseGap, baseY],
-      [head.x + side * spread * 0.32, baseY - len * 0.34],
-      [head.x + side * spread * 0.72, baseY - len * 0.7],
-      [head.x + side * spread, baseY - len]
+      [head.x + side * ctrl1X, baseY - ctrl1Y],
+      [head.x + side * ctrl2X, baseY - ctrl2Y],
+      [head.x + side * spread, baseY - len + tipLift]
     ];
 
     drawRoughAntennaLine(g, points, ink, {
-      strokeWeight: roughRandom(g, 0.56, 0.82),
-      jitter: 0.014 * u
+      strokeWeight: roughRandom(g, 1.12, 1.42),
+      jitter: 0.012 * u
     });
 
-    for (let i = 1; i < points.length; i++) {
-      let p = points[i];
-      let branchLen = spread * roughRandom(g, 0.14, 0.24) * (1 - i * 0.08);
+    for (let i = 1; i <= branchCount; i++) {
+      let t = i / (branchCount + 1);
+      let px = g.bezierPoint(points[0][0], points[1][0], points[2][0], points[3][0], t);
+      let py = g.bezierPoint(points[0][1], points[1][1], points[2][1], points[3][1], t);
+      let tangentX = g.bezierTangent(points[0][0], points[1][0], points[2][0], points[3][0], t);
+      let tangentY = g.bezierTangent(points[0][1], points[1][1], points[2][1], points[3][1], t);
+      let tangentLen = Math.max(0.001, Math.sqrt(tangentX * tangentX + tangentY * tangentY));
+      let normalX = -tangentY / tangentLen;
+      let normalY = tangentX / tangentLen;
+      let baseBranchLen = spread * roughRandom(g, 0.14, 0.24) * (1 - t * 0.38);
+      let featherDrop = baseBranchLen * roughRandom(g, 0.14, 0.26);
+
+      // 羽枝像梳子一樣從主幹往兩側下方收筆，外側略長以保留蛾觸角的辨識度。
+      let outerLen = baseBranchLen * roughRandom(g, 1.0, 1.22);
+      let innerLen = baseBranchLen * roughRandom(g, 0.58, 0.82);
       drawRoughAntennaLine(g, [
-        [p[0], p[1]],
-        [p[0] + side * branchLen, p[1] + branchLen * 0.22]
+        [px, py],
+        [px + side * Math.abs(normalX) * outerLen, py + Math.abs(normalY) * outerLen * 0.25 + featherDrop]
       ], ink, {
-        strokeWeight: roughRandom(g, 0.28, 0.42),
-        jitter: 0.01 * u
+        strokeWeight: roughRandom(g, 0.48, 0.74),
+        jitter: 0.008 * u
       });
       drawRoughAntennaLine(g, [
-        [p[0], p[1]],
-        [p[0] - side * branchLen * 0.72, p[1] + branchLen * 0.18]
+        [px, py],
+        [px - side * Math.abs(normalX) * innerLen, py + Math.abs(normalY) * innerLen * 0.2 + featherDrop * 0.82]
       ], ink, {
-        strokeWeight: roughRandom(g, 0.22, 0.36),
-        jitter: 0.01 * u
+        strokeWeight: roughRandom(g, 0.38, 0.62),
+        jitter: 0.008 * u
       });
     }
   }
@@ -549,10 +588,7 @@ function drawRoughAntennaLine(g, points, ink, options = {}) {
   let jitter = options.jitter || 0;
 
   if (typeof brush !== "undefined") {
-    brush.noFill();
-    brush.set("pencil1", ink, 1);
-    brush.stroke(ink, options.alpha || 238);
-    brush.strokeWeight(options.strokeWeight || 1);
+    resetRoughBodyBrushStroke(ink, options.strokeWeight || 1, options.alpha || 238);
     brush.beginShape(0.18);
     for (let point of points) {
       brush.vertex(
@@ -582,12 +618,8 @@ function drawRoughOutlineOval(g, oval, ink, options = {}) {
   let rotation = oval.rotation || 0;
 
   if (typeof brush !== "undefined") {
-    brush.noFill();
-    brush.set("pencil1", ink, 1);
-    brush.stroke(ink, 248);
-    brush.strokeWeight(options.strokeWeight || 1);
-
     for (let pass = 0; pass < passes; pass++) {
+      resetRoughBodyBrushStroke(ink, (options.strokeWeight || 1) * roughRandom(g, 0.92, 1.08), 248);
       brush.beginShape(0.12);
       let count = 28;
       for (let i = 0; i <= count; i++) {
@@ -610,6 +642,17 @@ function drawRoughOutlineOval(g, oval, ink, options = {}) {
   g.strokeWeight(options.strokeWeight || 1);
   g.ellipse(0, 0, oval.rx * 2, oval.ry * 2);
   g.pop();
+}
+
+function resetRoughBodyBrushStroke(colorValue, strokeWeightValue = 1, alphaValue = 238) {
+  if (typeof brush === "undefined") return;
+
+  if (typeof brush.noHatch === "function") brush.noHatch();
+  if (typeof brush.noWash === "function") brush.noWash();
+  if (typeof brush.noFill === "function") brush.noFill();
+  brush.set("pencil1", colorValue, 1);
+  brush.stroke(colorValue);
+  brush.strokeWeight(strokeWeightValue);
 }
 
 function drawRoughBodyGestureAxis(g, plan, ink, u) {

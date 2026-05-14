@@ -1789,3 +1789,96 @@ rough mode 不應再硬鎖蝴蝶。`finalPitch > 20` 應產生蜻蜓，具備長
 
 ### 備註 / 風險
 本輪修正了蛾外框的實際呼叫與 brush 狀態問題，但仍未處理 rough moth / dragonfly 的姿態 preset。CDP + fake camera 仍不能取代真實手機 AR / camera 測試。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+修正 rough moth 身體框線與羽狀觸角在 body 階段不穩定顯示的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：Chrome fake camera 預設畫面
+- Forced pitch：蛾 `-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+
+### 預期行為
+蛾的 body 階段不應沿用翅膀階段留下的 `brush.noStroke()`、fill、wash 或 texture 狀態。頭、胸、腹外框與羽狀觸角應在身體填色之後重新設定 `pencil1` stroke 並可見。
+
+### 實際觀察
+`inspect-moth-outline-20260514` 中，蛾 body 的黑色框線與觸角幾乎不可見。加入 rough body 專用 `resetRoughBodyBrushStroke()` 後，`fix-moth-body-brush-20260514` 的 body 中軸與頭胸腹框線明顯恢復。再將蛾觸角移到 body outline 之後最後繪製並略加粗後，`fix-moth-antenna-final-20260514` 中觸角成為頭部上方可讀的暗色羽狀細節，但仍不會搶過翅膀眼斑。
+
+### 截圖
+- 修正前 portrait：`docs/cdp-runs/inspect-moth-outline-20260514/screenshots/inspect-moth-outline-20260514-default-portrait-390x844-result.png`
+- body brush 修正後 portrait：`docs/cdp-runs/fix-moth-body-brush-20260514/screenshots/fix-moth-body-brush-20260514-default-portrait-390x844-result.png`
+- 最終觸角層級 portrait：`docs/cdp-runs/fix-moth-antenna-final-20260514/screenshots/fix-moth-antenna-final-20260514-default-portrait-390x844-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.2/10`。優點是 body 不再像淡色糊在翅膀中央，頭胸腹輪廓與中軸重新保住昆蟲結構；羽狀觸角也能在頭部上方讀到。弱點是觸角在手機尺寸仍偏細小，若使用者希望更標本式或更蛾類辨識，可以再提高 `antennaSpread`、`antennaLength` 與羽枝 stroke weight。
+
+### 使用者審美回饋
+使用者指出「我也覺得是在畫body前沒有設定到brush」。本輪確認該判斷方向正確，並在 rough body 的線條入口加入明確 brush reset。
+
+### Console 錯誤
+`fix-moth-antenna-final-20260514` 三個 viewport 各有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機背景確認蛾 body 框線在複雜影像上仍清楚
+- [ ] 用多 seed 確認羽狀觸角不會被翅膀或深色 body 吃掉
+- [ ] 若使用者希望觸角更醒目，調高蛾觸角主幹與羽枝 stroke weight
+- [ ] 真機確認 AR / camera 權限、DeviceOrientation 與效能
+
+### 備註 / 風險
+本輪修正的是 body 階段 brush 狀態與繪製層級；目前仍未把 rough mode 的暫時 `insectType = 2` 測試鎖定恢復成依 pitch 選類型，因該行屬於既有工作區狀態，未在本任務中擅自變更。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+依使用者重新判斷，修正 rough moth body 框線與觸角顏色被 body palette / band palette 視覺主導的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：Chrome fake camera 預設畫面
+- Forced pitch：蛾 `-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+
+### 預期行為
+蛾的頭、胸、腹外框與羽狀觸角最後一層應強制使用黑色 `pencil1`，不應看起來跟著 body 填色或 band 顏色走。觸角應在頭部上方可辨識，且 body 中央應有黑色結構線壓住彩色身體。
+
+### 實際觀察
+第一輪 `fix-moth-black-structure-20260514` 中，蛾中央黑色結構線與外框比前版清楚，但觸角仍偏弱，頭部上方不夠一眼可辨。第二輪 `fix-moth-black-structure-v2-20260514` 放大羽狀觸角外展、長度與 stroke weight 後，portrait / compact 中可見黑色 body 結構與較清楚的頭部上方觸角。觸角仍屬細節感，沒有壓過翅膀眼斑。
+
+### 截圖
+- 第一輪 portrait：`docs/cdp-runs/fix-moth-black-structure-20260514/screenshots/fix-moth-black-structure-20260514-default-portrait-390x844-result.png`
+- 第二輪 portrait：`docs/cdp-runs/fix-moth-black-structure-v2-20260514/screenshots/fix-moth-black-structure-v2-20260514-default-portrait-390x844-result.png`
+- 第二輪 compact：`docs/cdp-runs/fix-moth-black-structure-v2-20260514/screenshots/fix-moth-black-structure-v2-20260514-default-compact-360x740-result.png`
+- 第二輪 landscape：`docs/cdp-runs/fix-moth-black-structure-v2-20260514/screenshots/fix-moth-black-structure-v2-20260514-default-landscape-844x390-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.4/10`。優點是使用者指出的「蛾線條好像跟著身體顏色走」被更直接地處理，最後一層黑色結構線讓 body 不再只像彩色中心塊；觸角比第一輪更有蛾類提示。弱點是手機尺寸下羽狀觸角仍偏細，且黑色 body 線和翅膀眼斑仍在同一個視覺密度區，真實複雜背景上可能還需要更誇張的觸角 silhouette。
+
+### 使用者審美回饋
+使用者重新檢視後指出，問題應該是蛾的部分筆刷設定或顏色設定有問題，因為蝴蝶和蜻蜓的身體框線是黑的，但蛾的框線好像會跟著身體顏色走。本輪依此改為處理 moth-only 的最後黑色結構層，而不是只把 root cause 放在共用 brush reset。
+
+### Console 錯誤
+`fix-moth-black-structure-v2-20260514` 三個 viewport 各有一筆已知 404 resource event，未阻止 Start、Scanning、Result、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真實手機背景確認黑色 body outline 與羽狀觸角在複雜影像上仍可辨識
+- [ ] 用多 seed 確認 moth black overlay 不會讓 body 過黑或搶過眼斑
+- [ ] 若使用者希望一眼看到蛾觸角，繼續提高 `drawRoughMothFeatherAntennae()` 的 `spread` / `len` 倍率與羽枝 stroke weight
+- [ ] 後續若調整 body palette，需確認 moth 最後黑線仍不會被彩色 `marker1` 邊線或 band 筆觸取代
+
+### 備註 / 風險
+本輪仍使用 Chrome fake camera，不能取代真機 AR / camera 驗證。這次修正保留既有 moth 彩色短毛 / band 筆觸，但在最後增加 moth-only 黑色 overlay；若未來想要更乾淨，可考慮降低 `drawRoughMothBodyDetails()` 的 colored fur alpha 或密度。

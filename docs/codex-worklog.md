@@ -2992,3 +2992,152 @@ rough wing 底層使用 `generateWingOutline()` 產生填色與剪裁輪廓，�
 
 #### 建議的下一步
 若蛾外框仍偏弱，優先調 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js` 的 `outline.strokeWeightsByPass`，提高第一個值會讓主外框更重，提高第二個值會讓手繪複線更明顯；若只想影響蛾，可在 `drawEdgeWithOvershoot()` 增加 moth 專用參數。若蜻蜓眼睛要更大，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughDragonflySideEyes()`：提高 `rx` / `ry` 會放大眼睛，提高 `head.rx * 0.72` 的倍率會讓眼睛更靠頭部外側。
+
+---
+
+### 2026-05-14 — 修正蛾 body 筆刷狀態與羽狀觸角層級
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+依使用者判斷，檢查 rough moth 身體框線與觸角未顯示的原因，修正 body 階段沒有穩定設定 p5.brush stroke 的問題，並讓蛾的羽狀觸角最後繪製。
+
+#### 使用者需求
+使用者指出蛾的身體框線都沒有畫出來，包括觸角，要求檢查筆刷設定和函式呼叫順序；後續也認同問題很可能是在畫 body 前沒有設定到 brush。
+
+#### 實作前理解
+先前已確認 rough moth 翅膀外框問題來自 bowed outline 與 wing brush stroke 狀態。本輪再看 body，發現 `drawRoughInsect()` 目前工作區狀態已強制 `insectType = 2`，因此確實會進入蛾分支。呼叫順序為 `drawRoughInsectWings()` 先、`drawRoughInsectBody()` 後，body 不應被翅膀蓋掉。問題更像是 p5.brush 的 fill / noStroke / texture / wash 狀態跨函式殘留，導致 body outline 與 antenna 的 pencil stroke 不穩定或太弱。
+
+#### 實作方案
+在 `RoughInsectBody.js` 新增 `resetRoughBodyBrushStroke()`，每次 body outline 或 antenna 下筆前都明確清掉 hatch / wash / fill / stroke 狀態，再重新設定 `pencil1`、`brush.stroke()` 與 `brush.strokeWeight()`。將 body 繪製順序調整為色塊、類型細節、外框，並將蛾羽狀觸角移到外框之後最後畫。觸角主幹與羽枝略加粗，讓手機尺寸可讀。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+採納使用者對 root cause 的判斷：body 問題不是沒有進入 moth 分支，也不是呼叫順序被翅膀蓋住，而是 body 線條不應依賴前一階段留下的 brush 狀態。`g.push()` / `g.pop()` 不能保護 p5.brush 的全域 stroke / fill 狀態，因此 body stroke helper 必須自行重設。沒有改動目前工作區中的 `insectType = 2` 測試鎖定，避免擅自覆蓋使用者或前序工作狀態。
+
+#### 遇到的問題
+初始檢查截圖 `inspect-moth-outline-20260514` 顯示蛾翅與眼斑正常，但 body 黑色外框與觸角幾乎不可見。第一次加入 body brush reset 後，body 中軸與頭胸腹框線明顯恢復，但觸角仍偏細小。第二次才將觸角移到 body outline 之後最後畫，並提高主幹與羽枝 stroke weight。
+
+#### 嘗試過的解法
+先用 `rg` 確認 `drawRoughInsect()`、`drawRoughInsectWings()`、`drawRoughInsectBody()`、`drawRoughBodySimpleOutline()` 與 `drawRoughMothBodyDetails()` 的呼叫順序。接著用 CDP 截圖比對修正前、body brush reset 後、最終觸角層級三個狀態。過程中沒有私下大量調參，只做兩輪聚焦調整。
+
+#### 最終解法
+`drawRoughInsectBody()` 現在進入 body 繪製前先呼叫 `resetRoughBodyBrushStroke()`，並在色塊與類型細節後繪製 body outline。`drawRoughAntennaLine()` 與 `drawRoughOutlineOval()` 都改用 `resetRoughBodyBrushStroke()`，每條線與每個 outline pass 都重新設定 `pencil1` stroke。蛾觸角從 `drawRoughMothBodyDetails()` 移到 `drawRoughInsectBody()` 最後，並加粗主幹與羽枝。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過兩次
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 修正前 run id：`inspect-moth-outline-20260514`
+- body brush 修正 run id：`fix-moth-body-brush-20260514`
+- 最終 run id：`fix-moth-antenna-final-20260514`
+- Camera fixture：Chrome fake camera 預設畫面
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+- 截圖：位於 `docs/cdp-runs/fix-moth-antenna-final-20260514/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：body 框線與中軸恢復可讀，觸角在頭部上方可見但仍保持細節角色，沒有壓過蛾翅眼斑。
+
+#### Codex 審美自評
+最終版本約 `7.2/10`。優點是 body 不再像淡色糊在翅膀中央，頭胸腹輪廓重新保住昆蟲結構，羽狀觸角也能作為蛾的細節線索。弱點是手機尺寸下觸角仍偏小，若希望一眼看出蛾的櫛齒觸角，需要再提高 `antennaSpread`、`antennaLength` 或羽枝粗細。
+
+#### 使用者審美回饋
+使用者指出蛾 body 框線與觸角都沒有畫出來，並判斷「是在畫body前沒有設定到brush」。本輪驗證與修正結果支持此判斷。
+
+#### 尚未解決的風險
+尚未用真實手機背景或多 seed 確認 body outline 與羽狀觸角在複雜影像上都穩定可見。觸角目前是保守加強，若使用者期待更誇張的蛾類識別，仍需下一輪視覺調參。真機 AR / camera、DeviceOrientation、效能與觸控仍未驗證。
+
+#### 使用者回饋或修正
+等待使用者確認這版 body 框線是否已符合預期，以及觸角要維持細節感或再放大成更明顯的蛾特徵。
+
+#### 建議的下一步
+若要讓蛾觸角更明顯，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `createRoughMothBodyPlan()`：提高 `antennaSpread` 會讓左右觸角更外展，提高 `antennaLength` 會讓觸角更長、更突出。也可調 `drawRoughMothFeatherAntennae()`：提高主幹 `strokeWeight` 會讓觸角骨架更黑，提高外側 / 內側羽枝 `strokeWeight` 會讓櫛齒感更強，提高 `branchCount` 會讓羽枝更密。若 body 框線要更重，調 `drawRoughBodySimpleOutline()` 中 abdomen / thorax / head 的 `strokeWeight`；數值增加會讓頭胸腹外框更黑、更像墨線，但也會和翅膀眼斑競爭。
+
+---
+
+### 2026-05-14 — 強制蛾 body 最後黑色結構線
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+依使用者重新檢視的判斷，將 rough moth body 問題從「共用 brush 沒設定」收斂為「蛾的 body 框線 / 觸角看起來跟著身體顏色走」，並為 moth 增加最後一層強制黑色結構線與較明顯的黑色羽狀觸角。
+
+#### 使用者需求
+使用者指出蝴蝶和蜻蜓的身體框線都是黑的，只有蛾的框線好像跟著身體顏色走，因此要求試著修正蛾的筆刷或顏色設定。
+
+#### 實作前理解
+重新聚焦後，若蝴蝶與蜻蜓 body outline 正常，問題不應只歸因於共用 `drawRoughOutlineOval()` 或 `resetRoughBodyBrushStroke()` 完全失效。`drawRoughFilledBodyOval()` 會在 body 填色後用 `paintInfo.color` 畫同色系邊線；`drawRoughMothBodyDetails()` 又會用 `colorPlan.band` 畫 moth-only 的短毛 / 紋理筆觸。因此蛾的彩色 body / band 筆觸可能視覺上主導了身體邊線，使使用者看到的線不像黑色外框。
+
+#### 實作方案
+在 `RoughInsectBody.js` 新增 `drawRoughMothBlackStructureOverlay()`，只針對 `bodyPlan.insectType === 2` 在最後重畫 abdomen、thorax、head 的黑色 `pencil1` outline，再繪製黑色羽狀觸角。同步調整 `resetRoughBodyBrushStroke()`，移除準備畫 stroke 前的 `brush.noStroke()`，並改用與成功翅膀外框較一致的 `brush.stroke(colorValue)`。第一輪截圖後發現觸角仍偏弱，因此第二輪放大 `drawRoughMothFeatherAntennae()` 的 base、spread、length 與 stroke weight。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `docs/visual-test-log.md`
+- `docs/visual-style-guide.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/visual-style-guide.md`
+
+#### 決策紀錄
+本輪不再把問題描述成「所有 body stroke 都沒有設定 brush」，因為蝴蝶與蜻蜓正常顯示黑框。採納使用者的新判斷：moth-only 的彩色 body 邊線與 band 短毛可能讓蛾 body 框線看起來不是黑色。因此使用 moth-only 最後黑色 overlay，而不是大幅改共用 body outline 或移除 body palette。保留 colored moth fur，避免一次把視覺質地全部拿掉。
+
+#### 遇到的問題
+第一輪 `fix-moth-black-structure-20260514` 的黑色 body 結構比前版明確，但觸角仍不夠清楚；這符合使用者先前「觸角完全沒畫出來」的觀察，表示只加黑色 overlay 還不夠。第二輪才提高觸角外展、長度與線寬。
+
+#### 嘗試過的解法
+先用 `rg` 與局部檔案讀取確認 body color plan、`drawRoughFilledBodyOval()` 的同色邊線、`drawRoughMothBodyDetails()` 的 `colorPlan.band` 筆觸，以及真正黑色 outline 的呼叫順序。接著改程式、跑 `node --check`，再用 CDP 跑兩輪 forced moth 截圖：`fix-moth-black-structure-20260514` 與 `fix-moth-black-structure-v2-20260514`。
+
+#### 最終解法
+`drawRoughInsectBody()` 在共用 body outline 後，若是 moth 會呼叫 `drawRoughMothBlackStructureOverlay()`。該 helper 最後用黑色重畫 abdomen / thorax / head outline，並呼叫黑色 `drawRoughMothFeatherAntennae()`。`resetRoughBodyBrushStroke()` 不再呼叫 `brush.noStroke()`，且使用 `brush.stroke(colorValue)` 避免 alpha 參數形式造成顏色 / stroke 狀態判讀不穩。`drawRoughMothFeatherAntennae()` 的 `baseY`、`baseGap`、`spread`、`len` 與 stroke weight 已放大，讓觸角在手機截圖中更容易讀到。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過兩次
+- 測試環境：Windows / PowerShell / Python static server / Chrome headless / Chrome DevTools Protocol
+- 第一輪 run id：`fix-moth-black-structure-20260514`
+- 第二輪 run id：`fix-moth-black-structure-v2-20260514`
+- Camera fixture：Chrome fake camera 預設畫面
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch -60`
+- Forced spawn：`-ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+- 截圖：位於 `docs/cdp-runs/fix-moth-black-structure-v2-20260514/screenshots/`
+- Console 錯誤：每個 viewport 仍有一筆已知 404 resource event，未阻止流程；未觀察到新增 JavaScript exception
+- 實際觀察：第二輪 portrait / compact 中可見黑色 body 結構與頭部上方較清楚的黑色羽狀觸角；觸角仍保持細節角色，未壓過翅膀眼斑。
+
+#### Codex 審美自評
+約 `7.4/10`。優點是方向更貼近使用者觀察：蛾 body 不再只像彩色身體邊緣，最後一層黑線能把頭胸腹結構壓回來，觸角也比前一輪更像有畫出來。弱點是蛾的頭胸區和眼斑翅面仍很密，觸角在真實背景或不同 seed 下可能仍需更誇張的 silhouette。
+
+#### 使用者審美回饋
+使用者重新檢視後指出，蛾的問題應該是部分筆刷設定或顏色設定有問題，因為蝴蝶和蜻蜓的身體框線是黑的，但蛾的框線好像會跟著身體顏色走。本輪修正直接回應此判斷，並修正前一輪過度聚焦共用 brush reset 的說法。
+
+#### 尚未解決的風險
+尚未用真實手機背景、多 seed 或 fixtures 壓力測試確認黑色 overlay 都穩定可見。若 body palette 抽到很深的顏色，黑線與身體仍可能黏在一起。若使用者想要更明確的蛾類櫛齒觸角，還需要再提高觸角外展與羽枝密度。真機 AR / camera、DeviceOrientation、效能與觸控仍未驗證。
+
+#### 使用者回饋或修正
+等待使用者確認第二輪黑色 body 結構線與觸角是否符合「黑框有畫出來」的預期，以及觸角是否要再更明顯。
+
+#### 建議的下一步
+若黑線還是不夠黑或不夠像外框，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughMothBlackStructureOverlay()`：提高 abdomen / thorax / head 的 `strokeWeight` 會讓 moth 專用黑框更重，提高 `passes` 會讓手繪複線更明顯。若觸角要更像蛾，調 `drawRoughMothFeatherAntennae()`：提高 `spread` 倍率會讓左右更外展，提高 `len` 倍率會讓觸角更長，提高主幹與羽枝 `strokeWeight` 會讓櫛齒感更黑；若畫面太重，先降低 `drawRoughMothBodyDetails()` 的 colored fur 數量或 alpha，而不是移除最後黑線。
