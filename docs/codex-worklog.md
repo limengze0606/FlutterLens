@@ -3385,3 +3385,154 @@ CDP 測試腳本目前是分別用 portrait / compact / landscape 啟動頁面�
 
 #### 建議的下一步
 用真機直向拍攝後旋轉到橫向，確認作品圖不重抽、不改構圖、不改昆蟲尺寸。若要調作品展示區，改 `Pages/ResultPage/ResultPage.js` 的 `getResultArtworkDisplayLayout()`：提高 `sideMargin` 會讓作品區更窄、左右留白更多；提高 `topMargin` 會把作品區往下壓；提高 `bottomGap` 會讓作品區離按鈕更遠；提高 `maxDisplayW` 的比例會讓作品區更寬；調整 `yBias`，數值變大會讓作品區往下，變小會往上。若要調背景，改 `renderResultPageBackground()` 的 `background()` 與三個 `fill()`；若要調作品框，改 `renderResultArtwork()` 內框線的 `fill(236, 234, 225, 245)`、外擴 `4` 與陰影偏移 `3 / 5`。
+
+---
+
+### 2026-05-18 — 修正 Result 固定作品圖中的 body 輪廓線錯位
+
+#### 日期
+2026-05-18
+
+#### 任務摘要
+針對 Result page 固定作品圖中，昆蟲 body 填色位置正確但黑色輪廓線沒有對齊身體的問題，將 body outline 的封閉 brush shape 改成多段開放弧線，避開 p5.brush closed shape 在 snapshot 流程中的錯位風險。
+
+#### 使用者需求
+使用者回報生成昆蟲的身體部位顏色填充正確，但輪廓線位置沒有對在生成影像上，並詢問是否是輪廓線沒有畫到正確畫布，或有其他可能性。使用者接著指出翅膀也有類似上色與外框邏輯卻沒有錯位，因此希望先試試將 body outline 改成不同畫法。
+
+#### 實作前理解
+翅膀外框使用 `drawEdgeWithOvershoot()` 畫開放曲線，`brush.endShape()` 不封閉；body outline 則使用 `drawRoughOutlineOval()` 一圈點位加 `brush.endShape(true)` 畫封閉橢圓。因翅膀外框沒有錯位，問題較不像整個 Result snapshot 畫布錯誤，而更像 body closed outline 這種 p5.brush path 在固定作品圖擷取流程中出現 transform / close-path 偏移。
+
+#### 實作方案
+只修改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 body outline 畫法。保留原本 `drawRoughOutlineOval()` 的 public 入口與 fallback p5 ellipse，但在 brush 路徑中改呼叫新的 `drawRoughOpenOutlineOvalPass()`。新函式把每個橢圓輪廓拆成三段有重疊的開放弧線，每段都使用 `brush.beginShape(0.12)`、多個 vertex、`brush.endShape()`，不再使用 `brush.endShape(true)`。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不先改 Result page snapshot 架構，因為翅膀外框沒有錯位，代表整個畫布或固定作品圖流程並非唯一原因。先以最小變更處理 body outline 的 closed shape，若此修正有效，再保留目前固定作品圖設計。
+
+#### 遇到的問題
+CDP 截圖可以確認 forced butterfly pitch 下 body outline 是否貼回填色，但不能保證所有 seed、moth black overlay、dragonfly side eyes 都完全穩定。Landscape 中昆蟲較小，body 細節不如 portrait 容易判讀。
+
+#### 嘗試過的解法
+先對比 rough wing 與 rough body 的 brush 呼叫方式，確認翅膀外框是 open stroke，body outline 是 closed oval。接著以 `apply_patch` 新增 `drawRoughOpenOutlineOvalPass()`，讓每個 body oval 由三段開放弧線組成。最後跑語法檢查與 CDP forced pitch 視覺驗證。
+
+#### 最終解法
+`drawRoughOutlineOval()` 在 `brush` 可用時不再建立單一封閉橢圓，而是每個 pass 呼叫 `drawRoughOpenOutlineOvalPass()`。該函式將 360 度輪廓切成三段，段與段之間有小幅 overlap，並保留 wobble、pressure taper 與 pass offset，因此仍有手繪感，但避開 closed brush shape 的錯位行為。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\ResultPage.js` 通過
+- CDP run id：`body-open-outline-2026-05-18`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- Result state：三個 viewport 都進入 `RESULT`
+- Result action visible：三個 viewport 的 Save / Share / Back 均為 `visible: true`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載一個 `FlutterLens-result.png`，大小 781,376 bytes
+- Portrait Back：回到 `SCANNING`，`backCleared: true`
+- 截圖：`docs/cdp-runs/body-open-outline-2026-05-18/screenshots/`
+- Console 錯誤：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。優點是 body 黑色輪廓回到填色附近，三段開放弧線的接縫與重疊比單一機械封閉橢圓更接近手繪描邊。弱點是線條在小尺寸與綠色植物背景上仍有些細，若使用者希望身體更明確，可提高 outline stroke 或增加 arc pass。
+
+#### 使用者審美回饋
+使用者指出 body 填色正確但輪廓線錯位，並補充翅膀同樣有上色與外框卻沒有出現錯位。這項觀察幫助本輪將問題定位到 body closed outline，而不是整個 Result page 固定作品圖畫布。
+
+#### 尚未解決的風險
+目前主要驗證 forced butterfly pitch。仍需用多 seed 與 forced moth / dragonfly 確認所有 body outline 與細節線都穩定，特別是 moth 的黑色結構 overlay 與觸角。真機 AR / camera 與旋轉流程仍未驗證。
+
+#### 使用者回饋或修正
+等待使用者確認這版在實際畫面中是否解決 body 輪廓錯位。如果仍有少數 seed 錯位，下一步應擷取問題 seed 或 screenshot，再確認是否還有其他 closed body detail path。
+
+#### 建議的下一步
+用真機或多次 CDP seed 測 butterfly / dragonfly / moth 三類 body。若要調 body 輪廓貼合與手繪感，改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughOpenOutlineOvalPass()`：提高 `arcCount` 會讓輪廓分段更多、接近連續線；提高 `overlap` 會減少段落缺口但線會更重；提高 `pointCount` 會讓弧線更平滑；提高 `wobble` 的傳入值或 `passOffset` 會讓線更手繪但可能更鬆；提高呼叫端 `strokeWeight` 會讓 body 更清楚但可能壓過翅膀細節。
+
+---
+
+### 2026-05-18 — 確認並修正黑色 body 結構線未進入 resultArtworkImage
+
+#### 日期
+2026-05-18
+
+#### 任務摘要
+依使用者提供的結果頁手動截圖與 Save 下載圖對照，確認偏移的黑色 body 輪廓 / 觸角沒有被擷取進 `resultArtworkImage`，而是 p5.brush 在可見 canvas 上延後 flush 的殘留層。將 Result artwork 擷取改為兩階段：先畫作品來源，等該 frame 結束讓 p5.brush postdraw 合成，再 `get()` 成固定作品圖。
+
+#### 使用者需求
+使用者指出結果頁手動截圖中，身體本身有一套顏色接近 body 的框線，但另有一套黑色且帶觸角的 body 輪廓線偏移到左側翅膀上；按下儲存後，下載圖中黑色版消失，只剩 body 本身框線。使用者要求確認黑色版是否有畫進 `resultArtworkImage`，若沒有就修改。
+
+#### 實作前理解
+檢查 `RoughInsectBody.js` 後確認 body 有兩套線條：`drawRoughFilledBodyOval()` 會在彩色填色後用 `marker1` 與 `paintInfo.color` 畫接近 body 顏色的框線；`drawRoughBodySimpleOutline()` / `drawRoughSimpleAntennae()` 則用 `ink = "#050504"` 與 `pencil1` 畫黑色 body 結構線與觸角。使用者的下載圖沒有黑色版，代表原本同步 `createResultArtworkSnapshot()` 太早呼叫 `get()`，當下 p5.brush 的黑色結構線尚未完全合成進主 canvas。
+
+#### 實作方案
+在 `ResultPage.js` 中取消 `setupResultPhoto()` 立即同步擷取作品圖，改為設定 `resultCaptureScheduled = true` 並清空 `resultArtworkImage`。`drawResultPage()` 若尚未擷取完成，先呼叫 `renderResultArtworkCaptureFrame()` 畫出相機截圖與昆蟲，接著用 `setTimeout(..., 0)` 排程 `captureResultArtworkAfterBrushFlush()`。這讓目前 draw frame 結束、p5.brush postdraw flush 完成後，再用 `get(0, 0, width, height)` 擷取固定作品圖。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/llms.txt`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定保留固定作品圖架構，但改變擷取時機，而不是把黑色結構線移除。原因是黑色 body / 觸角是設計中的結構層，應該進入作品圖；錯的是它在結果頁上以殘留層形式出現、卻沒有進入 Save PNG。`docs/llms.txt` 也提醒 p5 build 的 brush 會由 draw / postdraw 流程處理，不應用 standalone 的 `brush.render()`；因此採用 frame 後 `get()`，不手動呼叫不存在於 p5 build 流程中的 render。
+
+#### 遇到的問題
+原本 `createResultArtworkSnapshot()` 在 `setupResultPhoto()` 內同步完成，該時間點來自互動事件而非完整 draw frame。p5.brush 的部分線條可能在 p5 postdraw 才合成到可見 canvas，導致 `resultArtworkImage` 少了黑色線，但下一個結果頁畫面又顯示出殘留黑線。
+
+#### 嘗試過的解法
+先追出 body 兩套線條來源，確認彩色框線與黑色結構線是同一 body 流程的不同層。接著搜尋 `docs/llms.txt` 與 p5.brush 行為，確認 p5 build 不應用 standalone `brush.render()`。最後以 Result page 排程方式，把擷取延到 brush postdraw 之後。
+
+#### 最終解法
+`setupResultPhoto()` 設定 `resultCaptureScheduled = true`、`resultArtworkCaptureQueued = false`、`resultArtworkImage = null` 並呼叫 `loop()`。`drawResultPage()` 在 capture 未完成時只畫作品來源，不畫結果頁背景與 UI。`queueResultArtworkCapture()` 用 `setTimeout()` 安排 `captureResultArtworkAfterBrushFlush()`；後者在 brush flush 後擷取 `resultArtworkImage`，重算 `resultArtworkSourceSize` / `resultArtworkLayout`，再回到正常 Result page。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\ResultPage.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\InsectGenerator\RoughInsectBody.js` 通過
+- CDP run id：`result-artwork-brush-flush-2026-05-18`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- Result state：三個 viewport 都進入 `RESULT`
+- Result action visible：三個 viewport 的 Save / Share / Back 均為 `visible: true`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載一個 `FlutterLens-result.png`，大小 771,542 bytes
+- Portrait Back：回到 `SCANNING`，`backCleared: true`
+- 截圖：`docs/cdp-runs/result-artwork-brush-flush-2026-05-18/screenshots/`
+- 下載圖：`docs/cdp-runs/result-artwork-brush-flush-2026-05-18/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+- 觀察：Result 截圖與下載 PNG 都可見同一套黑色 body 結構線與觸角，內容一致
+- Console 錯誤：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8.2/10`。這輪的重點不是改美術重量，而是讓「看見的作品」與「儲存的作品」一致。修正後黑色 body / 觸角不再像浮在結果頁上的幽靈層，而是固定作品圖的一部分；視覺上 body 結構更完整。弱點是黑色線條仍偏細，後續若使用者想要 body 更明顯，可再調 rough body outline stroke。
+
+#### 使用者審美回饋
+使用者提供兩張對照圖，明確指出結果頁手動截圖與 Save 下載圖不一致：結果頁有偏移的黑色 body / 觸角，下載圖沒有。此回饋直接確認問題在 `resultArtworkImage` 擷取時機，而不是單純 body 形狀計算。
+
+#### 尚未解決的風險
+CDP 已驗證 forced butterfly 情境，但仍需用使用者實機情境確認粉色牆面背景下不再出現偏移黑線。也需用多 seed 與 moth / dragonfly 確認其他 body 結構層都能進固定作品圖。
+
+#### 使用者回饋或修正
+等待使用者重新測試結果頁手動截圖與 Save PNG 是否一致。如果仍有殘留層，下一步需進一步清理 p5.brush target 或在 capture frame 後強制重畫正常 Result page。
+
+#### 建議的下一步
+請用同一個粉色牆面場景再測一次：進 Result 後先截圖，再按 Save 比對下載 PNG。若兩者一致但覺得 body 黑線太弱，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughBodySimpleOutline()` / `drawRoughOpenOutlineOvalPass()`；若兩者仍不一致，下一步在 `captureResultArtworkAfterBrushFlush()` 後增加一次明確的可見 canvas 重畫與 brush target sync。

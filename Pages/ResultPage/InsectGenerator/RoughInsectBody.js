@@ -620,16 +620,7 @@ function drawRoughOutlineOval(g, oval, ink, options = {}) {
   if (typeof brush !== "undefined") {
     for (let pass = 0; pass < passes; pass++) {
       resetRoughBodyBrushStroke(ink, (options.strokeWeight || 1) * roughRandom(g, 0.92, 1.08), 248);
-      brush.beginShape(0.12);
-      let count = 28;
-      for (let i = 0; i <= count; i++) {
-        let t = (i / count) * Math.PI * 2;
-        let localX = Math.cos(t) * (oval.rx + roughRandom(g, -wobble, wobble));
-        let localY = Math.sin(t) * (oval.ry + roughRandom(g, -wobble, wobble));
-        let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
-        brush.vertex(point.x, point.y, roughRandom(g, 0.32, 0.74));
-      }
-      brush.endShape(true);
+      drawRoughOpenOutlineOvalPass(g, oval, rotation, wobble, pass);
     }
     return;
   }
@@ -642,6 +633,30 @@ function drawRoughOutlineOval(g, oval, ink, options = {}) {
   g.strokeWeight(options.strokeWeight || 1);
   g.ellipse(0, 0, oval.rx * 2, oval.ry * 2);
   g.pop();
+}
+
+function drawRoughOpenOutlineOvalPass(g, oval, rotation, wobble, pass) {
+  let arcCount = 3;
+  let overlap = Math.PI * 0.11;
+
+  for (let arc = 0; arc < arcCount; arc++) {
+    let startT = (arc / arcCount) * Math.PI * 2 - overlap * 0.5 + roughRandom(g, -0.018, 0.018);
+    let endT = ((arc + 1) / arcCount) * Math.PI * 2 + overlap * 0.5 + roughRandom(g, -0.018, 0.018);
+    let pointCount = 11;
+
+    brush.beginShape(0.12);
+    for (let i = 0; i <= pointCount; i++) {
+      let progress = i / pointCount;
+      let t = startT + (endT - startT) * progress;
+      let taper = Math.sin(progress * Math.PI);
+      let passOffset = (pass - 0.5) * wobble * 0.22;
+      let localX = Math.cos(t) * (oval.rx + roughRandom(g, -wobble, wobble) + passOffset);
+      let localY = Math.sin(t) * (oval.ry + roughRandom(g, -wobble, wobble) + passOffset);
+      let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
+      brush.vertex(point.x, point.y, 0.26 + taper * roughRandom(g, 0.18, 0.46));
+    }
+    brush.endShape();
+  }
 }
 
 function resetRoughBodyBrushStroke(colorValue, strokeWeightValue = 1, alphaValue = 238) {

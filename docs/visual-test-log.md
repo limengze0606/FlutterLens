@@ -2023,3 +2023,102 @@ Codex 自評：`8.1/10`。優點是作品圖與操作 UI 的層級分開後，�
 
 ### 備註 / 風險
 本輪 CDP 分別測了 portrait / compact / landscape，但尚未用同一個真實手機流程驗證「直向拍攝後立即旋轉」。程式邏輯上 `windowResized()` 只重算 `resultArtworkLayout`，不再重算 `spawnPosition` 或重畫昆蟲；仍需真機確認瀏覽器旋轉事件、網址列高度變化與安全區行為。
+
+---
+
+### 日期
+2026-05-18
+
+### 任務 / 功能
+修正 Result page 固定作品圖中，昆蟲 body 彩色填充正確但黑色輪廓線與身體錯位的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 是否可使用相機：使用 canvas fixture 假相機
+- 是否可測試 AR：不能取代真實手機 AR / camera 測試
+
+### 預期行為
+昆蟲 body 的彩色填充與黑色頭、胸、腹輪廓應落在同一個身體位置；Result page 的固定作品圖、底部 Save / Share / Back 與下載流程不應回歸。
+
+### 實際觀察
+將 `drawRoughOutlineOval()` 的 body 黑色封閉橢圓輪廓，改成三段有重疊的開放弧線後，`body-open-outline-2026-05-18` 三個 viewport 都完成 `START → SCANNING → RESULT`。Portrait 與 compact 截圖中，body 輪廓線已貼回昆蟲身體附近，沒有觀察到使用者描述的「填色在正確位置、輪廓線偏到別處」現象。Landscape 中昆蟲較小，但輪廓與 body 仍看起來同位。
+
+### 截圖
+- Portrait result：`docs/cdp-runs/body-open-outline-2026-05-18/screenshots/body-open-outline-2026-05-18-greenPlants-portrait-390x844-result.png`
+- Compact result：`docs/cdp-runs/body-open-outline-2026-05-18/screenshots/body-open-outline-2026-05-18-greenPlants-compact-360x740-result.png`
+- Landscape result：`docs/cdp-runs/body-open-outline-2026-05-18/screenshots/body-open-outline-2026-05-18-greenPlants-landscape-844x390-result.png`
+- 下載驗證：`docs/cdp-runs/body-open-outline-2026-05-18/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。優點是 body 線條回到填色上，且三段開放弧線比單一 closed shape 更像手繪描邊，有小幅接縫與重疊感。弱點是線條在小尺寸下仍偏細，部分 body 結構可能被翅膀與植物背景吃掉；如果使用者希望 body 更明確，可以再增加 arc pass、提高 `strokeWeight` 或讓 body black overlay 更厚。
+
+### 使用者審美回饋
+使用者觀察到「生成昆蟲的身體部位的顏色填充正確，但是輪廓線的位置在結果頁面並沒有對在生成的影像上」，並指出翅膀也有上色與外框卻沒有錯位。這使本輪判斷從「整個 snapshot 或畫布錯位」縮小到 body closed outline 的 brush path 問題。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)`，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 用真機確認 body outline 不再和填色分離
+- [ ] 用多 seed 確認三段開放弧線不會留下過於明顯的缺口
+- [ ] 用 butterfly / dragonfly / moth 三種 pitch 確認 body outline 都貼合
+- [ ] 在真實相機背景下確認 body 黑線可讀性
+
+### 備註 / 風險
+本輪驗證以 forced butterfly pitch 為主，且使用 fake camera fixture。雖然結果支持 closed brush outline 是主要原因，但仍需用多 seed 與其他昆蟲類型確認 moth black overlay、dragonfly side eyes 等 body 線條是否都穩定。
+
+---
+
+### 日期
+2026-05-18
+
+### 任務 / 功能
+確認黑色 body 結構線是否有畫進 `resultArtworkImage`，並修正結果頁可見畫面與下載 PNG 不一致的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 是否可使用相機：使用 canvas fixture 假相機
+- 是否可測試 AR：不能取代真實手機 AR / camera 測試
+
+### 預期行為
+Result page 顯示的作品圖與 Save 下載 PNG 應使用同一份 `resultArtworkImage`。黑色 body 結構線與觸角若存在於結果頁畫面，也必須存在於下載 PNG；不能只以 brush 殘留層形式浮在可見 canvas 上。
+
+### 實際觀察
+使用者提供的手動截圖顯示，結果頁中有一套偏移到左翅上的黑色 body / 觸角；但 Save 下載 PNG 中該黑色偏移層消失，只剩貼在 body 上、顏色接近 body 本身的框線。檢查後確認彩色框線來自 `drawRoughFilledBodyOval()`，黑色結構線與觸角來自 `drawRoughBodySimpleOutline()` / `drawRoughSimpleAntennae()`。因此問題不是 body 本身填色錯，而是黑色 brush 結構層在原本同步 `get()` 時尚未被 p5.brush postdraw 合成進 `resultArtworkImage`，之後才以殘留層出現在可見結果頁。
+
+改成兩階段擷取後，`result-artwork-brush-flush-2026-05-18` 的 Result 截圖與下載 PNG 都可見同一套黑色 body 結構線與觸角；兩者內容一致，黑色線已進入固定作品圖。
+
+### 截圖
+- Portrait result：`docs/cdp-runs/result-artwork-brush-flush-2026-05-18/screenshots/result-artwork-brush-flush-2026-05-18-greenPlants-portrait-390x844-result.png`
+- Compact result：`docs/cdp-runs/result-artwork-brush-flush-2026-05-18/screenshots/result-artwork-brush-flush-2026-05-18-greenPlants-compact-360x740-result.png`
+- 下載驗證：`docs/cdp-runs/result-artwork-brush-flush-2026-05-18/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是結果頁可見畫面與下載圖終於一致，黑色 body / 觸角不再是幽靈般的殘留層，而是作品內容的一部分。弱點是黑色觸角與 body 線在綠色背景上仍偏細，若使用者希望身體更清楚，後續可再調 body outline weight；本輪重點是修正 capture truth，不調整審美重量。
+
+### 使用者審美回饋
+使用者提供對照圖指出：結果頁手動截圖有偏移的黑色 body 輪廓與觸角，但按下儲存後下載圖中黑色版消失，只剩 body 本身的框線。使用者要求確認黑色版是否有畫進 `resultArtworkImage`，若沒有則修改。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)`，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機確認 Result page 與 Save 下載 PNG 的 body / 觸角一致
+- [ ] 真機確認不再出現偏移的黑色殘留層
+- [ ] 用多 seed 確認黑色結構線每次都進入固定作品圖
+- [ ] 用 butterfly / dragonfly / moth 三類 pitch 做回歸
+
+### 備註 / 風險
+這次修的是擷取時機：先讓 Result capture frame 畫出相機與昆蟲，等 p5.brush postdraw flush 後再 `get()`。CDP 已確認 forced butterfly 下結果頁與下載圖一致，但仍需使用者提供的實機情境再次確認。

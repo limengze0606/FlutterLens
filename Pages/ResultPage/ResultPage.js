@@ -6,6 +6,7 @@ let resultExportPending = false;
 let resultExportReady = false;
 let resultSaveInProgress = false;
 let resultShareInProgress = false;
+let resultArtworkCaptureQueued = false;
 let resultShareStatus = { state: "idle", message: "" };
 let resultShareMessageUntil = 0;
 
@@ -23,9 +24,11 @@ function setupResultPhoto() {
     };
     updateResultPhotoLayout();
     resultSceneFinalized = false;
-    resultCaptureScheduled = false;
+    resultCaptureScheduled = true;
+    resultArtworkCaptureQueued = false;
     resultRenderSeed = floor(random(1000000000));
-    createResultArtworkSnapshot();
+    resultArtworkImage = null;
+    loop();
 }
 
 function updateResultPhotoLayout() {
@@ -49,6 +52,11 @@ function updateResultPhotoLayout() {
 }
 
 function drawResultPage() {
+    if (resultCaptureScheduled || !resultArtworkImage) {
+        renderResultArtworkCaptureFrame();
+        return;
+    }
+
     updateResultArtworkLayout();
     renderResultPageBackground();
     renderResultArtwork();
@@ -145,6 +153,46 @@ function createResultArtworkSnapshot() {
         h: resultArtworkImage ? resultArtworkImage.height : height
     };
     updateResultArtworkLayout();
+}
+
+function renderResultArtworkCaptureFrame() {
+    clearScreenTextLayer();
+    background(0);
+    updateResultPhotoLayout();
+    updateSpawnPositionForViewport();
+    renderResultArtworkSource();
+    queueResultArtworkCapture();
+}
+
+function queueResultArtworkCapture() {
+    if (resultArtworkCaptureQueued) return;
+
+    resultArtworkCaptureQueued = true;
+    setTimeout(() => {
+        captureResultArtworkAfterBrushFlush();
+    }, 0);
+}
+
+function captureResultArtworkAfterBrushFlush() {
+    if (!resultCaptureScheduled) {
+        resultArtworkCaptureQueued = false;
+        return;
+    }
+
+    if (drawingContext && typeof drawingContext.finish === "function") {
+        drawingContext.finish();
+    }
+
+    resultArtworkImage = get(0, 0, width, height);
+    resultArtworkSourceSize = {
+        w: resultArtworkImage ? resultArtworkImage.width : width,
+        h: resultArtworkImage ? resultArtworkImage.height : height
+    };
+    resultCaptureScheduled = false;
+    resultArtworkCaptureQueued = false;
+    updateResultArtworkLayout();
+    resultSceneFinalized = false;
+    loop();
 }
 
 function drawResultInsect() {
@@ -509,6 +557,7 @@ function resetResultData() {
     resultExportReady = false;
     resultSaveInProgress = false;
     resultShareInProgress = false;
+    resultArtworkCaptureQueued = false;
     resultShareStatus = { state: "idle", message: "" };
     resultShareMessageUntil = 0;
     resultPhoto = null;
