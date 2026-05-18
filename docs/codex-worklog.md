@@ -3224,3 +3224,164 @@ Web Share API 的真實分享面板、社群 app 目標、iOS / Android 檔案�
 
 #### 建議的下一步
 用手機開 GitHub Pages 或本機 HTTPS 預覽，測試 Share 按鈕是否能分享 `FlutterLens-result.png` 到目標社群。若要調整按鈕位置，改 `Pages/ResultPage/ResultPage.js` 的 `getResultActionLayout()`：提高 `marginX` 會讓左右按鈕離邊緣更遠；提高 `gap` 會拉開儲存與分享；提高 `buttonH` 會讓按鈕更高、更容易點但更佔底部畫面；提高 `maxButtonW` 會讓文字更寬鬆但更容易在窄螢幕擁擠；提高 `bottomMargin` 會讓按鈕往上，降低則更貼近底部。若要改提示外觀，調 `drawResultShareMessage()` 的 `messageW`、`messageH`、`fill` 與文字 `size`。
+
+---
+
+### 2026-05-14 — 修正 Result 儲存重複下載與分享後重繪狀態
+
+#### 日期
+2026-05-14
+
+#### 任務摘要
+修正使用者回報的兩個 Result page 問題：按下儲存會下載多次重複結果；按下分享後重新繪製的結果中，昆蟲身體輪廓框線看起來不再是黑色。新增儲存 / 分享進行中鎖定，並調整分享匯出流程，取完 PNG blob 後立即還原正常 Result UI，再開啟 Web Share API。
+
+#### 使用者需求
+使用者指出兩個問題：一是按下儲存按鈕時會下載多次重複結果；二是按下分享後重新繪製的結果，昆蟲身體的輪廓框線變成不是黑色。
+
+#### 實作前理解
+儲存重複下載很可能來自手機觸控同時觸發 touch / mouse 或使用者連點，而原本 `exportResultImage()` 沒有檢查 `resultExportPending` / 匯出中狀態，可能讓同一輪互動排進多次 `saveCanvas()`。分享問題則來自 `shareResultImage()` 為了取得無 UI PNG，直接在可見 canvas 上呼叫 `renderResultArtworkForCanvasExport()`；在等待分享面板時，使用者會看到這個匯出畫格，且 p5.brush 狀態可能讓 body 黑線呈現與一般 draw loop 不一致。
+
+#### 實作方案
+在 `ResultPage.js` 增加 `resultSaveInProgress` 與 `resultShareInProgress`。`exportResultImage()` 若已在儲存、匯出 pending 或 ready 狀態會直接 return；真正 `saveCanvas()` 完成後才解除鎖定。分享流程在匯出前後呼叫 `syncBrushToCanvas()`，取得 blob 後不再停留在無 UI canvas，而是呼叫 `restoreResultSceneAfterCanvasExport()` 立即重畫正常 Result artwork + UI，再進入 `navigator.share()`。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `sketch.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+決定不改昆蟲 body 繪製本身，因為問題與「分享時額外重畫並停留在匯出畫格」高度相關；先讓分享匯出變成短暫內部步驟，取完 blob 立即還原正常畫面。儲存問題則用 Result page 自身的狀態鎖處理，而不是只依賴瀏覽器事件行為，因為不同手機瀏覽器對 touch / mouse 合成事件差異很大。
+
+#### 遇到的問題
+Chrome headless 仍無法真正完成系統分享面板，只能確認狀態進入 `sharing`。因此分享後框線是否維持黑色需用 `after-share` 截圖比對，並額外使用 forced moth 測試，因為 moth body 最容易暴露黑色結構線問題。
+
+#### 嘗試過的解法
+先用 `rg` 檢查 `exportResultImage()`、`completeResultExportIfReady()`、`shareResultImage()`、`touchStarted()` / `mousePressed()` 與 rough body black overlay。接著加入 `resultSaveInProgress` / `resultShareInProgress`、分享前後 `syncBrushToCanvas()`、`restoreResultSceneAfterCanvasExport()`。CDP 測試腳本改為 portrait 快速連點 Save 兩次，驗證下載數量仍為一個。最後跑一般 result 與 forced moth 兩輪視覺測試。
+
+#### 最終解法
+`exportResultImage()` 只有在沒有 `resultSaveInProgress`、`resultExportPending`、`resultExportReady` 時才會開始匯出，並在 `completeResultExportIfReady()` 的 `saveCanvas()` 後解除 `resultSaveInProgress`。`shareResultImage()` 只有在沒有分享 / 儲存 / 匯出進行中時才會執行；取得 PNG blob 後會呼叫 `restoreResultSceneAfterCanvasExport()`，將畫面立即恢復成正常 Result UI 與一般 brush 狀態，再等待 Web Share API。`run-cdp-visual-test.ps1` 會在 portrait 測試中快速點 Save 兩次，作為重複下載回歸測試。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\ResultPage.js` 通過
+- 語法檢查：`node --check sketch.js` 通過
+- PowerShell 解析：`[scriptblock]::Create((Get-Content -Raw scripts\run-cdp-visual-test.ps1))` 通過
+- 一般 run id：`result-actions-share-fix-2026-05-14`
+- Forced moth run id：`result-share-moth-outline-fix-2026-05-14`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced moth pitch：`-ForcedFinalPitch -60`
+- Forced spawn：一般 run 使用 `0.34 / 0.36`；moth run 使用 `0.50 / 0.40`
+- 一般 run portrait 快速點 Save 兩次後，下載資料夾只有一個 `FlutterLens-result.png`
+- Forced moth after-share 截圖中，body 中軸與外框維持黑色結構感，沒有變成彩色輪廓
+- Console 錯誤：兩輪三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。修正後分享狀態提示仍維持在正常 Result UI 上方，不再像使用者看到的那樣停留在重新繪製的匯出畫格。Forced moth 的 after-share 截圖中，身體黑色中軸與外框仍可讀，與分享前一致。視覺弱點仍是 moth body 在綠色背景中偏細，若使用者希望更強烈黑框，應回到 `drawRoughMothBlackStructureOverlay()` 調黑線，而不是讓分享流程改畫面。
+
+#### 使用者審美回饋
+使用者指出分享後重新繪製的結果中，昆蟲身體輪廓框線變成不是黑色。此回饋已記錄，並用 forced moth 的 before / after-share 截圖確認本輪修正方向。
+
+#### 尚未解決的風險
+真實手機上是否仍會因瀏覽器事件合成而觸發其他重複互動，需要 iOS / Android 實機確認。Web Share API 在 headless 中只能停在 `sharing` 狀態，不能確認社群 app 接收 PNG。若分享面板在真機上長時間開啟，仍需確認返回頁面後 UI 與 body brush 狀態正常。
+
+#### 使用者回饋或修正
+等待使用者在實機上再按一次 Save / Share，確認不再多次下載，且分享後回到 Result 時 body 黑框維持預期。
+
+#### 建議的下一步
+用真機測試連點 `儲存`，確認只下載一次；再測 `分享` → 取消分享 → 回到 Result，確認昆蟲 body 外框仍是黑色。若仍有重複下載，可在 `Pages/ResultPage/ResultPage.js` 的 `exportResultImage()` 增加更長的時間型 debounce；若 body 黑線仍覺得偏弱，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughMothBlackStructureOverlay()`，提高 abdomen / thorax / head 的 `strokeWeight` 或 `passes`。
+
+---
+
+### 2026-05-18 — Result page 固定作品圖與非全螢幕展示重構
+
+#### 日期
+2026-05-18
+
+#### 任務摘要
+依使用者需求重構 Result page：相機截圖與生成昆蟲在進入結果頁時先固定成一張作品圖，結果頁本身改為深色基礎背景、中上方作品展示區與角落操作按鈕，避免最終影像佔滿全螢幕。
+
+#### 使用者需求
+使用者希望結果頁不要再讓最終影像佔據全螢幕；具體方向是將相機截圖與生成昆蟲儲存到獨立畫布或 graphic，結果頁保留一個基礎背景、角落原本按鈕，並在中央或上半部放置生成結果區域。使用者也詢問若直向拍攝後才旋轉螢幕會發生什麼，本輪確認並採用「作品固定，旋轉只改展示 layout」的行為。
+
+#### 實作前理解
+原本 `ResultPage.js` 會每次把 `resultPhoto` 用 cover 方式鋪滿主 canvas，然後直接呼叫 `drawRoughInsect(window, x, y)`。因此 Result 畫面、Save / Share 匯出與旋轉後的主 canvas 尺寸耦合在一起；直向拍攝後旋轉可能重新 cover 裁切照片、重算昆蟲位置與尺寸。由於 p5.brush 主要綁在主 canvas 上，直接把昆蟲畫到 offscreen `createGraphics()` 有 brush 狀態不一致的風險。
+
+#### 實作方案
+在 `setupResultPhoto()` 取得 `resultPhoto` 與 `resultRenderSeed` 後，呼叫 `createResultArtworkSnapshot()`。此函式先在主 canvas 以舊邏輯渲染一次相機截圖與昆蟲，接著用 `get(0, 0, width, height)` 擷取成固定的 `resultArtworkImage`。之後 `drawResultPage()` 不再重畫相機與昆蟲，只重算 `resultArtworkLayout`，畫深色基礎背景、相片式作品框、固定作品圖與既有 Result UI。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectWings.js`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/pagesSettings.js`
+- `sketch.js`
+- `scripts/run-cdp-visual-test.ps1`
+
+#### 修改過的檔案
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `sketch.js`
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定先使用固定 `p5.Image` 作為作品圖，而不是直接讓 rough insect 畫進 offscreen `createGraphics()`。原因是 rough wing / body 內部大量使用全域 `brush`，過去分享匯出也曾因可見 canvas 重畫造成 brush 狀態差異；用主 canvas 渲染一次再擷取，可以維持與既有視覺一致。Save / Share 改為直接使用 `resultArtworkImage.canvas` 產生 PNG，不含結果頁背景與按鈕。旋轉螢幕時 `windowResized()` 改為只呼叫 `updateResultArtworkLayout()`，不再重算 spawn position。
+
+#### 遇到的問題
+CDP 測試腳本目前是分別用 portrait / compact / landscape 啟動頁面，能驗證三種 viewport 的結果頁版面，但不能完全等同「同一次直向拍攝後旋轉到橫向」。另外，landscape runtime 高度約 240px，作品圖會被壓成較窄的橫向展示帶；這符合目前可用空間，但真機橫向安全區與網址列高度仍需實測。
+
+#### 嘗試過的解法
+先讀 Result page、頁面座標 helper、InsectManager 與 rough insect 的 brush 用法，確認 `drawRoughInsect()` 雖然接受 layer，但內部 brush 仍是全域狀態。接著新增 `resultArtworkImage`、`resultArtworkLayout`、`resultArtworkSourceSize`，將舊的 `renderResultArtwork()` 拆成展示用 `renderResultArtwork()` 與一次性來源渲染 `renderResultArtworkSource()`。完成後用 Node 語法檢查與 CDP 視覺測試驗證。
+
+#### 最終解法
+`createResultArtworkSnapshot()` 會在拍攝進 Result 時產生固定作品圖。`getResultArtworkDisplayLayout()` 依目前 viewport、底部 action layout 與作品原始比例，計算中上方展示區。`renderResultPageBackground()` 畫深色基礎背景與上下區塊，`renderResultArtwork()` 畫淺色細框與固定作品圖。`exportResultImage()` 透過 `downloadResultArtworkImage()` 直接下載固定作品圖；`shareResultImage()` 透過 `getResultCanvasBlob()` 從固定作品圖建立 PNG `File`。`sketch.js` 的 `windowResized()` 在 Result 狀態只更新作品展示 layout。
+
+#### 視覺驗證紀錄
+- 語法檢查：`node --check Pages\ResultPage\ResultPage.js` 通過
+- 語法檢查：`node --check Pages\ResultPage\ResultPageSettings.js` 通過
+- 語法檢查：`node --check sketch.js` 通過
+- CDP run id：`result-artwork-card-2026-05-18`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- Result state：三個 viewport 都進入 `RESULT`
+- Result action visible：三個 viewport 的 Save / Share / Back 均為 `visible: true`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載一個 `FlutterLens-result.png`，大小 783,343 bytes
+- Portrait Back：回到 `SCANNING`，`backCleared: true`
+- 截圖：`docs/cdp-runs/result-artwork-card-2026-05-18/screenshots/`
+- Console 錯誤：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8.1/10`。優點是結果頁現在明確分成「作品」與「操作介面」兩層，照片與昆蟲不再被按鈕直接壓住，也不再像整個頁面只是相機截圖。深色背景讓綠色植物與昆蟲仍是主角，淺色細框讓作品區邊界清楚。弱點是目前視覺語言偏相片展示，稍微保守；如果使用者想要更有 AR 儀式感或探索感，背景材質與作品框可以再設計，但不應干擾作品本體。
+
+#### 使用者審美回饋
+本輪尚未收到使用者對截圖的審美分數或評語。使用者的核心方向是不要讓最終影像全螢幕鋪滿，並希望作品能放在中央或上半部；本輪已依此落地。
+
+#### 尚未解決的風險
+尚未用真實手機實測「直向拍攝後旋轉到橫向」的完整流程。程式邏輯上作品圖會固定，不再重畫相機或昆蟲，但 iOS / Android 的網址列高度、安全區、orientation resize timing 仍可能影響展示區視覺。Chrome headless 也不能確認真實 Web Share 面板與社群 app 接收 PNG。
+
+#### 使用者回饋或修正
+等待使用者確認第一版結果頁展示感是否偏好。如果覺得太像一般相片框，可再調整背景與框線；如果覺得作品區仍太大或太小，可直接調 layout 參數。
+
+#### 建議的下一步
+用真機直向拍攝後旋轉到橫向，確認作品圖不重抽、不改構圖、不改昆蟲尺寸。若要調作品展示區，改 `Pages/ResultPage/ResultPage.js` 的 `getResultArtworkDisplayLayout()`：提高 `sideMargin` 會讓作品區更窄、左右留白更多；提高 `topMargin` 會把作品區往下壓；提高 `bottomGap` 會讓作品區離按鈕更遠；提高 `maxDisplayW` 的比例會讓作品區更寬；調整 `yBias`，數值變大會讓作品區往下，變小會往上。若要調背景，改 `renderResultPageBackground()` 的 `background()` 與三個 `fill()`；若要調作品框，改 `renderResultArtwork()` 內框線的 `fill(236, 234, 225, 245)`、外擴 `4` 與陰影偏移 `3 / 5`。

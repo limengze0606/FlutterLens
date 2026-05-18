@@ -27,6 +27,7 @@
 - Rough butterfly body 目前以頭、胸、腹三個輪廓為地基，已加回兩條簡單觸角，並新增 p5.brush 身體填色與腹部環狀紋理。Body 色彩可從常見黑 / 褐色、翅膀主色、翅膀對比色中選擇；依使用者修正，使用翅膀主色或對比色時不一定要降彩度，可保留較高彩度作為設計感。rough insect 的整體畫布旋轉已改由 `createRoughScreenRotationPlan()` 選離散 degree plan，再只套用一次 `rotate()`。
 - Rough butterfly 翅膀斑點目前有 plan-based 對稱分布；一般 rim / inner 斑點仍使用 `spotPalette` 的亮斑 / 暗斑規則，只有 EyeSpots 另外使用 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。一般斑點模式曾被使用者私下修改過，日誌不一定完整記錄，因此後續改 `createRoughWingSpotPlan()` 前需以目前檔案內容為準，不要用舊日誌覆蓋。
 - 翅膀 p5.brush 筆刷材質與粗細已集中到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`。依 `docs/llms.txt`，`brush.set(name, color, weight)` 與 `brush.strokeWeight(weight)` 都是 weight multiplier；為避免混淆，rough wing 目前不再暴露 `brushLoad`，`brush.set()` 第三參數固定為 `1`，可調粗細集中在 `strokeWeight`，頂點濃淡 / 收筆則用 `pressureBase`、`pressureTaper`、`vertexPressure`。2026-05-13 已進一步將斑點筆刷拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，讓 rim-chain、inner-scatter、眼紋可分別調整筆刷。
+- Result page 目前不是把作品全螢幕鋪底，而是在拍攝進入結果頁時先把相機截圖與昆蟲固定成 `resultArtworkImage`，再由 `getResultArtworkDisplayLayout()` 放進中上方展示區。使用者若直向拍攝後旋轉螢幕，作品圖本身不會重新裁切或重抽昆蟲，只會改變展示尺寸與位置。Save / Share 會直接使用這張固定作品圖，不含結果頁背景與按鈕。
 
 ## 目前使用者偏好
 

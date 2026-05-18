@@ -568,6 +568,8 @@ try {
             Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "after-share")
 
             Invoke-CdpClick -Socket $socket -Events $events -X $result.actions.save.x -Y $result.actions.save.y
+            Start-Sleep -Milliseconds 120
+            Invoke-CdpClick -Socket $socket -Events $events -X $result.actions.save.x -Y $result.actions.save.y
             Start-Sleep -Seconds 5
 
             $saveResult = Invoke-CdpEval -Socket $socket -Events $events -Expression @"

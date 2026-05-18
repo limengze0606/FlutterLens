@@ -13,7 +13,7 @@
 - 使用者在本輪前私下修改過翅膀斑點模式，日誌沒有完整記錄。後續若改斑點分布，必須先讀目前 `RoughInsectWings.js`，以現行程式為準，不可依舊 worklog 還原或覆蓋。
 - rough butterfly 翅膀筆刷設定已抽到 `Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js`，包含外輪廓、Voronoi 翅脈、底色粒子、斑點、rim band、radial band、accent、specular、wash、loose patch 等參數。依 `docs/llms.txt`，目前已移除容易混淆的 `brushLoad`，`brush.set()` 第三參數固定為 `1`，後續調粗細優先改 `strokeWeight`，調頂點濃淡 / 收筆優先改 pressure 相關參數。斑點筆刷目前已拆成 `rimChainSpot`、`innerScatterSpot` 與 `eyeSpot.ring / middle / core`，但仍需用多 seed 或強制模式確認三種模式的視覺差異是否足夠明顯。
 - 姿態暫時固定 / 停用 posePlan，尚未完成使用者期待的 body / wing 離散 pose preset。
-- Result page 的底部 actions 已改為左下 `儲存` / `分享`、右下 `返回`，並透過 `getResultActionLayout()` 依 viewport 重算。這已改善舊版中央上下堆疊按鈕，但按鈕仍在底部，若昆蟲 spawn 很低仍可能被遮擋；測試時仍可使用 forced spawn 或後續調整生成位置。
+- Result page 已重構為「固定作品圖 + 結果展示頁」：拍攝進入結果頁時會把相機截圖與昆蟲先渲染並擷取成 `resultArtworkImage`，之後畫面旋轉只會透過 `getResultArtworkDisplayLayout()` 重算展示位置，不再重新裁切相機照、重抽昆蟲或改變昆蟲尺寸。底部 actions 仍為左下 `儲存` / `分享`、右下 `返回`，並透過 `getResultActionLayout()` 依 viewport 重算。CDP 已確認 portrait / compact / landscape 的作品區與按鈕可見，但仍需真機確認「直向拍攝後旋轉到橫向」的體感與安全區。
 - Web Share API 已接入 Result page，可嘗試分享不含 UI 的 PNG；但 Chrome headless 只能驗證 `sharing` / fallback 狀態，不能取代 iOS / Android 真機系統分享面板與社群 app 接收測試。
 - Landscape 構圖與 forced spawn 位置仍需再評估。
 - 2026-05-14 rough moth landscape 截圖仍被 Save / Back 按鈕遮住，不可視為蛾構圖已通過；portrait 截圖較能判讀單翅對與多眼斑。

@@ -1928,3 +1928,98 @@ Codex 自評：`8/10`。優點是底部 UI 分區明確，左下角兩顆主要�
 
 ### 備註 / 風險
 Chrome headless 無法真正打開手機系統分享面板，也不能確認社群 app 是否接收 PNG；本輪只能驗證分享按鈕進入 `sharing` 狀態、沒有 JS exception，並確認後續 Save / Back 未被破壞。若部分瀏覽器不支援檔案分享，會退回文字分享或提示使用者先儲存圖片。
+
+---
+
+### 日期
+2026-05-14
+
+### 任務 / 功能
+修正 Result page 儲存重複下載，以及分享後可見重繪畫格造成昆蟲 body 黑色輪廓不穩的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- 一般 run：`result-actions-share-fix-2026-05-14`
+- Forced moth run：`result-share-moth-outline-fix-2026-05-14`
+
+### 預期行為
+使用者快速或重複點擊 `儲存` 時，不應產生多個重複下載。點擊 `分享` 後，畫面不應停留在無 UI 的匯出重繪狀態；返回 Result 時昆蟲 body 的黑色輪廓與中軸應與分享前一致。
+
+### 實際觀察
+`result-actions-share-fix-2026-05-14` 的 portrait 測試快速點擊 Save 兩次後，下載資料夾只有一個 `FlutterLens-result.png`。`result-share-moth-outline-fix-2026-05-14` 使用 `-ForcedFinalPitch -60` 檢查 moth body，portrait before / after-share 截圖中 body 中軸與外框維持黑色結構感，沒有變成彩色輪廓。Share 後畫面顯示正常 Result UI 與「開啟分享面板...」提示。
+
+### 截圖
+- 一般 after-share：`docs/cdp-runs/result-actions-share-fix-2026-05-14/screenshots/result-actions-share-fix-2026-05-14-greenPlants-portrait-390x844-after-share.png`
+- Forced moth result：`docs/cdp-runs/result-share-moth-outline-fix-2026-05-14/screenshots/result-share-moth-outline-fix-2026-05-14-greenPlants-portrait-390x844-result.png`
+- Forced moth after-share：`docs/cdp-runs/result-share-moth-outline-fix-2026-05-14/screenshots/result-share-moth-outline-fix-2026-05-14-greenPlants-portrait-390x844-after-share.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。優點是分享後畫面回到穩定 Result UI，提示位置清楚，body 黑色結構在 moth 測試中與分享前一致。弱點是 moth body 黑線本身仍偏細，若使用者要更明顯的黑框，應調整 body black overlay，而不是分享流程。
+
+### 使用者審美回饋
+使用者指出分享後重新繪製的結果，昆蟲身體輪廓框線變成不是黑色。本輪依此加入 forced moth after-share 視覺回歸檢查。
+
+### Console 錯誤
+兩輪 CDP 測試的三個 viewport 各有一筆既有 404 resource event，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機連點 `儲存`，確認只下載一次
+- [ ] 真機點 `分享` 後取消，確認回到 Result 時昆蟲 body 黑線維持
+- [ ] 真機完成分享到目標社群後返回頁面，確認 UI 沒有停在無 UI 匯出畫格
+- [ ] 若仍有重複下載，記錄裝置 / 瀏覽器 / 觸控方式，視情況加時間型 debounce
+
+### 備註 / 風險
+Chrome headless 無法完全模擬手機 touch / mouse 合成事件與系統分享面板；本輪用快速雙擊 Save 和 forced moth after-share 截圖降低風險，但仍需實機確認。
+
+---
+
+### 日期
+2026-05-18
+
+### 任務 / 功能
+重構 Result page：將相機截圖與生成昆蟲固定成獨立作品圖，結果頁改為基礎背景、中上方作品展示區與角落操作按鈕。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 是否可使用相機：使用 canvas fixture 假相機
+- 是否可測試 AR：不能取代真實手機 AR / camera 測試
+
+### 預期行為
+Result page 不應再讓最終影像佔滿整個螢幕。拍攝後產生的作品圖應放在中央或上半部展示區，底部角落保留 `儲存`、`分享`、`返回`。Save / Share 應輸出固定作品圖，不含結果頁背景與按鈕。
+
+### 實際觀察
+`result-artwork-card-2026-05-18` 三個 viewport 都完成 `START → SCANNING → RESULT`。Portrait 與 compact 顯示深色基礎背景、淺色細框作品區與底部三顆按鈕，作品不再全螢幕鋪底。Landscape 中作品區變成較寬的橫向展示帶，按鈕仍維持左下 `儲存` / `分享`、右下 `返回` 且都在 viewport 內。Portrait 測試中 Share 進入 `sharing` 狀態，Save 下載一個 `FlutterLens-result.png`，Back 回到 `SCANNING` 且清空 result data。
+
+### 截圖
+- Portrait result：`docs/cdp-runs/result-artwork-card-2026-05-18/screenshots/result-artwork-card-2026-05-18-greenPlants-portrait-390x844-result.png`
+- Compact result：`docs/cdp-runs/result-artwork-card-2026-05-18/screenshots/result-artwork-card-2026-05-18-greenPlants-compact-360x740-result.png`
+- Landscape result：`docs/cdp-runs/result-artwork-card-2026-05-18/screenshots/result-artwork-card-2026-05-18-greenPlants-landscape-844x390-result.png`
+- 下載驗證：`docs/cdp-runs/result-artwork-card-2026-05-18/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是作品圖與操作 UI 的層級分開後，結果頁更像展示完成作品的頁面；直向畫面留出深色背景，按鈕不再壓在照片內容上。弱點是視覺語言仍偏保守，淺色細框略像相片框，若使用者想要更 AR / 探索感，可以再把背景做成更有材質但不干擾作品的版本。這輪看到截圖後沒有再調整，原因是功能重構已清楚成立，且第一版版面穩定；下一步更適合由使用者決定結果頁要偏相片展示、標本卡，或更沉浸的 AR 儀式感。
+
+### 使用者審美回饋
+本輪尚未收到使用者對截圖的審美分數或評語。使用者提出的方向是結果影像不再佔據全螢幕，並詢問直向拍攝後再旋轉螢幕的行為；本輪已讓作品圖固定，旋轉只影響展示 layout。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)`，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機直向拍攝後旋轉到橫向，確認作品圖不重抽、不改構圖
+- [ ] 真機橫向拍攝後回直向，確認作品區比例與按鈕安全區
+- [ ] iOS Safari / Android Chrome 測試 Save 下載固定作品圖
+- [ ] iOS / Android 測試 Share 是否分享固定作品圖，不含 UI
+- [ ] 真實相機背景下確認作品框、深色背景與昆蟲可讀性
+
+### 備註 / 風險
+本輪 CDP 分別測了 portrait / compact / landscape，但尚未用同一個真實手機流程驗證「直向拍攝後立即旋轉」。程式邏輯上 `windowResized()` 只重算 `resultArtworkLayout`，不再重算 `spawnPosition` 或重畫昆蟲；仍需真機確認瀏覽器旋轉事件、網址列高度變化與安全區行為。

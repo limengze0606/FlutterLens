@@ -207,8 +207,8 @@ function windowResized() {
   }
 
   if (currentPagesState === PagesState.RESULT) {
-    if (typeof updateSpawnPositionForViewport === "function") {
-      updateSpawnPositionForViewport();
+    if (typeof updateResultArtworkLayout === "function") {
+      updateResultArtworkLayout();
     }
     resultSceneFinalized = false;
     loop();
