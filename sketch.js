@@ -350,4 +350,10 @@ function startCameraSafe() {
       syncDomUiState();
     }
   });
+
+  if (video && video.elt && typeof video.elt.addEventListener === "function") {
+    video.elt.addEventListener("error", () => {
+      startPermissionRequestInProgress = false;
+    }, { once: true });
+  }
 }

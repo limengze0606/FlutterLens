@@ -37,10 +37,10 @@ function bindDomUiEvents() {
 
   if (DomUi.start.button) {
     ["pointerdown", "touchstart", "mousedown"].forEach((eventName) => {
-      DomUi.start.button.addEventListener(eventName, stopDomUiEvent, { passive: false });
+      DomUi.start.button.addEventListener(eventName, handleDomStartAction, { passive: false });
     });
     ["pointerup", "touchend", "click"].forEach((eventName) => {
-      DomUi.start.button.addEventListener(eventName, handleDomStartAction, { passive: false });
+      DomUi.start.button.addEventListener(eventName, stopDomUiEvent, { passive: false });
     });
   }
 

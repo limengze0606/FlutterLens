@@ -2221,3 +2221,46 @@ Codex 自評：`8/10`。本輪沒有改變視覺設計，只修正手機事件�
 
 ### 備註 / 風險
 CDP 只能確認桌面 headless click 流程未回歸，不能完整重現真機 touch event 與 iOS 權限 user activation。若使用者手機仍無法進入，下一步需在 DOM button 上改為 `touchend` 單一路徑或增加畫面 debug 狀態提示，判斷是事件未觸發、陀螺儀權限未回傳，還是 camera callback 未進入。
+
+---
+
+### 日期
+2026-05-19
+
+### 任務 / 功能
+第二次修正手機 Start button：依使用者提供的 `NotAllowedError: Permission denied` stack，將相機權限觸發提前到 `touchstart` / `pointerdown`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗；使用者另有真機錯誤 stack
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+
+### 預期行為
+Start button 應在手指按下當下就呼叫 `requestStartPermissions()`，避免手機瀏覽器在 `touchend` / `click` 階段判定 `createCapture()` 不再具有有效 user activation。
+
+### 實際觀察
+使用者回報按下 Start 後出現 `NotAllowedError: Permission denied`，stack 指向 `p5.Mn.t.createCapture`、`startCameraSafe()`、`requestStartPermissions()`、`handleDomStartAction()`。修正後，Start button 的 `pointerdown` / `touchstart` / `mousedown` 直接觸發 `handleDomStartAction()`；`pointerup` / `touchend` / `click` 只阻止冒泡與預設行為。`dom-start-touchstart-fix-2026-05-19` 三個 viewport 仍完成 `START → SCANNING → RESULT`，portrait 的 Share / Save / Back 仍通過。
+
+### 截圖
+- CDP run：`docs/cdp-runs/dom-start-touchstart-fix-2026-05-19/`
+- Portrait result：`docs/cdp-runs/dom-start-touchstart-fix-2026-05-19/screenshots/dom-start-touchstart-fix-2026-05-19-greenPlants-portrait-390x844-result.png`
+- 下載驗證：`docs/cdp-runs/dom-start-touchstart-fix-2026-05-19/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。本輪沒有改變視覺外觀，只調整 Start button 權限觸發時機。
+
+### 使用者審美回饋
+本輪使用者提供功能錯誤 stack，未提供審美評分。
+
+### Console 錯誤
+CDP 仍只有既有 404 resource event；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 使用者重新整理手機頁面後再測 Start button
+- [ ] 若仍出現 `NotAllowedError`，確認頁面是否在 HTTPS / GitHub Pages 上開啟，而不是一般區網 HTTP
+- [ ] 若有權限彈窗，確認是否曾經拒絕相機並需要從瀏覽器網站設定重設權限
+
+### 備註 / 風險
+若 `touchstart` 仍被拒，問題可能不是事件時機，而是安全來源、網站相機權限已被拒、或 p5 `createCapture()` 在該手機瀏覽器上的限制。下一步應改用原生 `navigator.mediaDevices.getUserMedia()` 啟動相機，成功後再交給 p5 / video 流程，或加入明確的相機權限錯誤提示。

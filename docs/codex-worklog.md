@@ -3766,3 +3766,69 @@ CDP headless click 無法完整重現真機 touch event 與 iOS 權限 user acti
 
 #### 建議的下一步
 請使用者重新整理手機頁面後再點 Start button 測試。若仍失敗，請回報手機系統 / 瀏覽器，以及點擊後是否有任何權限彈窗；下一步會在 `Pages/DomUi.js` 把權限觸發提前到 `touchstart`，或加 debug message 判斷卡在哪一層。
+
+---
+
+### 2026-05-19 — 依 NotAllowedError 將 Start 權限觸發提前到 touchstart
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+使用者再次真機測試後仍無法進入，並提供 `NotAllowedError: Permission denied` stack。依此判斷事件已進入 `requestStartPermissions()`，但 `createCapture()` 的相機權限請求在手機瀏覽器中仍被拒，因此將 Start DOM button 的權限觸發從放開階段提前到按下階段。
+
+#### 使用者需求
+使用者回報：「還是不行，我按下按鈕後顯示：NotAllowedError: Permission denied」，並提供 stack 指向 `p5.min.js`、`startCameraSafe()`、`requestStartPermissions()`、`handleDomStartAction()`。
+
+#### 實作前理解
+前一輪的 `touchend` / `pointerup` 修正已讓事件進入 `handleDomStartAction()`，但相機請求仍被瀏覽器拒絕。這表示問題更可能是 `createCapture()` 觸發時間離使用者手勢太遠，或手機瀏覽器對 `touchend` / 合成 click 的 user activation 判定較嚴格。
+
+#### 實作方案
+修改 `Pages/DomUi.js`：`pointerdown` / `touchstart` / `mousedown` 直接呼叫 `handleDomStartAction()`，而 `pointerup` / `touchend` / `click` 只呼叫 `stopDomUiEvent()`。維持 `sketch.js` 的 `startPermissionRequestInProgress` 防重入，並在 `video.elt` 上加一次性 `error` listener，讓相機錯誤時可釋放防重入鎖。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定先不退回 canvas Start button，也不立刻大改成原生 `getUserMedia()`，而是先把 DOM button 的權限觸發移到最早的手勢事件。這是最小、最符合目前架構的修正。
+
+#### 遇到的問題
+CDP 不能完整模擬真機權限與 user activation，因此本地通過只能代表桌面 headless 沒回歸，不能保證手機瀏覽器已修好。
+
+#### 嘗試過的解法
+將 Start action 從 `pointerup` / `touchend` / `click` 改到 `pointerdown` / `touchstart` / `mousedown`。補 `video.elt` error listener 釋放防重入。
+
+#### 最終解法
+`Pages/DomUi.js` 中 Start button 的按下事件直接呼叫 `handleDomStartAction()`；放開與 click 僅阻止預設行為和冒泡。`sketch.js` 在 `startCameraSafe()` 建立 capture 後，若 video element 發出 error，釋放 `startPermissionRequestInProgress`。
+
+#### 視覺驗證紀錄
+- 語法 parse：`Pages/DomUi.js` 通過
+- 語法 parse：`sketch.js` 通過
+- CDP run id：`dom-start-touchstart-fix-2026-05-19`
+- 三個 viewport 都完成 `START → SCANNING → RESULT`
+- Portrait Share / Save / Back 仍通過，下載 `FlutterLens-result.png` 大小 778,242 bytes
+- Console：仍只有既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。本輪沒有改變視覺設計，只調整權限觸發時機；畫面外觀與 DOM UI 移植版一致。
+
+#### 使用者審美回饋
+本輪使用者提供功能錯誤 stack，未提供審美評分。
+
+#### 尚未解決的風險
+若手機仍出現 `NotAllowedError`，可能是頁面不是 HTTPS、安全來源不符合相機 API 要求、瀏覽器網站權限已被拒、或 p5 `createCapture()` 在該瀏覽器仍無法滿足權限要求。下一步需改用原生 `navigator.mediaDevices.getUserMedia()` 並加明確錯誤提示。
+
+#### 使用者回饋或修正
+等待使用者再次真機測試。
+
+#### 建議的下一步
+請使用者重新整理頁面並確認網址是否為 HTTPS / GitHub Pages；若仍失敗，請檢查瀏覽器網站設定中相機是否曾被拒絕。若確認 HTTPS 且權限未被拒仍失敗，下一步改寫 `startCameraSafe()`，先用原生 `navigator.mediaDevices.getUserMedia()` 取得 stream，再交給畫面流程使用。
