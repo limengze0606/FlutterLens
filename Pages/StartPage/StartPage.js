@@ -5,13 +5,13 @@ function drawStartPage() {
   if (!StartButton) return;
 
   if (width > height && height < 360) {
-    drawStartPageLandscapeCompact();
+    updateStartPageLandscapeCompactDom();
   } else {
-    drawStartPagePortraitLayout();
+    updateStartPagePortraitDom();
   }
 }
 
-function drawStartPagePortraitLayout() {
+function updateStartPagePortraitDom() {
   const cx = width / 2;
   const titleSize = constrain(min(width * 0.085, height * 0.07), 28, 44);
   const bodySize = constrain(min(width * 0.043, height * 0.028), 14, 19);
@@ -30,13 +30,6 @@ function drawStartPagePortraitLayout() {
   const buttonY = height - buttonBottomMargin;
   const hintY = buttonY - StartButton.ButtonHeight / 2 - 28;
 
-  drawScreenText("匿跡蟲蹤調查員", cx, titleY, {
-    fill: 255,
-    size: titleSize,
-    alignX: CENTER,
-    alignY: TOP
-  });
-
   const introText =
     "大自然裡，許多未知昆蟲正以保護色隱身於周遭。\n" +
     "請透過鏡頭捕捉環境的色彩，揭開牠們的偽裝。\n\n" +
@@ -45,25 +38,19 @@ function drawStartPagePortraitLayout() {
     "無論是低頭探尋、平視周圍，抑或仰望天際，\n" +
     "都可能遇見截然不同的驚喜。";
 
-  drawScreenText(introText, cx, bodyY, {
-    fill: 210,
-    size: bodySize,
-    leading: leading,
-    alignX: CENTER,
-    alignY: TOP
+  updateStartButtonPosition(cx, buttonY);
+  syncStartPageDomIfReady({
+    compact: false,
+    title: createStartTextLayout(cx, titleY, titleSize, titleSize * 1.15, "center", "top", "rgb(255, 255, 255)"),
+    intro: createStartTextLayout(cx, bodyY, bodySize, leading, "center", "top", "rgb(210, 210, 210)"),
+    hint: createStartTextLayout(cx, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
+    introText,
+    hintText: "( 進入時需允許相機與動作感測器權限 )",
+    buttonTextSize: constrain(bodySize, 14, 18)
   });
-
-  drawScreenText("( 進入時需允許相機與動作感測器權限 )", cx, hintY, {
-    fill: 150,
-    size: hintSize,
-    alignX: CENTER,
-    alignY: TOP
-  });
-
-  drawStartButton(cx, buttonY, bodySize);
 }
 
-function drawStartPageLandscapeCompact() {
+function updateStartPageLandscapeCompactDom() {
   const marginX = max(28, width * 0.055);
   const titleSize = constrain(height * 0.13, 24, 34);
   const bodySize = constrain(height * 0.058, 12, 16);
@@ -83,29 +70,16 @@ function drawStartPageLandscapeCompact() {
   const buttonY = height * 0.61;
   const hintY = buttonY - StartButton.ButtonHeight / 2 - 24;
 
-  drawScreenText("匿跡蟲蹤調查員", leftX, titleY, {
-    fill: 255,
-    size: titleSize,
-    alignX: LEFT,
-    alignY: TOP
+  updateStartButtonPosition(rightX, buttonY);
+  syncStartPageDomIfReady({
+    compact: true,
+    title: createStartTextLayout(leftX, titleY, titleSize, titleSize * 1.15, "left", "top", "rgb(255, 255, 255)"),
+    intro: createStartTextLayout(leftX, bodyY, bodySize, leading, "left", "top", "rgb(210, 210, 210)"),
+    hint: createStartTextLayout(rightX, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
+    introText: "捕捉環境色彩，\n揭開未知昆蟲的偽裝。\n換個角度，也許會遇見新的驚喜。",
+    hintText: "需允許相機與動作感測器",
+    buttonTextSize: constrain(bodySize, 14, 18)
   });
-
-  drawScreenText("捕捉環境色彩，\n揭開未知昆蟲的偽裝。\n換個角度，也許會遇見新的驚喜。", leftX, bodyY, {
-    fill: 210,
-    size: bodySize,
-    leading: leading,
-    alignX: LEFT,
-    alignY: TOP
-  });
-
-  drawScreenText("需允許相機與動作感測器", rightX, hintY, {
-    fill: 150,
-    size: hintSize,
-    alignX: CENTER,
-    alignY: TOP
-  });
-
-  drawStartButton(rightX, buttonY, bodySize);
 }
 
 function updateStartButtonMetrics(buttonWidth, buttonHeight, borderRadius) {
@@ -114,24 +88,17 @@ function updateStartButtonMetrics(buttonWidth, buttonHeight, borderRadius) {
   StartButton.ButtonBorderRadius = borderRadius;
 }
 
-function drawStartButton(x, y, textSize) {
+function updateStartButtonPosition(x, y) {
   StartButton.ButtonX = x;
   StartButton.ButtonY = y;
+}
 
-  fill(StartButton.ButtonColor);
-  rectMode(StartButton.ButtonRectMode);
-  rect(
-    StartButton.ButtonX,
-    StartButton.ButtonY,
-    StartButton.ButtonWidth,
-    StartButton.ButtonHeight,
-    StartButton.ButtonBorderRadius
-  );
+function createStartTextLayout(x, y, size, leading, alignX, alignY, colorValue) {
+  return { x, y, size, leading, alignX, alignY, color: colorValue };
+}
 
-  drawScreenText(StartButton.Text, StartButton.ButtonX, StartButton.ButtonY, {
-    fill: StartButton.TextColor,
-    size: constrain(textSize, 14, 18),
-    alignX: CENTER,
-    alignY: CENTER
-  });
+function syncStartPageDomIfReady(layout) {
+  if (typeof syncStartPageDom === "function") {
+    syncStartPageDom(layout);
+  }
 }

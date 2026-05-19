@@ -3,6 +3,9 @@ let currentPagesState = PagesState.START;
 async function setup() {
   // 將 canvas 存起來
   let canvas = createCanvas(windowWidth, windowHeight, WEBGL);
+  if (typeof initDomUi === "function") {
+    initDomUi();
+  }
   await preloadScanningPage();
   
   if (typeof initStartButtonLayout === "function") {
@@ -105,6 +108,9 @@ async function setup() {
 function draw() {
   background(0);
   clearScreenTextLayer();
+  if (typeof syncDomUiState === "function") {
+    syncDomUiState();
+  }
 
   drawInScreenSpace(() => {
     switch (currentPagesState) {
@@ -134,33 +140,13 @@ function handleInteraction() {
   switch (currentPagesState) {
     case PagesState.START:
       if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-        //requestAccess();
+        requestStartPermissions();
       }
       break;
       
     case PagesState.SCANNING:
       if (checkShutterClicked(mouseX, mouseY)) {
-        isShutterPressed = true;  
-        
-        // 1. 【刪除這行】：不再抓取錯誤比例的原始像素
-        // capturedImage = video.get(); 
-        
-        // 2. 直接在螢幕畫面上隨機決定生成範圍
-        let screenSpawnX = random(width * 0.2, width * 0.8);
-        let screenSpawnY = random(height * 0.2, height * 0.8);
-
-        // 3. 【修改點】：直接使用螢幕座標！完全不需要除以 camLayout.scale 換算了
-        spawnPosition = {
-          x: screenSpawnX,
-          y: screenSpawnY
-        };
-        spawnPositionRatio = {
-          x: (screenSpawnX - camLayout.x) / camLayout.w,
-          y: (screenSpawnY - camLayout.y) / camLayout.h
-        };
-
-        setupResultPhoto();
-        currentPagesState = PagesState.RESULT;
+        triggerShutterCapture();
       }
       break;
       
@@ -193,6 +179,9 @@ function touchStarted() {
 function touchEnded() {
   if (currentPagesState === PagesState.SCANNING) {
     isShutterPressed = false;
+    if (typeof syncShutterButtonDom === "function") {
+      syncShutterButtonDom();
+    }
   }
   return false;
 }
@@ -200,6 +189,9 @@ function touchEnded() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   syncBrushToCanvas();
+  if (typeof syncDomUiState === "function") {
+    syncDomUiState();
+  }
 
   if (screenTextLayer) {
     screenTextLayer.remove();
@@ -222,6 +214,38 @@ function syncBrushToCanvas() {
     } catch (error) {
       console.warn("brush failed to sync with canvas:", error);
     }
+  }
+}
+
+function triggerShutterCapture() {
+  if (currentPagesState !== PagesState.SCANNING || !video) return;
+
+  isShutterPressed = true;
+  if (typeof syncShutterButtonDom === "function") {
+    syncShutterButtonDom();
+  }
+
+  // 直接在螢幕畫面上隨機決定生成範圍。
+  let screenSpawnX = random(width * 0.2, width * 0.8);
+  let screenSpawnY = random(height * 0.2, height * 0.8);
+
+  spawnPosition = {
+    x: screenSpawnX,
+    y: screenSpawnY
+  };
+  spawnPositionRatio = {
+    x: (screenSpawnX - camLayout.x) / camLayout.w,
+    y: (screenSpawnY - camLayout.y) / camLayout.h
+  };
+
+  setupResultPhoto();
+  currentPagesState = PagesState.RESULT;
+  isShutterPressed = false;
+  if (typeof syncDomUiState === "function") {
+    syncDomUiState();
+  }
+  if (typeof syncShutterButtonDom === "function") {
+    syncShutterButtonDom();
   }
 }
 
@@ -279,24 +303,27 @@ function handleStartButtonNative(e) {
     
     // 檢查點擊位置是否在 StartButton 範圍內
     if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-      
-      // 【直接請求陀螺儀】因為是原生事件，Safari 絕對會乖乖彈出視窗
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              // 陀螺儀允許後，才安全地去開相機
-              startCameraSafe();
-            } else {
-              alert("必須允許動作感測器，才能進入專案喔！");
-            }
-          })
-          .catch(err => console.error("陀螺儀錯誤:", err));
-      } else {
-        // Android 系統直接開相機
-        startCameraSafe();
-      }
+      requestStartPermissions();
     }
+  }
+}
+
+function requestStartPermissions() {
+  if (currentPagesState !== PagesState.START) return;
+
+  // 【直接請求陀螺儀】必須由使用者 gesture 觸發，Safari 才會彈出權限視窗。
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState === 'granted') {
+          startCameraSafe();
+        } else {
+          alert("必須允許動作感測器，才能進入專案喔！");
+        }
+      })
+      .catch(err => console.error("陀螺儀錯誤:", err));
+  } else {
+    startCameraSafe();
   }
 }
 
@@ -311,5 +338,8 @@ function startCameraSafe() {
     video.hide();
     // 相機確實啟動後，才切換到 ScanningPage
     currentPagesState = PagesState.SCANNING;
+    if (typeof syncDomUiState === "function") {
+      syncDomUiState();
+    }
   });
 }

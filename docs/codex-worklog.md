@@ -3536,3 +3536,165 @@ CDP 已驗證 forced butterfly 情境，但仍需用使用者實機情境確認�
 
 #### 建議的下一步
 請用同一個粉色牆面場景再測一次：進 Result 後先截圖，再按 Save 比對下載 PNG。若兩者一致但覺得 body 黑線太弱，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughBodySimpleOutline()` / `drawRoughOpenOutlineOvalPass()`；若兩者仍不一致，下一步在 `captureResultArtworkAfterBrushFlush()` 後增加一次明確的可見 canvas 重畫與 brush target sync。
+
+---
+
+### 2026-05-19 — 評估整體改為 HTML / CSS app shell 的架構方向
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+針對使用者提出的大型架構調整進行初步評估：將目前由 p5.js canvas 掌控整體畫面、UI、頁面狀態與轉場的架構，改為以 HTML / CSS 作為主要 app shell，並透過 CSS transition / animation 或其他 browser 原生方式處理頁面轉場。
+
+#### 使用者需求
+使用者希望評估是否要修改目前程式整體架構，讓整體畫面改由 HTML / CSS 完成，轉場也由 CSS 或其他方式處理。
+
+#### 實作前理解
+目前專案的 `index.html` 與 `style.css` 很薄，主要 app lifecycle 在 `sketch.js`。`PagesState`、Start / Scanning / Result 三頁、文字、按鈕、點擊範圍、相機畫面、色票 UI、陀螺儀提示、結果頁背景與 actions 都由 p5 canvas 繪製或用 canvas hit-test 處理。昆蟲生成、p5.brush、相機截圖與結果 PNG 輸出仍高度依賴 p5 canvas。
+
+#### 實作方案
+本次未實作程式，只完成架構評估。初步建議採分階段 hybrid migration：先把頁面 shell、按鈕、文字、狀態提示與轉場移到 DOM / CSS，保留 p5 canvas 作為相機 / artwork / insect rendering layer；確認互動與輸出穩定後，再評估是否進一步拆分相機 video、分析 canvas、結果 artwork canvas。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/architecture.md`
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/pagesSettings.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `Pages/ScanningPage/ShutterButton.js`
+- `Pages/ScanningPage/ScanningPageSettings.js`
+- `Pages/ScanningPage/ColorProcessor.js`
+- `Pages/ScanningPage/GyroManager.js`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+初步判斷不建議一次性把所有 p5 畫面改成純 HTML / CSS。Start page、Result page 的 UI、按鈕、toast、頁面背景、轉場很適合 DOM 化；Scanning page 的 overlay UI 也可逐步 DOM 化；但相機取樣、中央色彩分析、結果圖固定擷取、昆蟲與 p5.brush 手繪渲染仍應保留 canvas。最安全的重構目標是「HTML / CSS 負責 app shell 與 transition，p5 負責影像分析與作品生成」。
+
+#### 遇到的問題
+目前全域狀態散落在多個檔案，且許多 layout 與 hit-test 由 `width` / `height` 與 p5 mouse / touch 座標計算。若直接改 DOM，需同步處理權限請求時機、iOS gesture 限制、canvas 層 pointer events、結果圖擷取時機、Save / Share 使用的 PNG 來源，以及現有 CDP 測試腳本的 selector / state 判斷。
+
+#### 嘗試過的解法
+本次僅做閱讀與風險拆解，沒有嘗試修改。
+
+#### 最終解法
+形成一個可供使用者審核的遷移方向：第一階段建立 DOM app shell 與狀態同步；第二階段將 Start page 與 Result UI DOM 化；第三階段將 Scanning overlay DOM 化但保留相機與分析 canvas；第四階段才評估轉場、測試腳本與結果輸出是否需要更深層重構。
+
+#### 視覺驗證紀錄
+本次未修改視覺或功能，因此未啟動本機預覽、未截圖。若後續實作此架構調整，必須用 mobile viewport 驗證 Start -> Scanning -> Result 的轉場、相機權限流程、快門觸控、結果圖展示、Save / Share / Back，以及 portrait / landscape 的 UI 疊層。
+
+#### Codex 審美自評
+本次是架構評估，沒有新畫面可評分。從審美角度看，DOM / CSS 化有機會讓轉場、排版、安全區、按鈕狀態與結果頁質感更穩定，也能降低 canvas 文字渲染的限制；但若拆得太急，可能破壞目前結果圖固定擷取與手繪昆蟲層的穩定性。
+
+#### 使用者審美回饋
+本次尚未收到使用者對 HTML / CSS 方向的具體視覺偏好或分數。
+
+#### 尚未解決的風險
+需要確認使用者期待的是「整個 app shell DOM 化」還是「連相機與昆蟲都盡量離開 p5」。後者成本與風險很高，且 p5.brush 與生成昆蟲目前不適合用 CSS 替代。也需確認是否接受新增較清楚的 JS state controller，或仍希望維持無 build step、純 script 載入的 GitHub Pages 形式。
+
+#### 使用者回饋或修正
+等待使用者審核架構評估與分階段方案。
+
+#### 建議的下一步
+請使用者先決定重構目標邊界：建議採用 hybrid 方案，讓 HTML / CSS 負責畫面結構與轉場，p5 canvas 保留為 artwork engine。若同意，下一步可先做一份更正式的 migration plan，列出新檔案結構、狀態流、DOM layer / canvas layer 分工、測試項目與第一階段改動範圍。
+
+---
+
+### 2026-05-19 — 第一階段 DOM UI 移植：Start / Shutter / Result actions
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+依使用者確認，開始第一階段 HTML / CSS 主架構重構：不加入轉場動畫，先將原版按鈕 UI 功能從 p5 canvas hit-test / canvas drawing 移植成同頁 DOM `<div>` / `<button>` 區塊。保留 p5 canvas 負責相機、色彩分析、結果作品圖、昆蟲與 p5.brush。
+
+#### 使用者需求
+使用者同意開始修改，並指定現階段不需要做轉場動畫，只需先將原版按鈕 UI 功能移植重構。
+
+#### 實作前理解
+原本 `index.html` 只有 script 載入，所有 Start 文字 / button、Scanning shutter、Result Save / Share / Back / toast 都由 p5 canvas 繪製，互動則由 `mousePressed()`、`touchStarted()` 和座標 hit-test 判斷。CDP 測試腳本仍依賴 `StartButton`、`shutterX/Y`、`getResultActionLayout()` 讀取座標，因此 DOM 化時需要保留這些 runtime 座標，避免測試與既有流程一次失效。
+
+#### 實作方案
+在 `index.html` 新增 `#dom-ui-layer`，包含 `#start-page-ui`、`#scanning-page-ui`、`#result-page-ui` 三個頁面區塊。新增 `Pages/DomUi.js` 負責 DOM 查找、事件綁定、頁面 active 狀態、Start layout、shutter layout、Result actions 與 toast 同步。`style.css` 新增 DOM UI 樣式。`StartPage.js` 改為更新 DOM layout 與 `StartButton` 座標，不再畫 canvas 文字與 Start button。`ShutterButton.js` 改為同步 DOM shutter，不再畫 canvas 快門。`ResultPage.js` 的 `renderResultUi()` 改為同步 DOM actions / toast，不再畫 canvas buttons。`sketch.js` 新增 `requestStartPermissions()` 與 `triggerShutterCapture()`，讓 DOM button 與舊 canvas fallback 共用同一套流程。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/StartPage/StartPageSettings.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/ScanningPage/ShutterButton.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/ResultPage/ResultPageSettings.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/visual-test-log.md`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/ScanningPage/ShutterButton.js`
+- `Pages/ResultPage/ResultPage.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定採 hybrid migration，不一次改掉相機與作品 canvas。DOM UI 仍使用現有 p5 layout 計算結果，原因是這可保留既有手機版位置、CDP runtime 座標與使用者熟悉的視覺節奏。保留舊 canvas hit-test 函式作為 fallback，但實際可見 UI 已改由 DOM button 接收 click。這輪不加入 transition，避免在第一階段把「架構接線」與「視覺動態設計」混在一起。
+
+#### 遇到的問題
+PowerShell 直接執行 `node --check` 時，WindowsApps 內的 `node.exe` 因存取被拒無法啟動。改用 Node REPL 讀取檔案並以 `new Function()` parse 驗證語法。另需注意 DOM layer 全螢幕覆蓋後，p5 canvas 的點擊 fallback 不一定能接到事件，因此核心按鈕都必須在 DOM 端完成事件接線。
+
+#### 嘗試過的解法
+先新增 DOM shell 與 CSS，再讓舊 page function 同步 DOM 位置。語法檢查先嘗試 `node --check`，失敗後改用 Node REPL parse。視覺驗證使用既有 CDP 腳本與 fake camera fixture，確認 Start / Scanning / Result、Share / Save / Back 都仍可操作。
+
+#### 最終解法
+`Pages/DomUi.js` 成為第一階段 DOM UI adapter：`initDomUi()` 在 `setup()` 中初始化；`syncDomUiState()` 每 frame 依 `currentPagesState` 切換 active page；`syncStartPageDom()`、`syncShutterButtonDom()`、`syncResultActionsDom()` 依 p5 計算出的 layout 設定 DOM 位置。Start button 呼叫 `requestStartPermissions()`，shutter 呼叫 `triggerShutterCapture()`，Result buttons 呼叫 `exportResultImage()`、`shareResultImage()`、`resetResultData()`。
+
+#### 視覺驗證紀錄
+- 語法 parse：`Pages/DomUi.js` 通過
+- 語法 parse：`Pages/StartPage/StartPage.js` 通過
+- 語法 parse：`Pages/ScanningPage/ShutterButton.js` 通過
+- 語法 parse：`Pages/ResultPage/ResultPage.js` 通過
+- 語法 parse：`sketch.js` 通過
+- `node --check`：因 WindowsApps `node.exe` 存取被拒，無法執行
+- CDP run id：`dom-ui-migration-2026-05-19`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 三個 viewport 都完成 `START → SCANNING → RESULT`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載 `FlutterLens-result.png`，大小 772,809 bytes
+- Portrait Back：回到 `SCANNING`，`backCleared: true`
+- Console：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+- 截圖：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/`
+
+#### Codex 審美自評
+約 `8/10`。DOM 文字邊緣比 canvas 文字穩，Start / Result 的按鈕位置與原設計一致，功能感清楚；Result 三顆按鈕沒有壓住作品主體。弱點是這輪刻意只做忠實移植，因此視覺仍偏原型：黑底 Start page、綠色 pill button、灰白 result buttons 都還沒有新的轉場或更完整的設計語言。若下一輪要提升質感，可在 DOM 基礎上做 transition、safe-area、button state、result page spacing 與視覺層級整理。
+
+#### 使用者審美回饋
+本輪尚未收到使用者對 DOM 化後畫面的分數或偏好。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真機；尤其 iOS Safari 的 DeviceOrientation / camera 權限仍需確認 DOM button click 是否完全符合 user gesture 限制。DOM layer 設定 `touch-action: none`，需真機確認不會造成非預期手勢問題。Result actions 已 DOM 化，但結果作品圖、相機、grid、色票、gyro icon 仍由 p5 canvas 繪製。未加入頁面轉場動畫。
+
+#### 使用者回饋或修正
+等待使用者在真機上確認 Start、shutter、Save / Share / Back 的觸控手感與視覺接受度。
+
+#### 建議的下一步
+先用真機測試 iOS / Android 權限與觸控流程。若第一階段穩定，下一步可在 `style.css` 的 `.dom-page` / `.dom-page.is-active` 加入 `opacity`、`transform` transition，並在 `Pages/DomUi.js` 的 `setDomPageActive()` 擴充 leaving / entering class。可調參數：`style.css` 的 `.ui-button-primary` 可改 Start button 顏色；`.shutter-button` 的 `border` 與 `.shutter-button-inner` 的 `width` / `height` 可調快門視覺重量；`.result-button` / `.result-button-secondary` 可調 Result button 透明度；`Pages/StartPage/StartPage.js` 的 `titleSize`、`bodySize`、`hintSize`、`buttonBottomMargin` 可調 Start layout。

@@ -2071,9 +2071,7 @@ Codex 自評：`8/10`。優點是 body 線條回到填色上，且三段開放�
 - [ ] 在真實相機背景下確認 body 黑線可讀性
 
 ### 備註 / 風險
-本輪驗證以 forced butterfly pitch 為主，且使用 fake camera fixture。雖然結果支持 closed brush outline 是主要原因，但仍需用多 seed 與其他昆蟲類型確認 moth black overlay、dragonfly side eyes 等 body 線條是否都穩定。
-
----
+本輪驗證以 forced butterfly pitch 為主，且使用 fake camera fixture。雖然結果支持 closed brush outline 是主要原因，但仍需用多 seed 與其他昆蟲類型確認 moth black overlay、dragonfly side eyes 等 body 線條是否都穩定。 
 
 ### 日期
 2026-05-18
@@ -2122,3 +2120,57 @@ Codex 自評：`8.2/10`。優點是結果頁可見畫面與下載圖終於一致
 
 ### 備註 / 風險
 這次修的是擷取時機：先讓 Result capture frame 畫出相機與昆蟲，等 p5.brush postdraw flush 後再 `get()`。CDP 已確認 forced butterfly 下結果頁與下載圖一致，但仍需使用者提供的實機情境再次確認。
+
+---
+
+### 日期
+2026-05-19
+
+### 任務 / 功能
+第一階段 HTML / CSS 主架構移植：將 Start page 文字與 Start button、Scanning shutter、Result page 的 Save / Share / Back 與分享 toast 從 p5 canvas UI 改為 DOM / CSS UI。尚未加入頁面轉場動畫。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 是否可使用相機：使用 canvas fixture 假相機
+- 是否可測試 AR：不能取代真實手機 AR / camera 測試
+
+### 預期行為
+DOM 化後，Start button 應能維持 iOS gesture 友善的權限啟動流程；Scanning shutter 應維持原本位置與按壓視覺；Result 的 Save / Share / Back / toast 應能維持原功能，且不被納入 Save 下載 PNG。p5 canvas 仍應正常顯示相機、九宮格、色票、陀螺儀圖示、作品圖與昆蟲。
+
+### 實際觀察
+`dom-ui-migration-2026-05-19` 三個 viewport 都完成 `START → SCANNING → RESULT`。Portrait 進一步完成 Share、Save、Back：`shareState` 為 `sharing`，下載 `FlutterLens-result.png` 成功產生，Back 回到 `SCANNING` 且 result data 已清空。Start page 的 DOM 文字與按鈕位置與原本版型相近；Scanning shutter 以 DOM 圓形按鈕顯示在相機畫面上；Result page 的三顆 DOM 按鈕位於底部，未壓住作品主體。Landscape Start 使用短版文字，版面可讀。
+
+### 截圖
+- Portrait start：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-portrait-390x844-start.png`
+- Portrait scanning：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-portrait-390x844-scanning.png`
+- Portrait result：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-portrait-390x844-result.png`
+- Portrait after share：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-portrait-390x844-after-share.png`
+- Portrait after back：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-portrait-390x844-after-back.png`
+- Compact result：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-compact-360x740-result.png`
+- Landscape start：`docs/cdp-runs/dom-ui-migration-2026-05-19/screenshots/dom-ui-migration-2026-05-19-greenPlants-landscape-844x390-start.png`
+- 下載驗證：`docs/cdp-runs/dom-ui-migration-2026-05-19/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。優點是 DOM 文字比 canvas 文字更穩、邊緣乾淨，Start / Result 的按鈕與舊版視覺一致但更容易後續加 transition；Result 按鈕沒有擋住作品，整體仍安靜、功能清楚。弱點是目前只是忠實移植，按鈕仍偏樸素，Start page 的黑底與綠色按鈕也還是原型感較重；這輪刻意不做新視覺風格，避免把架構移植和設計調整混在一起。
+
+### 使用者審美回饋
+本輪尚未收到使用者對 DOM 化後畫面的分數或偏好。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)`，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] iOS Safari 真機確認 Start button 點擊仍能觸發 DeviceOrientation / camera 權限
+- [ ] Android Chrome 真機確認 Start button、shutter、Save / Share / Back 觸控都不需雙擊
+- [ ] 真機確認 DOM layer 不會阻擋相機畫面或造成滾動 / 縮放
+- [ ] 真機直向與橫向確認 shutter 位置仍貼近實體底部方向
+- [ ] 真機確認 Web Share 面板可接收 PNG
+
+### 備註 / 風險
+這次只移植按鈕 UI 與 Start 文字，沒有加入 CSS 轉場，也沒有把相機 video、九宮格、色票、陀螺儀圖示或結果作品框改成 DOM。`node --check` 在本機 PowerShell 因 WindowsApps `node.exe` 存取被拒而無法執行，改用 Node REPL `new Function()` parse 已確認變更 JS 檔案語法可解析。

@@ -202,10 +202,9 @@ function drawResultInsect() {
 }
 
 function renderResultUi() {
-    drawSaveButton();
-    drawShareButton();
-    drawBackButton();
-    drawResultShareMessage();
+    if (typeof syncResultActionsDom === "function") {
+        syncResultActionsDom();
+    }
 }
 
 function updateSpawnPositionForViewport() {
@@ -388,10 +387,16 @@ function isPointInResultButton(mx, my, button, layout) {
 function showResultShareMessage(message, state = "info") {
     resultShareStatus = { state, message };
     resultShareMessageUntil = millis() + 3000;
+    if (typeof syncResultToastDom === "function") {
+        syncResultToastDom();
+    }
     resultSceneFinalized = false;
     loop();
 
     setTimeout(() => {
+        if (typeof syncResultToastDom === "function") {
+            syncResultToastDom();
+        }
         resultSceneFinalized = false;
         loop();
     }, 3200);
