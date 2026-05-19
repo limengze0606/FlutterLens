@@ -1,5 +1,16 @@
 let currentPagesState = PagesState.START;
-let startPermissionRequestInProgress = false;
+const startPermissionState = {
+  camera: {
+    status: "idle",
+    granted: false,
+    error: ""
+  },
+  motion: {
+    status: "idle",
+    granted: false,
+    error: ""
+  }
+};
 
 async function setup() {
   // 將 canvas 存起來
@@ -245,118 +256,59 @@ function triggerShutterCapture() {
   }
 }
 
-// 修改後的版本
-function requestAccess() {
-  // 1. 同步觸發相機請求 (必須第一時間立刻呼叫，不能等 await！)
-  // 我們先偷偷把相機打開，但不要馬上切換頁面
-  let constraints = {
-    video: {
-      facingMode: "environment" 
-    },
-    audio: false 
-  };
-  
-  // 開始請求相機
-  video = createCapture(constraints, function() {
-    video.hide();
-    // 注意：我們把「切換頁面」的動作移出去了，等確認陀螺儀也 OK 後再切換
-  });
-
-
-  // 2. 觸發陀螺儀權限請求
-  // 雖然這是非同步的，但相機已經在上一行開始請求了，所以不會被 Safari 擋住
-  if (
-    typeof DeviceOrientationEvent !== "undefined" &&
-    typeof DeviceOrientationEvent.requestPermission === "function"
-  ) {
-    DeviceOrientationEvent.requestPermission()
-      .then(permissionState => {
-        if (permissionState === "granted") {
-          // 3. 確保相機和陀螺儀都沒問題後，才切換到掃描頁面
-          currentPagesState = PagesState.SCANNING;
-        } else {
-          alert("必須允許動作感測器權限，才能進行環境探索喔！");
-          // 如果拒絕了，你可以考慮把剛才開啟的 video 給停掉
-          if (video && video.elt && video.elt.srcObject) {
-            video.elt.srcObject.getTracks().forEach(track => track.stop());
-          }
-        }
-      })
-      .catch(error => {
-        console.error("陀螺儀權限請求錯誤:", error);
-      });
-  } else {
-    // 針對非 iOS 或不需權限的裝置 (例如 Android)
-    // 直接切換頁面
-    currentPagesState = PagesState.SCANNING;
-  }
-}
-
-
-function requestStartPermissions() {
+function requestCameraPermission() {
   if (currentPagesState !== PagesState.START) return;
-  if (startPermissionRequestInProgress) return; // 新增防呆：防止使用者重複連點
-  startPermissionRequestInProgress = true;
-  
-  console.log("透過 HTML 按鈕 Click 成功觸發權限鏈！");
+  if (startPermissionState.camera.status === "pending" || startPermissionState.camera.granted) return;
 
-  // 1-1. 先處理對手勢最敏感的 iOS 陀螺儀
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then(permissionState => {
-        if (permissionState === 'granted') {
-          console.log("陀螺儀授權成功");
-        } else {
-          console.warn("陀螺儀被拒絕");
-        }
-        // 無論陀螺儀成不成功，緊接著同步啟動相機（保持在同一個純承諾手勢鏈內）
-        startCameraSafeWithoutAsync();
-      })
-      .catch(err => {
-        console.error("陀螺儀錯誤:", err);
-        startCameraSafeWithoutAsync(); // 防呆：出錯也硬著頭皮試相機
-      });
-  } else {
-    // 1-2. Android 或 PC 裝置，直接叫起相機
-    startCameraSafeWithoutAsync();
-  }
-}
+  startPermissionState.camera.status = "pending";
+  startPermissionState.camera.error = "";
+  syncStartPermissionDomIfReady();
 
-function startCameraSafeWithoutAsync() {
-  let constraints = {
+  const constraints = {
     video: { facingMode: "environment" },
     audio: false
   };
 
   if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
-    startPermissionRequestInProgress = false;
-    alert("此瀏覽器不支援相機存取，請改用支援相機的手機瀏覽器。");
+    markCameraPermissionError("此瀏覽器不支援相機存取。");
     return;
   }
 
-  // 使用標準 .then() 取代 await，確保瀏覽器手勢判定不中斷
+  console.log("相機權限按鈕觸發 getUserMedia");
   navigator.mediaDevices.getUserMedia(constraints)
     .then(stream => {
       attachNativeCameraStream(stream);
     })
     .catch(error => {
-      startPermissionRequestInProgress = false;
       console.error("相機權限請求錯誤:", error);
-      alert("無法啟動相機，請確認瀏覽器已允許相機權限，並確認在 HTTPS 安全連線環境下測試。");
+      markCameraPermissionError(formatPermissionError(error));
     });
 }
 
-function requestMotionPermissionAfterCameraStart() {
+function requestMotionPermission() {
+  if (currentPagesState !== PagesState.START) return;
+  if (startPermissionState.motion.status === "pending" || startPermissionState.motion.granted) return;
+
+  startPermissionState.motion.status = "pending";
+  startPermissionState.motion.error = "";
+  syncStartPermissionDomIfReady();
+
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
       .then(permissionState => {
-        if (permissionState !== 'granted') {
-          console.warn("動作感測器權限未允許，仍會進入相機掃描流程。");
+        if (permissionState === 'granted') {
+          markMotionPermissionGranted();
+        } else {
+          console.warn("動作感測器權限未允許。");
+          markMotionPermissionError("使用者未允許動作感測器權限。");
         }
       })
       .catch(err => {
         console.error("陀螺儀錯誤:", err);
+        markMotionPermissionError(formatPermissionError(err));
       });
+  } else {
+    markMotionPermissionGranted();
   }
 }
 
@@ -380,16 +332,70 @@ function attachNativeCameraStream(stream) {
     video.elt.play().catch(error => {
       console.warn("相機影像播放啟動失敗:", error);
     });
-    startPermissionRequestInProgress = false;
-    currentPagesState = PagesState.SCANNING;
-    if (typeof syncDomUiState === "function") {
-      syncDomUiState();
-    }
+    markCameraPermissionGranted();
     loop();
   }, { once: true });
 
   video.elt.addEventListener("error", (error) => {
-    startPermissionRequestInProgress = false;
     console.error("相機影像元素錯誤:", error);
+    markCameraPermissionError("相機影像元素啟動失敗。");
   }, { once: true });
+}
+
+function requestStartPermissions() {
+  if (currentPagesState !== PagesState.START) return;
+
+  if (!startPermissionState.camera.granted || !startPermissionState.motion.granted) {
+    syncStartPermissionDomIfReady();
+    return;
+  }
+
+  currentPagesState = PagesState.SCANNING;
+  if (typeof syncDomUiState === "function") {
+    syncDomUiState();
+  }
+  loop();
+}
+
+function markCameraPermissionGranted() {
+  startPermissionState.camera.status = "granted";
+  startPermissionState.camera.granted = true;
+  startPermissionState.camera.error = "";
+  syncStartPermissionDomIfReady();
+}
+
+function markMotionPermissionGranted() {
+  startPermissionState.motion.status = "granted";
+  startPermissionState.motion.granted = true;
+  startPermissionState.motion.error = "";
+  syncStartPermissionDomIfReady();
+}
+
+function markCameraPermissionError(message) {
+  startPermissionState.camera.status = "error";
+  startPermissionState.camera.granted = false;
+  startPermissionState.camera.error = message;
+  syncStartPermissionDomIfReady();
+}
+
+function markMotionPermissionError(message) {
+  startPermissionState.motion.status = "error";
+  startPermissionState.motion.granted = false;
+  startPermissionState.motion.error = message;
+  syncStartPermissionDomIfReady();
+}
+
+function formatPermissionError(error) {
+  if (!error) return "未知錯誤。";
+  const name = error.name || "Error";
+  const message = error.message || "沒有錯誤訊息";
+  const secure = typeof window !== "undefined" ? `secureContext=${window.isSecureContext}` : "";
+  const protocol = typeof location !== "undefined" ? `protocol=${location.protocol}` : "";
+  return `${name}: ${message}\n${secure} ${protocol}`.trim();
+}
+
+function syncStartPermissionDomIfReady() {
+  if (typeof syncStartPermissionDom === "function") {
+    syncStartPermissionDom();
+  }
 }

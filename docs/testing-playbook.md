@@ -19,7 +19,7 @@
    - `--use-fake-device-for-media-stream`
    - `--use-fake-ui-for-media-stream`
 4. 透過 Chrome DevTools Protocol 讀 runtime 狀態與按鈕座標。
-5. 用 CDP 點擊 Start button 進入 `SCANNING`。
+5. 用 CDP 依序點擊 Start page 的相機權限、陀螺儀權限、開始按鈕，進入 `SCANNING`。
 6. 點擊 shutter 進入 `RESULT`。
 7. 用 `Page.captureScreenshot` 截圖。
 8. 收集 console / log event，檢查是否有 fatal JS exception。
@@ -74,6 +74,8 @@ docs/cdp-runs/<runId>/
 - console JSON
 
 截圖命名通常包含 run id、viewport label 與 stage，例如 start、scanning、result、after-share、after-back。
+
+Start page 測試目前會讀取 DOM 上的 `camera-permission-action`、`motion-permission-action`、`start-action` 座標，依序點擊相機權限、陀螺儀權限，確認 `startPermissionState.camera.granted` 與 `startPermissionState.motion.granted` 後再點開始。這是為了配合真機權限拆成兩次使用者手勢的流程。
 
 Result page 測試目前會從 runtime 呼叫 `getResultActionLayout()` 讀取 `save`、`share`、`back` 三顆按鈕的座標與 visible flag，避免測試腳本使用舊的固定座標。portrait 測試會點擊 Share、Save、Back；在 Chrome headless 中 Web Share API 只能驗證進入 `sharing` 或 fallback 狀態，不能代表真實手機分享面板或社群 app 接收狀態。
 

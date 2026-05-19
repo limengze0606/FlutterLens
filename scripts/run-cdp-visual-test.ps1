@@ -458,7 +458,28 @@ try {
         h: StartButton.ButtonHeight,
         visible: StartButton.ButtonY + StartButton.ButtonHeight / 2 <= height
       }
-    : null
+    : null,
+  permissions: (() => {
+    const buttonCenter = (id) => {
+      const element = document.getElementById(id);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+        w: rect.width,
+        h: rect.height,
+        disabled: !!element.disabled,
+        visible: rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.top <= innerHeight
+      };
+    };
+    return {
+      camera: buttonCenter('camera-permission-action'),
+      motion: buttonCenter('motion-permission-action'),
+      start: buttonCenter('start-action'),
+      state: typeof startPermissionState !== 'undefined' ? startPermissionState : null
+    };
+  })()
 }))()
 "@
       Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "start")
@@ -468,11 +489,40 @@ try {
       $saveResult = $null
       $shareResult = $null
       $backResult = $null
+      $permissionResult = $null
       $downloads = @()
 
-      if ($initial.start -and $initial.start.visible) {
+      if ($initial.permissions -and $initial.permissions.camera -and $initial.permissions.camera.visible) {
+        Invoke-CdpClick -Socket $socket -Events $events -X $initial.permissions.camera.x -Y $initial.permissions.camera.y
+        Start-Sleep -Seconds 4
+        if ($initial.permissions.motion -and $initial.permissions.motion.visible) {
+          Invoke-CdpClick -Socket $socket -Events $events -X $initial.permissions.motion.x -Y $initial.permissions.motion.y
+          Start-Sleep -Seconds 1
+        }
+
+        $permissionResult = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
+(() => ({
+  state: currentPagesState,
+  permissionState: typeof startPermissionState !== 'undefined' ? startPermissionState : null,
+  videoReady: !!video,
+  startDisabled: !!document.getElementById('start-action')?.disabled,
+  startRect: (() => {
+    const element = document.getElementById('start-action');
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()
+}))()
+"@
+
+        if ($permissionResult.startRect -and -not $permissionResult.startDisabled) {
+          Invoke-CdpClick -Socket $socket -Events $events -X $permissionResult.startRect.x -Y $permissionResult.startRect.y
+        }
+        Start-Sleep -Seconds 2
+      } elseif ($initial.start -and $initial.start.visible) {
         Invoke-CdpClick -Socket $socket -Events $events -X $initial.start.x -Y $initial.start.y
         Start-Sleep -Seconds 4
+      }
 
         $scan = Invoke-CdpEval -Socket $socket -Events $events -Expression @"
 (() => ({
@@ -598,7 +648,6 @@ try {
             Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "after-back")
           }
         }
-      }
 
       foreach ($event in $events) {
         $allEvents += [pscustomobject]@{
@@ -631,6 +680,7 @@ try {
         shareMessage = if ($shareResult -and $shareResult.shareStatus) { $shareResult.shareStatus.message } else { $null }
         saveState = if ($saveResult) { $saveResult.state } else { $null }
         downloads = $downloads
+        permissionState = if ($permissionResult) { $permissionResult.permissionState } else { $null }
         backState = if ($backResult) { $backResult.state } else { $null }
         backCleared = if ($backResult) { (-not $backResult.hasResultPhoto -and $null -eq $backResult.spawnPosition) } else { $null }
         consoleCount = $events.Count

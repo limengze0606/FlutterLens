@@ -29,6 +29,8 @@ function updateStartPagePortraitDom() {
   const buttonBottomMargin = max(58, height * 0.085);
   const buttonY = height - buttonBottomMargin;
   const hintY = buttonY - StartButton.ButtonHeight / 2 - 28;
+  const permissionButtonY = hintY - 54;
+  const statusY = hintY + hintSize * 1.9;
 
   const introText =
     "大自然裡，許多未知昆蟲正以保護色隱身於周遭。\n" +
@@ -44,8 +46,18 @@ function updateStartPagePortraitDom() {
     title: createStartTextLayout(cx, titleY, titleSize, titleSize * 1.15, "center", "top", "rgb(255, 255, 255)"),
     intro: createStartTextLayout(cx, bodyY, bodySize, leading, "center", "top", "rgb(210, 210, 210)"),
     hint: createStartTextLayout(cx, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
+    permissionActions: {
+      x: cx,
+      y: permissionButtonY,
+      buttonW: constrain(width * 0.38, 136, 168),
+      buttonH: constrain(height * 0.058, 40, 46),
+      gap: constrain(width * 0.04, 12, 18),
+      radius: constrain(height * 0.04, 18, 23),
+      labelSize: constrain(bodySize * 0.92, 13, 16)
+    },
+    status: createStartTextLayout(cx, statusY, hintSize, hintSize * 1.2, "center", "top", "rgb(180, 180, 180)"),
     introText,
-    hintText: "( 進入時需允許相機與動作感測器權限 )",
+    hintText: "請先分別允許相機與陀螺儀權限",
     buttonTextSize: constrain(bodySize, 14, 18)
   });
 }
@@ -69,6 +81,8 @@ function updateStartPageLandscapeCompactDom() {
   const rightX = width - marginX - StartButton.ButtonWidth / 2;
   const buttonY = height * 0.61;
   const hintY = buttonY - StartButton.ButtonHeight / 2 - 24;
+  const permissionButtonY = buttonY + StartButton.ButtonHeight / 2 + 22;
+  const statusY = permissionButtonY + 30;
 
   updateStartButtonPosition(rightX, buttonY);
   syncStartPageDomIfReady({
@@ -76,8 +90,18 @@ function updateStartPageLandscapeCompactDom() {
     title: createStartTextLayout(leftX, titleY, titleSize, titleSize * 1.15, "left", "top", "rgb(255, 255, 255)"),
     intro: createStartTextLayout(leftX, bodyY, bodySize, leading, "left", "top", "rgb(210, 210, 210)"),
     hint: createStartTextLayout(rightX, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
+    permissionActions: {
+      x: rightX,
+      y: permissionButtonY,
+      buttonW: constrain(width * 0.15, 112, 136),
+      buttonH: constrain(height * 0.15, 34, 40),
+      gap: 10,
+      radius: constrain(height * 0.07, 16, 20),
+      labelSize: constrain(bodySize * 0.9, 12, 14)
+    },
+    status: createStartTextLayout(rightX, statusY, hintSize, hintSize * 1.2, "center", "top", "rgb(180, 180, 180)"),
     introText: "捕捉環境色彩，\n揭開未知昆蟲的偽裝。\n換個角度，也許會遇見新的驚喜。",
-    hintText: "需允許相機與動作感測器",
+    hintText: "先允許兩項權限",
     buttonTextSize: constrain(bodySize, 14, 18)
   });
 }

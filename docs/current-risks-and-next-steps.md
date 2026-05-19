@@ -5,7 +5,7 @@
 ## 高優先風險
 
 - CDP + fake camera 不能取代真實手機 AR / camera 測試。
-- 真實手機上的相機權限、後鏡頭、HTTPS、DeviceOrientation、觸控手感與效能仍需人工確認。
+- Start 權限流程已改為分離式：使用者需分別點擊「相機權限」與「陀螺儀權限」，兩者同意後才可按「開始探索」。CDP fake camera 已確認此流程可進入 Scanning / Result，但真實手機上的相機權限、後鏡頭、HTTPS、DeviceOrientation、觸控手感與效能仍需人工確認。
 - Rough butterfly body 已從三個空心輪廓推進到 p5.brush 填色版本，包含頭胸腹填色與腹部環狀紋理。Body 色彩可取自然黑 / 褐、翅膀主色或翅膀對比色；依使用者修正，主色或對比色不必一律降彩度。仍需使用者確認高彩度 body 是否太搶，以及深綠黑 body 在葉片背景上是否足夠可讀。
 - rough insect 的整體畫布方向已改成離散 `screen rotation plan`，並移除雙重 random rotate；目前只控制整隻昆蟲的畫面朝向，不改 body 編排或翅膀變形。因 `sketch.js` 設定 `angleMode(DEGREES)`，`createRoughScreenRotationPlan()` 需直接使用 degree 數值。
 - rough butterfly 翅膀斑點已改為共用 `spotPlan`，讓左右翅膀的斑點分布位置對稱。一般 rim / inner 斑點仍依翅膀平均亮度切換亮斑 / 暗斑；只有 EyeSpots 改用獨立 `eyeSpotPalette`，依 `stronger.h` 取高彩度互補色。仍需用多 seed 或強制模式確認互補色眼紋在不同底色下是否過飽和、過重或被翅脈吃掉。

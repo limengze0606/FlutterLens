@@ -17,6 +17,10 @@ function initDomUi() {
   DomUi.start.title = document.getElementById("start-title");
   DomUi.start.intro = document.getElementById("start-intro");
   DomUi.start.hint = document.getElementById("start-permission-hint");
+  DomUi.start.permissionActions = document.getElementById("start-permission-actions");
+  DomUi.start.camera = document.getElementById("camera-permission-action");
+  DomUi.start.motion = document.getElementById("motion-permission-action");
+  DomUi.start.status = document.getElementById("start-permission-status");
   DomUi.start.button = document.getElementById("start-action");
 
   DomUi.scanning.shutter = document.getElementById("shutter-action");
@@ -35,9 +39,21 @@ function bindDomUiEvents() {
   if (DomUi.bound) return;
   DomUi.bound = true;
 
+  if (DomUi.start.camera) {
+    DomUi.start.camera.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      requestCameraPermission();
+    }, { passive: false });
+  }
+
+  if (DomUi.start.motion) {
+    DomUi.start.motion.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      requestMotionPermission();
+    }, { passive: false });
+  }
+
   if (DomUi.start.button) {
-    // 【核心修正】拋棄所有 pointerdown / touchstart！
-    // 請求相機與陀螺儀權限，必須使用且只能使用最純粹的 "click" 事件
     DomUi.start.button.addEventListener("click", (event) => {
       stopDomUiEvent(event);
       handleDomStartAction(event);
@@ -134,6 +150,77 @@ function syncStartPageDom(layout) {
 
   DomUi.start.intro.textContent = layout.introText;
   DomUi.start.hint.textContent = layout.hintText;
+
+  if (DomUi.start.permissionActions && layout.permissionActions) {
+    const actions = layout.permissionActions;
+    DomUi.start.permissionActions.style.left = `${actions.x}px`;
+    DomUi.start.permissionActions.style.top = `${actions.y}px`;
+    DomUi.start.permissionActions.style.gap = `${actions.gap}px`;
+    positionPermissionButton(DomUi.start.camera, actions);
+    positionPermissionButton(DomUi.start.motion, actions);
+  }
+
+  if (DomUi.start.status && layout.status) {
+    DomUi.start.status.style.cssText = positionTextStyle(layout.status);
+  }
+
+  syncStartPermissionDom();
+}
+
+function positionPermissionButton(button, layout) {
+  if (!button) return;
+  button.style.width = `${layout.buttonW}px`;
+  button.style.height = `${layout.buttonH}px`;
+  button.style.borderRadius = `${layout.radius}px`;
+  button.style.fontSize = `${layout.labelSize}px`;
+}
+
+function syncStartPermissionDom() {
+  if (!DomUi.start.button) return;
+  const state = typeof startPermissionState !== "undefined" ? startPermissionState : null;
+  const cameraGranted = !!(state && state.camera.granted);
+  const motionGranted = !!(state && state.motion.granted);
+  const ready = cameraGranted && motionGranted;
+
+  syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "相機權限");
+  syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "陀螺儀權限");
+
+  DomUi.start.button.disabled = !ready;
+  DomUi.start.button.classList.toggle("is-ready", ready);
+  DomUi.start.button.textContent = ready ? "開始探索" : "等待權限";
+
+  if (DomUi.start.status) {
+    DomUi.start.status.textContent = state ? getStartPermissionStatusMessage(state) : "";
+    DomUi.start.status.style.color = state && (state.camera.error || state.motion.error)
+      ? "rgb(255, 180, 150)"
+      : "rgb(180, 180, 180)";
+  }
+}
+
+function syncPermissionButtonState(button, permission, defaultLabel) {
+  if (!button) return;
+  const status = permission ? permission.status : "idle";
+  button.disabled = status === "pending" || status === "granted";
+  button.classList.toggle("is-granted", status === "granted");
+  button.classList.toggle("is-denied", status === "denied" || status === "error");
+  button.classList.toggle("is-pending", status === "pending");
+  button.textContent = getPermissionButtonLabel(defaultLabel, status);
+}
+
+function getPermissionButtonLabel(defaultLabel, status) {
+  if (status === "granted") return `${defaultLabel} ✓`;
+  if (status === "pending") return "詢問中...";
+  if (status === "denied" || status === "error") return `重試${defaultLabel}`;
+  return defaultLabel;
+}
+
+function getStartPermissionStatusMessage(state) {
+  if (state.camera.error) return `相機：${state.camera.error}`;
+  if (state.motion.error) return `陀螺儀：${state.motion.error}`;
+  if (state.camera.granted && state.motion.granted) return "兩項權限已允許，可以開始探索。";
+  if (state.camera.granted) return "相機已允許，請再允許陀螺儀。";
+  if (state.motion.granted) return "陀螺儀已允許，請再允許相機。";
+  return "";
 }
 
 function positionTextStyle(item) {

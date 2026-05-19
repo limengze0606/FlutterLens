@@ -3895,3 +3895,154 @@ CDP 不能完整模擬真機權限與 user activation，因此本地通過只能
 
 #### 建議的下一步
 請使用者確認手機頁面是否從 HTTPS / GitHub Pages 開啟，並在瀏覽器網站設定中重設相機權限。如果這版仍失敗，下一步加畫面內錯誤提示，將 `error.name` / `error.message` 顯示給使用者，並提供相機權限重設指引。
+
+---
+
+### 2026-05-19 — 檢視 HTML/CSS 架構下的相機與陀螺儀權限風險
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+使用者擔心專案改成以 HTML/CSS 為主的 hybrid UI 後，手機相機與陀螺儀權限可能和原本 p5.js 流程衝突。本輪未改程式，先做架構檢視與 CDP fake camera 驗證。
+
+#### 使用者需求
+使用者詢問：「請幫我檢視手機的相機以及陀螺儀權限相關功能，由於我們有修改整個架構成以html/css為主，因此有可能和原本的p5js衝突?」
+
+#### 實作前理解
+目前 UI 已由 `index.html` 與 `Pages/DomUi.js` 負責 Start、Scanning、Result 的 DOM 按鈕與頁面 active 狀態；p5.js 仍負責 canvas、相機影像繪製、取色、陀螺儀 pitch 判斷與結果生成。權限最敏感的是 Start button 的 user gesture 是否仍能直接觸發 `DeviceOrientationEvent.requestPermission()` 與 `navigator.mediaDevices.getUserMedia()`。
+
+#### 實作方案
+先讀取 `docs/agent-quickstart.md`、`docs/testing-playbook.md`、`docs/current-risks-and-next-steps.md`，再檢查 `index.html`、`style.css`、`Pages/DomUi.js`、`sketch.js`、`Pages/ScanningPage/GyroManager.js`、`Pages/ScanningPage/ScanningPage.js`、`Pages/ScanningPage/ColorProcessor.js`。最後執行既有 CDP fake camera 測試，確認 DOM click、camera stream、p5 draw 與 Result 流程是否仍可運作。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `Pages/ScanningPage/GyroManager.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `Pages/ScanningPage/ColorProcessor.js`
+- `docs/cdp-runs/permission-review-2026-05-19/permission-review-2026-05-19-console.json`
+
+#### 修改過的檔案
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+目前沒有發現 HTML/CSS overlay 直接遮斷權限手勢：`#dom-ui-layer` 預設 `pointer-events: none`，只有 active page 開啟 `pointer-events: auto`，Start button 透過 DOM `click` 呼叫 `requestStartPermissions()`。相機已改用原生 `navigator.mediaDevices.getUserMedia()`，再接到 p5 `createVideo([])`，因此不再依賴 p5 `createCapture()` 作為主要權限入口。
+
+#### 遇到的問題
+`sketch.js` 仍保留舊的 `requestAccess()`，內部使用 `createCapture()` 與另一套 `DeviceOrientationEvent.requestPermission()` 流程；目前搜尋結果顯示未被呼叫，但它會造成後續維護混淆。另有未使用的 `requestMotionPermissionAfterCameraStart()`。真機 iOS 上，先等待 `DeviceOrientationEvent.requestPermission().then(...)` 再呼叫 `getUserMedia()` 是否百分之百維持 user gesture，仍需實機確認。
+
+#### 嘗試過的解法
+本輪未修改程式。執行 `.\scripts\run-cdp-visual-test.ps1 -RunId "permission-review-2026-05-19"`，用 Chrome fake camera 驗證 Start → Scanning → Result。
+
+#### 最終解法
+本輪結論是「基本架構沒有明顯 p5 / DOM 衝突，但仍有真機權限風險與舊程式碼清理需求」。建議下一輪經使用者同意後，移除或封存舊 `requestAccess()`，統一權限入口，並加上畫面內錯誤狀態顯示。
+
+#### 視覺驗證紀錄
+- CDP run id：`permission-review-2026-05-19`
+- `portrait-390x844`、`compact-360x740`、`landscape-844x390` 都完成 `START → SCANNING → RESULT`
+- 三個 viewport 皆為 `videoReady=true`，且 `hasResultPhoto=true`
+- Portrait Share / Save / Back 仍通過，下載 `FlutterLens-result.png` 大小 57,544 bytes
+- Console：每個 viewport 各有既有 404 resource event，另有預期中的「透過 HTML 按鈕 Click 成功觸發權限鏈！」；未觀察到新的 `getUserMedia`、`DeviceOrientationEvent`、p5 或 DOM exception
+
+#### Codex 審美自評
+約 `8/10`。本輪沒有改變視覺設計；截圖主要用於確認流程非白畫面與 DOM UI 狀態正常。因為任務焦點是權限與架構相容性，沒有進行視覺調參。
+
+#### 使用者審美回饋
+本輪使用者詢問功能與架構風險，未提供審美評分。
+
+#### 尚未解決的風險
+CDP fake camera 不能代表真實手機相機權限、iOS 動作感測器權限、後鏡頭選擇、HTTPS / GitHub Pages 安全來源、瀏覽器網站權限狀態或系統層相機權限。`window.orientation` 已是較舊 API，未來可考慮以 `screen.orientation` 或事件監聽補強，但需實機驗證。
+
+#### 使用者回饋或修正
+等待使用者決定是否要進入下一輪清理與修正。
+
+#### 建議的下一步
+建議下一輪先做小範圍修正：清掉舊權限流程、統一 `requestStartPermissions()` / `startCameraSafeWithoutAsync()` 命名與責任、加入畫面內錯誤提示，並在真機上測試 HTTPS、相機允許 / 拒絕、動作感測器允許 / 拒絕、後鏡頭與重新整理後重試流程。
+
+---
+
+### 2026-05-19 — Start page 改為相機與陀螺儀分離授權
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+使用者表示目前手機實測無法取得權限，並指定改為兩個獨立權限按鈕：一個詢問相機權限，同意後打勾；另一個詢問陀螺儀權限，同意後打勾；最後的開始按鈕必須等兩個都同意才可按。本輪依此改寫 Start page 權限流程。
+
+#### 使用者需求
+使用者要求：「我們換個方式，改成分別請求相機及陀螺儀，所以會多兩個按鈕，一個是按下或詢問是否提供相機權限，同意後會打勾，另一個是陀螺儀，然後最後的開始按鈕要兩個都同意才能按下」
+
+#### 實作前理解
+真機權限失敗很可能與一次點擊內連續請求相機與動作感測器有關。把權限拆成兩個明確按鈕後，每個敏感 API 都有自己的使用者手勢；同時可以讓使用者與開發者清楚知道失敗發生在相機或陀螺儀。
+
+#### 實作方案
+在 `index.html` 的 Start page 新增 `camera-permission-action`、`motion-permission-action` 與 `start-permission-status`。在 `sketch.js` 建立 `startPermissionState`，讓相機、陀螺儀各自有 `status`、`granted`、`error`。相機按鈕呼叫原生 `navigator.mediaDevices.getUserMedia()`，成功後用 `createVideo([])` 接 stream 並標記 granted，但不進入 Scanning。陀螺儀按鈕在 iOS 呼叫 `DeviceOrientationEvent.requestPermission()`；不支援或不需要該 API 的環境視為 granted。開始按鈕只在兩者都 granted 後切到 `PagesState.SCANNING`。同步更新 DOM UI 樣式、Start layout、CDP 測試腳本與摘要文件。
+
+#### 檢視過的檔案
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `style.css`
+- `index.html`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定讓 Start page 的「開始探索」不再直接請求權限，而只負責在兩項權限已同意後進入 Scanning。相機 stream 會在 Start page 階段先建立並保存，進入 Scanning 後沿用同一個 p5 video。這樣可避免使用者按開始時才觸發多個權限 API，也方便真機定位錯誤。
+
+#### 遇到的問題
+CDP 測試腳本原本只點舊的 Start button。新增 disabled Start button 後，腳本必須改成依序點擊相機權限、陀螺儀權限、開始按鈕，並回讀 `startPermissionState`。第一次修改腳本時多留一個舊的 `if` 區塊結尾，PowerShell parse 檢查報錯，已修正。
+
+#### 嘗試過的解法
+先完成分離式權限狀態機與 DOM 按鈕，跑 `split-permissions-2026-05-19`。功能通過後檢查 Start 截圖，發現初始狀態文字與 disabled 開始按鈕略擁擠，因此再做小幅視覺修正：初始狀態列不顯示重複提示，disabled 開始按鈕改成灰底，並重跑 `split-permissions-polish-2026-05-19`。
+
+#### 最終解法
+Start page 目前有三顆主要控制：`相機權限`、`陀螺儀權限`、`開始探索 / 等待權限`。兩個權限成功後，權限按鈕會變成打勾狀態，開始按鈕解鎖。若權限錯誤，Start page 會顯示 `error.name`、`error.message`、`window.isSecureContext` 與 `location.protocol`，方便真機排查。
+
+#### 視覺驗證紀錄
+- PowerShell 腳本 parse：`scripts/run-cdp-visual-test.ps1` 通過
+- CDP run id：`split-permissions-polish-2026-05-19`
+- 三個 viewport 都完成 `START → SCANNING → RESULT`
+- 三個 viewport 的 `permissionState.camera.status` 與 `permissionState.motion.status` 都是 `granted`
+- 三個 viewport 都是 `videoReady=true`、`hasResultPhoto=true`
+- Portrait Share / Save / Back 通過，下載 `FlutterLens-result.png` 大小 55,416 bytes
+- Console：每個 viewport 仍只有既有 404 resource event，另有預期中的「相機權限按鈕觸發 getUserMedia」；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `7.5/10`。兩個權限按鈕清楚、實用，disabled 開始按鈕灰底後不再搶注意力。整體偏排錯工具感，適合目前需要解決真機權限問題；弱點是 Start page 底部控制區稍密，若真機高度更小，可能需要進一步縮短 intro 或改 stacked controls。
+
+#### 使用者審美回饋
+本輪使用者指定互動流程，未提供審美評分。
+
+#### 尚未解決的風險
+CDP fake camera 不能代表真機 iOS / Android 權限彈窗。真機仍需確認 HTTPS / GitHub Pages、網站相機權限、系統相機權限、iOS 動作感測器權限、後鏡頭選擇與重新整理後重試流程。若真機仍失敗，需依 Start page 顯示的錯誤內容判斷下一步。
+
+#### 使用者回饋或修正
+等待使用者在手機上測試新的分離式權限流程。
+
+#### 建議的下一步
+請使用者用手機重新整理頁面後依序點「相機權限」與「陀螺儀權限」，回報哪一顆沒有打勾，以及畫面上顯示的錯誤名稱 / 訊息。若兩顆都能打勾，再測「開始探索」、後鏡頭畫面、pitch icon、快門、Result、Save / Share / Back。

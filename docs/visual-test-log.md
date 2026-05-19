@@ -2310,3 +2310,49 @@ Codex 自評：`8/10`。本輪是相機啟動流程修正，沒有改變畫面�
 
 ### 備註 / 風險
 CDP fake camera 已確認原生 `getUserMedia()` 流程能接入既有 p5 video 使用方式，但真機仍可能因 HTTPS、網站權限或瀏覽器相機政策被拒。若真機仍失敗，下一步應加入畫面上的相機錯誤提示與權限重設指引。
+
+---
+
+### 日期
+2026-05-19
+
+### 任務 / 功能
+將 Start page 改為分離式權限流程：相機權限與陀螺儀權限各自一顆按鈕，兩者同意後才啟用「開始探索」。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗；需使用者真機複測
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：Chrome fake camera 預設模式
+
+### 預期行為
+Start page 初始顯示「相機權限」與「陀螺儀權限」兩顆按鈕，「等待權限」按鈕為 disabled。CDP 依序點擊相機權限與陀螺儀權限後，`startPermissionState.camera.granted` 與 `startPermissionState.motion.granted` 應為 `true`，開始按鈕應解鎖並可進入 Scanning。
+
+### 實際觀察
+`split-permissions-polish-2026-05-19` 三個 viewport 都完成 `START → SCANNING → RESULT`。摘要顯示三個 viewport 的 `permissionState.camera.status` 與 `permissionState.motion.status` 都是 `granted`，`videoReady=true`，`hasResultPhoto=true`。Portrait 額外完成 Share / Save / Back，下載 `FlutterLens-result.png` 大小 55,416 bytes，Back 後回到 `SCANNING` 並清空 Result data。
+
+### 截圖
+- CDP run：`docs/cdp-runs/split-permissions-polish-2026-05-19/`
+- Portrait start：`docs/cdp-runs/split-permissions-polish-2026-05-19/screenshots/split-permissions-polish-2026-05-19-default-portrait-390x844-start.png`
+- Portrait result：`docs/cdp-runs/split-permissions-polish-2026-05-19/screenshots/split-permissions-polish-2026-05-19-default-portrait-390x844-result.png`
+
+### 審美評分與評語
+Codex 自評：`7.5/10`。Start page 的兩顆權限按鈕清楚、可掃讀，disabled 開始按鈕改成灰底後比第一版不干擾；整體仍偏工具式，視覺上不華麗但適合權限排錯。較弱處是 Start page 底部控制區稍密，若真機高度更小，可能需要再壓縮 intro 文字或改成更明確的 stacked layout。
+
+### 使用者審美回饋
+本輪使用者指定功能互動方式，未提供審美評分。
+
+### Console 錯誤
+三個 viewport 仍各有一筆既有 `404 File not found` resource event；另有預期中的「相機權限按鈕觸發 getUserMedia」。未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 手機 HTTPS / GitHub Pages 開啟後，點「相機權限」是否跳出相機權限提示
+- [ ] 同意相機後，相機按鈕是否顯示打勾
+- [ ] 點「陀螺儀權限」是否跳出動作感測器權限提示，或在不需該 API 的瀏覽器直接打勾
+- [ ] 兩者打勾後，「開始探索」是否解鎖
+- [ ] 進入 Scanning 後是否顯示後鏡頭畫面、pitch icon、色票與快門
+- [ ] 若任一權限失敗，Start page 是否顯示錯誤名稱與 secure context / protocol 訊息
+
+### 備註 / 風險
+CDP fake camera 可驗證 DOM 流程與 p5 stream 接線，但不能代表 iOS / Android 真機權限彈窗。若真機仍無法取得權限，下一步需根據畫面上的 `error.name`、`window.isSecureContext` 與 `location.protocol` 判斷是 HTTPS、網站權限、系統權限或瀏覽器政策問題。
