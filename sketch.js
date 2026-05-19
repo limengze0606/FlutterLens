@@ -14,11 +14,6 @@ async function setup() {
   }
   angleMode(DEGREES);
 
-  // 【核心修改】繞過 p5.js，直接在畫布上掛載原生點擊事件
-  // 使用 touchend 和 click 確保在所有裝置上都能抓到最純粹的點擊
-  canvas.elt.addEventListener('touchend', handleStartButtonNative, false);
-  canvas.elt.addEventListener('click', handleStartButtonNative, false);
-
   syncBrushToCanvas();
   brush.add("default", {
     type:    "default",
@@ -297,24 +292,15 @@ function requestAccess() {
   }
 }
 
-// 這是專門用來應付 iOS 權限的原生事件處理器
-function handleStartButtonNative(e) {
-  // 只在起始畫面生效
-  if (currentPagesState === PagesState.START) {
-    
-    // 檢查點擊位置是否在 StartButton 範圍內
-    if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-      requestStartPermissions();
-    }
-  }
-}
 
 function requestStartPermissions() {
   if (currentPagesState !== PagesState.START) return;
+  if (startPermissionRequestInProgress) return; // 新增防呆：防止使用者重複連點
+  startPermissionRequestInProgress = true;
   
   console.log("透過 HTML 按鈕 Click 成功觸發權限鏈！");
 
-  // 1. 先處理對手勢最敏感的 iOS 陀螺儀
+  // 1-1. 先處理對手勢最敏感的 iOS 陀螺儀
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
       .then(permissionState => {
@@ -323,17 +309,41 @@ function requestStartPermissions() {
         } else {
           console.warn("陀螺儀被拒絕");
         }
-        // 無論陀螺儀成不成功，緊接著啟動相機（保持在同一個手勢鏈內）
-        startCameraSafe();
+        // 無論陀螺儀成不成功，緊接著同步啟動相機（保持在同一個純承諾手勢鏈內）
+        startCameraSafeWithoutAsync();
       })
       .catch(err => {
         console.error("陀螺儀錯誤:", err);
-        startCameraSafe(); // 防呆
+        startCameraSafeWithoutAsync(); // 防呆：出錯也硬著頭皮試相機
       });
   } else {
-    // 2. Android 或 PC 裝置，直接叫起相機
-    startCameraSafe();
+    // 1-2. Android 或 PC 裝置，直接叫起相機
+    startCameraSafeWithoutAsync();
   }
+}
+
+function startCameraSafeWithoutAsync() {
+  let constraints = {
+    video: { facingMode: "environment" },
+    audio: false
+  };
+
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+    startPermissionRequestInProgress = false;
+    alert("此瀏覽器不支援相機存取，請改用支援相機的手機瀏覽器。");
+    return;
+  }
+
+  // 使用標準 .then() 取代 await，確保瀏覽器手勢判定不中斷
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then(stream => {
+      attachNativeCameraStream(stream);
+    })
+    .catch(error => {
+      startPermissionRequestInProgress = false;
+      console.error("相機權限請求錯誤:", error);
+      alert("無法啟動相機，請確認瀏覽器已允許相機權限，並確認在 HTTPS 安全連線環境下測試。");
+    });
 }
 
 function requestMotionPermissionAfterCameraStart() {
@@ -347,29 +357,6 @@ function requestMotionPermissionAfterCameraStart() {
       .catch(err => {
         console.error("陀螺儀錯誤:", err);
       });
-  }
-}
-
-// 獨立的相機啟動函數
-async function startCameraSafe() {
-  let constraints = {
-    video: { facingMode: "environment" },
-    audio: false
-  };
-
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
-    startPermissionRequestInProgress = false;
-    alert("此瀏覽器不支援相機存取，請改用支援相機的手機瀏覽器。");
-    return;
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    attachNativeCameraStream(stream);
-  } catch (error) {
-    startPermissionRequestInProgress = false;
-    console.error("相機權限請求錯誤:", error);
-    alert("無法啟動相機，請確認瀏覽器已允許相機權限，且頁面使用 HTTPS 開啟。");
   }
 }
 
