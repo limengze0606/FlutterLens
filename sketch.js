@@ -335,25 +335,58 @@ function requestStartPermissions() {
 }
 
 // 獨立的相機啟動函數
-function startCameraSafe() {
+async function startCameraSafe() {
   let constraints = {
     video: { facingMode: "environment" },
     audio: false
   };
 
-  video = createCapture(constraints, function() {
-    video.hide();
-    // 相機確實啟動後，才切換到 ScanningPage
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+    startPermissionRequestInProgress = false;
+    alert("此瀏覽器不支援相機存取，請改用支援相機的手機瀏覽器。");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    attachNativeCameraStream(stream);
+  } catch (error) {
+    startPermissionRequestInProgress = false;
+    console.error("相機權限請求錯誤:", error);
+    alert("無法啟動相機，請確認瀏覽器已允許相機權限，且頁面使用 HTTPS 開啟。");
+  }
+}
+
+function attachNativeCameraStream(stream) {
+  if (video && video.elt && video.elt.srcObject) {
+    video.elt.srcObject.getTracks().forEach(track => track.stop());
+  }
+
+  video = createVideo([]);
+  video.elt.setAttribute("playsinline", "");
+  video.elt.setAttribute("webkit-playsinline", "");
+  video.elt.muted = true;
+  video.elt.autoplay = true;
+  video.elt.srcObject = stream;
+  video.hide();
+
+  video.elt.addEventListener("loadedmetadata", () => {
+    if (video && typeof video.size === "function") {
+      video.size(video.elt.videoWidth || 640, video.elt.videoHeight || 480);
+    }
+    video.elt.play().catch(error => {
+      console.warn("相機影像播放啟動失敗:", error);
+    });
     startPermissionRequestInProgress = false;
     currentPagesState = PagesState.SCANNING;
     if (typeof syncDomUiState === "function") {
       syncDomUiState();
     }
-  });
+    loop();
+  }, { once: true });
 
-  if (video && video.elt && typeof video.elt.addEventListener === "function") {
-    video.elt.addEventListener("error", () => {
-      startPermissionRequestInProgress = false;
-    }, { once: true });
-  }
+  video.elt.addEventListener("error", (error) => {
+    startPermissionRequestInProgress = false;
+    console.error("相機影像元素錯誤:", error);
+  }, { once: true });
 }

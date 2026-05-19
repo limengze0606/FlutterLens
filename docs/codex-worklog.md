@@ -3832,3 +3832,66 @@ CDP 不能完整模擬真機權限與 user activation，因此本地通過只能
 
 #### 建議的下一步
 請使用者重新整理頁面並確認網址是否為 HTTPS / GitHub Pages；若仍失敗，請檢查瀏覽器網站設定中相機是否曾被拒絕。若確認 HTTPS 且權限未被拒仍失敗，下一步改寫 `startCameraSafe()`，先用原生 `navigator.mediaDevices.getUserMedia()` 取得 stream，再交給畫面流程使用。
+
+---
+
+### 2026-05-19 — 改用原生 getUserMedia 啟動相機
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+使用者回報 touchstart 修正後仍出現同樣的 `NotAllowedError`。依前一輪建議，將 `startCameraSafe()` 從 p5 `createCapture()` 改為 browser 原生 `navigator.mediaDevices.getUserMedia()`，成功取得 stream 後再掛到 p5 video element，排除 p5 權限封裝造成的問題。
+
+#### 使用者需求
+使用者表示：「還是一樣的報錯訊息」。
+
+#### 實作前理解
+既然 `touchstart` 已經直接觸發權限流程仍被拒，問題可能不是 DOM 事件時機，而是 p5 `createCapture()` 在該手機瀏覽器上的權限封裝或呼叫鏈仍被判定不合規。原生 `getUserMedia()` 是更直接的相機權限 API；若它仍被拒，下一步才應轉向 HTTPS / 網站權限 / 瀏覽器設定排查。
+
+#### 實作方案
+把 `startCameraSafe()` 改成 async：先檢查 `navigator.mediaDevices.getUserMedia`，再請求 `{ video: { facingMode: "environment" }, audio: false }`。成功後呼叫 `attachNativeCameraStream(stream)`，以 `createVideo([])` 建立 p5 media element，設定 `playsinline`、`webkit-playsinline`、`muted`、`autoplay` 與 `srcObject`。在 `loadedmetadata` 後設定 video size、播放、釋放防重入、切換到 `SCANNING` 並同步 DOM UI。失敗時釋放防重入並顯示相機權限 / HTTPS 提示。
+
+#### 檢視過的檔案
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不再讓 p5 `createCapture()` 作為第一個相機權限入口。保留 p5 作為後續影像繪製與 `video.get()` 的使用介面，但權限請求改由原生 API 直接處理。這讓權限錯誤更明確，也比較接近手機瀏覽器預期。
+
+#### 遇到的問題
+需要讓既有程式仍能使用 `image(video, ...)` 與 `video.get()`。因此沒有直接使用裸 `<video>` element，而是使用 `createVideo([])` 取得 p5 media element，再把原生 stream 掛到 `video.elt.srcObject`。
+
+#### 嘗試過的解法
+改寫 `startCameraSafe()` 與新增 `attachNativeCameraStream(stream)`；用 CDP fake camera 驗證 camera fixture 仍能進入 Scanning / Result。
+
+#### 最終解法
+`startCameraSafe()` 使用原生 `navigator.mediaDevices.getUserMedia()`；`attachNativeCameraStream()` 建立並設定 p5 video element。`loadedmetadata` 後進入 `SCANNING`。
+
+#### 視覺驗證紀錄
+- 語法 parse：`sketch.js` 通過
+- CDP run id：`native-camera-start-2026-05-19`
+- 三個 viewport 都完成 `START → SCANNING → RESULT`
+- Portrait Share / Save / Back 仍通過，下載 `FlutterLens-result.png` 大小 771,572 bytes
+- Console：仍只有既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。本輪沒有視覺改動，畫面仍維持 DOM UI 移植版；變更集中在相機權限與 video stream 接線。
+
+#### 使用者審美回饋
+本輪使用者回報功能問題，未提供審美評分。
+
+#### 尚未解決的風險
+真機仍需確認。如果原生 `getUserMedia()` 仍回 `NotAllowedError`，則幾乎可指向 HTTPS / 安全來源、網站相機權限已被拒、瀏覽器設定或系統層權限。CDP fake camera 不能取代真機相機權限測試。
+
+#### 使用者回饋或修正
+等待使用者重新整理手機頁面後再次測試。
+
+#### 建議的下一步
+請使用者確認手機頁面是否從 HTTPS / GitHub Pages 開啟，並在瀏覽器網站設定中重設相機權限。如果這版仍失敗，下一步加畫面內錯誤提示，將 `error.name` / `error.message` 顯示給使用者，並提供相機權限重設指引。

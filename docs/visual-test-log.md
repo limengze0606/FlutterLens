@@ -2264,3 +2264,49 @@ CDP 仍只有既有 404 resource event；未觀察到新增 JavaScript exception
 
 ### 備註 / 風險
 若 `touchstart` 仍被拒，問題可能不是事件時機，而是安全來源、網站相機權限已被拒、或 p5 `createCapture()` 在該手機瀏覽器上的限制。下一步應改用原生 `navigator.mediaDevices.getUserMedia()` 啟動相機，成功後再交給 p5 / video 流程，或加入明確的相機權限錯誤提示。
+
+---
+
+### 日期
+2026-05-19
+
+### 任務 / 功能
+將 Start 相機啟動入口由 p5 `createCapture()` 改為原生 `navigator.mediaDevices.getUserMedia()`，以排除 p5 權限封裝造成的手機 `NotAllowedError`。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗；需使用者真機複測
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+
+### 預期行為
+Start button 觸發權限時應直接呼叫 browser 原生 `getUserMedia()`。成功取得 stream 後，建立 p5 可繪製的 `createVideo([])` 元素並掛上 `srcObject`，讓既有 `image(video, ...)` 與 `video.get()` 流程繼續運作。
+
+### 實際觀察
+`sketch.js` 的 `startCameraSafe()` 已改為 async，先檢查 `navigator.mediaDevices.getUserMedia`，再以 `{ video: { facingMode: "environment" }, audio: false }` 請求相機。成功後呼叫 `attachNativeCameraStream(stream)`，以 `createVideo([])` 建立 p5 media element，設定 `playsinline`、`webkit-playsinline`、`muted`、`autoplay` 與 `srcObject`。`loadedmetadata` 後更新 video size、播放、切到 `SCANNING`。`native-camera-start-2026-05-19` 三個 viewport 都完成 `START → SCANNING → RESULT`；portrait Share / Save / Back 仍通過。
+
+### 截圖
+- CDP run：`docs/cdp-runs/native-camera-start-2026-05-19/`
+- Portrait result：`docs/cdp-runs/native-camera-start-2026-05-19/screenshots/native-camera-start-2026-05-19-greenPlants-portrait-390x844-result.png`
+- 下載驗證：`docs/cdp-runs/native-camera-start-2026-05-19/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。本輪是相機啟動流程修正，沒有改變畫面視覺；DOM UI 和結果頁構圖維持前一版。
+
+### 使用者審美回饋
+本輪使用者提供功能錯誤回報，未提供審美評分。
+
+### Console 錯誤
+三個 viewport 仍只有既有 404 resource event；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 使用者以手機重新整理後測試 Start button
+- [ ] 確認手機網址為 HTTPS / GitHub Pages，而不是一般 HTTP
+- [ ] 若仍失敗，檢查網站相機權限是否曾被拒絕並重設
+- [ ] 若成功進入 Scanning，確認相機方向、快門、Result、Save / Share / Back
+
+### 備註 / 風險
+CDP fake camera 已確認原生 `getUserMedia()` 流程能接入既有 p5 video 使用方式，但真機仍可能因 HTTPS、網站權限或瀏覽器相機政策被拒。若真機仍失敗，下一步應加入畫面上的相機錯誤提示與權限重設指引。
