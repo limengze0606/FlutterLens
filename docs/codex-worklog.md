@@ -3698,3 +3698,71 @@ CDP fake camera 不能取代真機；尤其 iOS Safari 的 DeviceOrientation / c
 
 #### 建議的下一步
 先用真機測試 iOS / Android 權限與觸控流程。若第一階段穩定，下一步可在 `style.css` 的 `.dom-page` / `.dom-page.is-active` 加入 `opacity`、`transform` transition，並在 `Pages/DomUi.js` 的 `setDomPageActive()` 擴充 leaving / entering class。可調參數：`style.css` 的 `.ui-button-primary` 可改 Start button 顏色；`.shutter-button` 的 `border` 與 `.shutter-button-inner` 的 `width` / `height` 可調快門視覺重量；`.result-button` / `.result-button-secondary` 可調 Result button 透明度；`Pages/StartPage/StartPage.js` 的 `titleSize`、`bodySize`、`hintSize`、`buttonBottomMargin` 可調 Start layout。
+
+---
+
+### 2026-05-19 — 修正手機 Start button touch 無法進入
+
+#### 日期
+2026-05-19
+
+#### 任務摘要
+依使用者真機回報，修正第一階段 DOM UI 移植後手機上 Start button 點擊無法進入 Scanning page 的問題。
+
+#### 使用者需求
+使用者表示：「我用手機測試，從開始頁面的按鈕就點不進去了」。
+
+#### 實作前理解
+第一階段 DOM UI 只在 Start button 上綁 `click`。手機瀏覽器中，`click` 可能被 p5 的全域 `touchStarted()` 回傳 `false`、canvas 原生 touch listener、或瀏覽器 touch 行為影響，導致 DOM button 看得到但權限流程沒有被觸發。權限流程仍需保留 user gesture，因此不能改成非同步自動啟動。
+
+#### 實作方案
+在 `Pages/DomUi.js` 中讓 Start button 先於 `pointerdown` / `touchstart` / `mousedown` 阻止事件預設行為與冒泡，避免事件落到 p5 canvas / document handler；再於 `pointerup` / `touchend` / `click` 呼叫 `handleDomStartAction()`，直接觸發 `requestStartPermissions()`。在 `sketch.js` 新增 `startPermissionRequestInProgress`，避免同一次手機觸控同時觸發 `touchend` 與 `click` 時重複請求權限或相機。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定保留 DOM button 作為正式入口，而不是退回 canvas hit-test。原因是本輪目標就是把 UI 移到 HTML / CSS；問題應在事件接線層修正。採用多事件入口但用防重入鎖保護，讓 iOS / Android 都有機會在最接近 user gesture 的事件上觸發權限流程。
+
+#### 遇到的問題
+CDP headless click 無法完整重現真機 touch event 與 iOS 權限 user activation。因此本地驗證只能確認既有桌面自動化流程未回歸，最終仍需使用者真機再次確認。
+
+#### 嘗試過的解法
+未做多輪嘗試；直接將 Start button 改為 touch / pointer / click 多事件支援，並補防重入。
+
+#### 最終解法
+`Pages/DomUi.js` 新增 `stopDomUiEvent()` 與 `handleDomStartAction()`。Start button 的 `pointerdown` / `touchstart` / `mousedown` 呼叫 `stopDomUiEvent()`；`pointerup` / `touchend` / `click` 呼叫 `handleDomStartAction()`。`sketch.js` 新增 `startPermissionRequestInProgress`，在 `requestStartPermissions()` 開始時鎖住，拒絕 / catch / camera callback 時釋放。
+
+#### 視覺驗證紀錄
+- 語法 parse：`Pages/DomUi.js` 通過
+- 語法 parse：`sketch.js` 通過
+- CDP run id：`dom-start-touch-fix-2026-05-19`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 三個 viewport 都完成 `START → SCANNING → RESULT`
+- Portrait Share / Save / Back 仍通過，下載 `FlutterLens-result.png` 大小 774,520 bytes
+- Console：三個 viewport 各有一筆既有 404 resource event；未觀察到新增 JavaScript exception
+
+#### Codex 審美自評
+約 `8/10`。本輪沒有改變畫面外觀，只修正手機事件接線；視覺結果與第一階段 DOM UI 移植一致。
+
+#### 使用者審美回饋
+本輪使用者回饋是功能問題，不是審美評分：手機上開始頁按鈕點不進去。
+
+#### 尚未解決的風險
+需要使用者用真機再次確認。若仍無法進入，可能是 `touchend` 對 iOS DeviceOrientation permission 不被視為有效 user activation，或 camera callback 未觸發。下一步可改成在 `touchstart` 直接觸發權限流程，或加暫時 debug toast 顯示事件是否觸發與 permission 回傳狀態。
+
+#### 使用者回饋或修正
+等待使用者重新測試手機 Start button。
+
+#### 建議的下一步
+請使用者重新整理手機頁面後再點 Start button 測試。若仍失敗，請回報手機系統 / 瀏覽器，以及點擊後是否有任何權限彈窗；下一步會在 `Pages/DomUi.js` 把權限觸發提前到 `touchstart`，或加 debug message 判斷卡在哪一層。

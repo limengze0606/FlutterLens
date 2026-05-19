@@ -2174,3 +2174,50 @@ Codex 自評：`8/10`。優點是 DOM 文字比 canvas 文字更穩、邊緣乾�
 
 ### 備註 / 風險
 這次只移植按鈕 UI 與 Start 文字，沒有加入 CSS 轉場，也沒有把相機 video、九宮格、色票、陀螺儀圖示或結果作品框改成 DOM。`node --check` 在本機 PowerShell 因 WindowsApps `node.exe` 存取被拒而無法執行，改用 Node REPL `new Function()` parse 已確認變更 JS 檔案語法可解析。
+
+---
+
+### 日期
+2026-05-19
+
+### 任務 / 功能
+修正手機實測中 DOM Start button 點擊後無法進入 Scanning page 的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server，由 `scripts/run-cdp-visual-test.ps1` 啟動
+- 瀏覽器：Google Chrome headless，透過 Chrome DevTools Protocol 操作
+- 裝置：桌機模擬手機視窗；使用者另有真機回報
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced pitch：`-ForcedFinalPitch 0`
+- Forced spawn：`-ForcedSpawnRatioX 0.42 -ForcedSpawnRatioY 0.34`
+- 是否可使用相機：使用 canvas fixture 假相機
+- 是否可測試 AR：不能取代真實手機 AR / camera 測試
+
+### 預期行為
+Start button 在手機瀏覽器中不應只依賴合成的 `click` 事件；`touchend` / `pointerup` 也應能直接觸發 `requestStartPermissions()`，且事件不應冒泡到 p5 的全域 touch handler。
+
+### 實際觀察
+使用者用手機測試時，開始頁面的按鈕點不進去。推測 DOM button 的 `click` 在手機上可能被 p5 全域 `touchStarted()` / canvas fallback 或瀏覽器 touch 行為影響。修正後，Start button 對 `pointerdown` / `touchstart` / `mousedown` 先 `preventDefault()` 與 `stopPropagation()`，並在 `pointerup` / `touchend` / `click` 都呼叫同一個 `handleDomStartAction()`。`sketch.js` 新增 `startPermissionRequestInProgress` 防止同一次點擊造成重複權限或相機請求。
+
+### 截圖
+- CDP run：`docs/cdp-runs/dom-start-touch-fix-2026-05-19/`
+- Portrait result：`docs/cdp-runs/dom-start-touch-fix-2026-05-19/screenshots/dom-start-touch-fix-2026-05-19-greenPlants-portrait-390x844-result.png`
+- 下載驗證：`docs/cdp-runs/dom-start-touch-fix-2026-05-19/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。本輪沒有改變視覺設計，只修正手機事件接線；畫面外觀與第一階段 DOM UI 移植一致。
+
+### 使用者審美回饋
+使用者回報功能問題：「我用手機測試，從開始頁面的按鈕就點不進去了」。此回饋指向手機觸控事件，而非視覺外觀。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)`，未阻止 Start、Scanning、Result、Share、Save 或 Back；未觀察到新增 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 使用者再次用同一支手機確認 Start button 是否可進入權限 / Scanning
+- [ ] iOS Safari 確認 `touchend` 觸發 DeviceOrientation permission 不會被視為非 user gesture
+- [ ] Android Chrome 確認不會因 `pointerup` + `click` 造成重複請求或閃爍
+
+### 備註 / 風險
+CDP 只能確認桌面 headless click 流程未回歸，不能完整重現真機 touch event 與 iOS 權限 user activation。若使用者手機仍無法進入，下一步需在 DOM button 上改為 `touchend` 單一路徑或增加畫面 debug 狀態提示，判斷是事件未觸發、陀螺儀權限未回傳，還是 camera callback 未進入。

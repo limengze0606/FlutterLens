@@ -36,10 +36,11 @@ function bindDomUiEvents() {
   DomUi.bound = true;
 
   if (DomUi.start.button) {
-    DomUi.start.button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      requestStartPermissions();
+    ["pointerdown", "touchstart", "mousedown"].forEach((eventName) => {
+      DomUi.start.button.addEventListener(eventName, stopDomUiEvent, { passive: false });
+    });
+    ["pointerup", "touchend", "click"].forEach((eventName) => {
+      DomUi.start.button.addEventListener(eventName, handleDomStartAction, { passive: false });
     });
   }
 
@@ -89,6 +90,16 @@ function bindDomUiEvents() {
       loop();
     });
   }
+}
+
+function stopDomUiEvent(event) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleDomStartAction(event) {
+  stopDomUiEvent(event);
+  requestStartPermissions();
 }
 
 function syncDomUiState() {

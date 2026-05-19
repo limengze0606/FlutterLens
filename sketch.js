@@ -1,4 +1,5 @@
 let currentPagesState = PagesState.START;
+let startPermissionRequestInProgress = false;
 
 async function setup() {
   // 將 canvas 存起來
@@ -310,6 +311,8 @@ function handleStartButtonNative(e) {
 
 function requestStartPermissions() {
   if (currentPagesState !== PagesState.START) return;
+  if (startPermissionRequestInProgress) return;
+  startPermissionRequestInProgress = true;
 
   // 【直接請求陀螺儀】必須由使用者 gesture 觸發，Safari 才會彈出權限視窗。
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -318,10 +321,14 @@ function requestStartPermissions() {
         if (permissionState === 'granted') {
           startCameraSafe();
         } else {
+          startPermissionRequestInProgress = false;
           alert("必須允許動作感測器，才能進入專案喔！");
         }
       })
-      .catch(err => console.error("陀螺儀錯誤:", err));
+      .catch(err => {
+        startPermissionRequestInProgress = false;
+        console.error("陀螺儀錯誤:", err);
+      });
   } else {
     startCameraSafe();
   }
@@ -337,6 +344,7 @@ function startCameraSafe() {
   video = createCapture(constraints, function() {
     video.hide();
     // 相機確實啟動後，才切換到 ScanningPage
+    startPermissionRequestInProgress = false;
     currentPagesState = PagesState.SCANNING;
     if (typeof syncDomUiState === "function") {
       syncDomUiState();
