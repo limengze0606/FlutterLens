@@ -311,26 +311,42 @@ function handleStartButtonNative(e) {
 
 function requestStartPermissions() {
   if (currentPagesState !== PagesState.START) return;
-  if (startPermissionRequestInProgress) return;
-  startPermissionRequestInProgress = true;
+  
+  console.log("透過 HTML 按鈕 Click 成功觸發權限鏈！");
 
-  // 【直接請求陀螺儀】必須由使用者 gesture 觸發，Safari 才會彈出權限視窗。
+  // 1. 先處理對手勢最敏感的 iOS 陀螺儀
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
       .then(permissionState => {
         if (permissionState === 'granted') {
-          startCameraSafe();
+          console.log("陀螺儀授權成功");
         } else {
-          startPermissionRequestInProgress = false;
-          alert("必須允許動作感測器，才能進入專案喔！");
+          console.warn("陀螺儀被拒絕");
+        }
+        // 無論陀螺儀成不成功，緊接著啟動相機（保持在同一個手勢鏈內）
+        startCameraSafe();
+      })
+      .catch(err => {
+        console.error("陀螺儀錯誤:", err);
+        startCameraSafe(); // 防呆
+      });
+  } else {
+    // 2. Android 或 PC 裝置，直接叫起相機
+    startCameraSafe();
+  }
+}
+
+function requestMotionPermissionAfterCameraStart() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(permissionState => {
+        if (permissionState !== 'granted') {
+          console.warn("動作感測器權限未允許，仍會進入相機掃描流程。");
         }
       })
       .catch(err => {
-        startPermissionRequestInProgress = false;
         console.error("陀螺儀錯誤:", err);
       });
-  } else {
-    startCameraSafe();
   }
 }
 

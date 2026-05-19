@@ -36,15 +36,16 @@ function bindDomUiEvents() {
   DomUi.bound = true;
 
   if (DomUi.start.button) {
-    ["pointerdown", "touchstart", "mousedown"].forEach((eventName) => {
-      DomUi.start.button.addEventListener(eventName, handleDomStartAction, { passive: false });
-    });
-    ["pointerup", "touchend", "click"].forEach((eventName) => {
-      DomUi.start.button.addEventListener(eventName, stopDomUiEvent, { passive: false });
-    });
+    // 【核心修正】拋棄所有 pointerdown / touchstart！
+    // 請求相機與陀螺儀權限，必須使用且只能使用最純粹的 "click" 事件
+    DomUi.start.button.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      handleDomStartAction(event);
+    }, { passive: false });
   }
 
   if (DomUi.scanning.shutter) {
+    // 這裡只是視覺上的縮放，可以用 pointerdown/up，沒問題
     DomUi.scanning.shutter.addEventListener("pointerdown", () => {
       isShutterPressed = true;
       syncShutterButtonDom();
