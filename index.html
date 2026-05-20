@@ -60,18 +60,38 @@
         <img class="start-corner-decor start-corner-decor-upper-right" src="assets/StartPageUpperRight.png" alt="" aria-hidden="true">
         <img class="start-corner-decor start-corner-decor-bottom-left" src="assets/StartPageBottomLeft.png" alt="" aria-hidden="true">
         <img class="start-corner-decor start-corner-decor-bottom-right" src="assets/StartPageBottomRight.png" alt="" aria-hidden="true">
+        <p id="start-kicker">野外色彩採集</p>
         <h1 id="start-title">匿跡蟲蹤調查員</h1>
         <p id="start-intro"></p>
         <p id="start-permission-hint">( 進入時需允許相機與動作感測器權限 )</p>
         <div id="start-permission-actions" class="permission-actions" aria-label="權限設定">
-          <button id="camera-permission-action" class="ui-button permission-button" type="button">相機權限</button>
-          <button id="motion-permission-action" class="ui-button permission-button" type="button">陀螺儀權限</button>
+          <button id="camera-permission-action" class="ui-button permission-button" type="button" aria-pressed="false">
+            <span class="permission-checkbox" aria-hidden="true"></span>
+            <span class="permission-label">允許相機權限</span>
+          </button>
+          <button id="motion-permission-action" class="ui-button permission-button" type="button" aria-pressed="false">
+            <span class="permission-checkbox" aria-hidden="true"></span>
+            <span class="permission-label">允許陀螺儀權限</span>
+          </button>
         </div>
         <p id="start-permission-status" class="permission-status" role="status"></p>
         <button id="start-action" class="ui-button ui-button-primary" type="button">啟動探索</button>
       </section>
 
       <section id="scanning-page-ui" class="dom-page dom-page-scanning" aria-label="掃描頁">
+        <button id="scanning-guide-action" class="scanning-guide-action" type="button" aria-label="開啟掃描指南">?</button>
+        <div id="scanning-guide-panel" class="scanning-guide-panel" role="dialog" aria-modal="true" aria-labelledby="scanning-guide-title" aria-hidden="true">
+          <div class="scanning-guide-backdrop" aria-hidden="true"></div>
+          <div class="scanning-guide" aria-label="遊玩說明">
+            <button id="scanning-guide-close" class="scanning-guide-close" type="button" aria-label="關閉掃描指南">×</button>
+            <p id="scanning-guide-title" class="scanning-guide-title">掃描指南</p>
+            <ol class="scanning-guide-steps">
+              <li>移動鏡頭採集周圍色彩</li>
+              <li>改變角度會影響遇見的昆蟲</li>
+              <li>找到喜歡的畫面後按下快門</li>
+            </ol>
+          </div>
+        </div>
         <button id="shutter-action" class="shutter-button" type="button" aria-label="拍攝">
           <span class="shutter-button-inner"></span>
         </button>

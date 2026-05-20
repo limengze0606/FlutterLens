@@ -4769,3 +4769,234 @@ p5 global mode 在動態載入時可能不會自動啟動，因為 p5 script 載
 
 #### 建議的下一步
 請使用者先看直式與橫式截圖的裝飾重量。若想更有沉浸感，可把 `style.css` 的 `--start-decor-main-size` 或 bottom corner translate 往畫面內調；若覺得太花，先降低 `--start-decor-opacity` 或縮小 secondary size。接著用真機開 GitHub Pages 或 Live Server，確認四角圖片不被瀏海、底部手勢區或瀏覽器工具列影響。
+
+---
+
+### 2026-05-20 — Start page 精簡與 Scanning 說明 overlay
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+把起始頁從「長篇說明頁」調整為「封面入口」，並把主要遊玩說明移到進入掃描頁後顯示的靜態 overlay。
+
+#### 使用者需求
+使用者要求運用前端設計專長修改起始頁排版與 UI，要有設計感，暫時不做動畫。討論後，使用者提出是否應該把文字說明改成進入掃描頁才顯示，並精簡首頁內容；Codex 建議首頁只保留入口氛圍與權限，掃描頁顯示簡短玩法，使用者回覆「好」。
+
+#### 實作前理解
+目前 Start page 已由 DOM / CSS 控制，背景是舊紙質感與四角植物裝飾。既有長 intro 雖能說明世界觀、操作方式與觀察角度，但會讓第一屏閱讀負擔過重，也削弱「標本紙封面」的入口氣氛。權限流程已拆成相機與陀螺儀兩顆按鈕，`Pages/DomUi.js` 負責同步狀態，因此本輪應避免改動權限邏輯。
+
+#### 實作方案
+在 `index.html` 的 Start page 加入小型 `#start-kicker`，讓首頁像自然調查手冊封面；將 `Pages/StartPage/StartPage.js` 的 intro 改為一句短文案：「以鏡頭採集環境色彩，尋找隱身其中的未知昆蟲。」於 `style.css` 調整標題分隔線、intro 間距、主按鈕質感與權限按鈕邊角，使首頁更像印在紙上的 UI。另在 `#scanning-page-ui` 加入 `.scanning-guide`，用三行靜態提示承接遊玩說明：移動鏡頭採集色彩、改變角度影響昆蟲、按快門捕捉畫面。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定首頁不再放完整遊玩說明，而是把文字責任拆成兩層：Start page 負責建立入口氣氛與完成必要權限；Scanning page 負責在使用者已進入相機情境後提供操作提示。掃描說明先做靜態 overlay，不加入淡出動畫，符合使用者「先設計版面就好」的要求。權限按鈕 ID、狀態 class 與 `DomUi` 同步邏輯不變。
+
+#### 遇到的問題
+第一輪橫式掃描截圖中 `.scanning-guide` 視覺重量偏大，雖未直接遮住快門，但在 `844x390` 的低高度畫面中吃掉較多左上空間。另需注意 CSS 規則避免引入非必要 letter-spacing；本輪新增標籤與說明標題皆維持 `letter-spacing: 0`。
+
+#### 嘗試過的解法
+先加入首頁 kicker、短 intro 與掃描頁三步驟 overlay，跑 `start-scan-ui-20260520` CDP 測試後檢視截圖。看見橫式 overlay 偏重後，將橫式寬度由 `min(318px, 43vw)` 調整為 `min(292px, 38vw)`，並降低 padding 與行距，再跑第二輪 `start-scan-ui-20260520-v2` 驗證。
+
+#### 最終解法
+首頁現在保留 `野外色彩採集`、主標題、一句入口文案、權限提示、兩顆權限按鈕、狀態文字與開始按鈕。原本長篇說明移出首頁，掃描頁上方新增 `.scanning-guide` 靜態 overlay，直式置中靠上，橫式靠左上並縮小。主按鈕加上內側高光與陰影，disabled 狀態保持低調；權限按鈕改成較像檢查項的 6px 圓角。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId start-scan-ui-20260520-v2 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-scanning.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。
+
+#### Codex 審美自評
+`8.2/10`。首頁變得更像一張安靜的標本調查封面，四角植物、舊紙、標題與一句話之間的留白更有呼吸感；把說明移到掃描頁後，資訊出現的時機更合理。弱點是掃描頁 overlay 在 fake camera 的高飽和綠背景上對比偏硬，橫式仍略有存在感；目前為了可讀性先保留，下一步可依使用者回饋改成更薄、更透明、首次幾秒後淡出或可收合。
+
+#### 使用者審美回饋
+使用者提出首頁應精簡、遊玩說明可移到掃描頁顯示，並同意此方向。本輪尚未收到使用者對截圖的分數、偏好或修正意見。
+
+#### 尚未解決的風險
+CDP fake camera 可以驗證 DOM 排版、基本流程與遮擋，但不能取代真機相機背景、戶外亮度、iOS / Android 權限彈窗、safe area 與觸控手感。掃描 overlay 是否在真實環境中太重，仍需實機或使用者截圖判斷。
+
+#### 使用者回饋或修正
+等待使用者檢視首頁與掃描頁截圖，尤其是首頁是否太空、掃描說明是否太重或需要淡出。
+
+#### 建議的下一步
+請使用者用真機或 Live Server 檢查 Start -> 權限 -> Scanning 流程。若希望首頁更像封面，可微調 `style.css` 的 `#start-kicker`、`.dom-page-start h1::after`、`#start-intro` 間距；若覺得掃描說明太重，可調 `.scanning-guide` 的 `background` alpha、`width`、`padding`，或下一輪加入首次顯示後淡出。
+
+---
+
+### 2026-05-20 — 權限操作改為 checkbox checklist 視覺
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將 Start page 的相機與陀螺儀權限操作從矩形按鈕外觀改成 checkbox checklist 外觀，保留原本點擊後觸發瀏覽器權限請求的行為。
+
+#### 使用者需求
+使用者表示想把要求權限的兩個按鈕視覺呈現改成 checkbox，也就是會有勾選框，勾選框旁是文字；玩家點擊勾選框或文字後，仍要像之前一樣跳出詢問權限的視窗。Codex 建議保留 `button` 行為、改成 checklist 外觀，使用者回覆「好」。
+
+#### 實作前理解
+瀏覽器相機與 DeviceOrientation 權限請求需要清楚的使用者手勢；如果改成真正的 `input type="checkbox"`，容易讓使用者誤會只是頁面內勾選，也不能準確代表系統權限狀態。因此應保留 `button` 元素與原本 `DomUi` click handler，只改內部 DOM 與 CSS，讓它看起來像 checklist。
+
+#### 實作方案
+在 `index.html` 的 `camera-permission-action` 與 `motion-permission-action` 內加入 `.permission-checkbox` 與 `.permission-label`。在 `Pages/DomUi.js` 中讓 `syncPermissionButtonState()` 更新 `.permission-label`，並設定 `aria-pressed` 反映 granted 狀態；保留 pending / granted 時 disabled，避免重複觸發。於 `style.css` 將 `.permission-actions` 改為直向 checklist，`.permission-button` 改為兩欄 grid，左側繪製方形 checkbox，granted 時顯示勾勾，pending / denied 以低彩度紙面狀態呈現。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+保留 `button` 而非使用真正 checkbox input，因為點擊權限項目的主要行為是觸發系統權限請求，不是切換本地表單值。`button.disabled` 仍用於 pending / granted 狀態，但 `.permission-button:disabled { opacity: 1; }` 避免 granted checklist 被整體淡化成「不可用」的錯覺。視覺上不再把 granted 狀態整顆塗綠，而是只讓 checkbox 變綠並顯示勾勾，維持紙面檢查清單感。
+
+#### 遇到的問題
+原本 `syncPermissionButtonState()` 使用 `button.textContent` 更新文字，會清掉新增的 checkbox DOM 結構，因此改為優先更新 `.permission-label`。此外原本 `.ui-button:disabled` 會把停用按鈕 opacity 降到 `0.42`，對 checklist granted 狀態不合適，因此為 `.permission-button:disabled` 覆寫 opacity。
+
+#### 嘗試過的解法
+先調整 `index.html` DOM，再修改 `DomUi.js` 的 label 更新方式。CSS 第一版將 checklist 直向排列，跑 CDP 截圖確認直式與橫式都未擠壓；因 checkbox 框線在截圖中仍可辨識，沒有再加粗，避免變成制式表單感。
+
+#### 最終解法
+Start page 的權限區現在是兩個可點擊 checklist item：左側方形 checkbox、右側文字。idle 顯示「允許相機權限 / 允許陀螺儀權限」，pending 顯示「詢問中...」，granted 顯示「相機已允許 / 陀螺儀已允許」，denied / error 顯示「重新允許相機權限 / 重新允許陀螺儀權限」。點擊整個 item 仍觸發原本 `requestCameraPermission()` / `requestMotionPermission()`。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId permission-checklist-20260520 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-landscape-844x390-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-scanning.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。`git diff --check` 通過，僅有 Windows 行尾警告。
+
+#### Codex 審美自評
+`8.3/10`。優點是權限區從 app 按鈕變成調查前 checklist，與封面式 Start page、紙質背景、植物標本語彙更一致；直式兩列排列讓資訊更安靜，橫式右側欄也保持可讀。弱點是 checkbox 框線偏細，在高亮度真機上可能需要再加粗；目前先保留克制的紙面質感。
+
+#### 使用者審美回饋
+使用者要求 checkbox + 文字的呈現，並要求點擊勾選框或文字仍觸發權限視窗；本輪尚未收到使用者對截圖的分數或修正意見。
+
+#### 尚未解決的風險
+CDP 能驗證按鈕點擊流程與 fake permission 狀態，但不能取代 iOS / Android 真機上的系統權限彈窗、DeviceOrientation 手勢限制與高亮度螢幕可讀性。特別是 iOS 陀螺儀權限仍需真機確認。
+
+#### 使用者回饋或修正
+等待使用者檢視新的 checklist 視覺，確認勾選框大小、線條粗細與文字是否符合期待。
+
+#### 建議的下一步
+用真機點擊 checkbox 方框與文字，確認兩者都能觸發權限視窗。如果勾選框太淡，可調 `style.css` 的 `.permission-checkbox border` 或尺寸；如果文字太像一般表單，可調 `.permission-button background` 與 `border-color`，讓它更接近紙面調查清單。
+
+---
+
+### 2026-05-20 — Scanning 指南改為首次置中 modal
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將掃描頁原本固定在上方的靜態指南改成第一次進入 Scanning page 時自動跳出的置中 modal，右上角使用 `×` 關閉，並在關閉後提供 `?` 指南按鈕讓玩家重新打開。
+
+#### 使用者需求
+使用者要求掃描指南視窗改成第一次進入掃描頁面時跳出至畫面中心，並有一個關閉按鈕；掃描頁面也需要新增指南按鈕，讓指南被關閉後玩家仍可透過按鈕重新打開。使用者接著指定關閉按鈕使用右上角 `×`。
+
+#### 實作前理解
+先前的 `.scanning-guide` 是固定在掃描畫面上方的靜態 overlay，`pointer-events: none`，因此不會阻擋快門，但會長時間佔據畫面。新需求需要把指南變成可開關互動元件，並且第一次進入 Scanning 自動顯示；這會影響 CDP 測試，因為測試腳本按快門前必須先關閉 modal。
+
+#### 實作方案
+在 `index.html` 的 `#scanning-page-ui` 中新增 `#scanning-guide-action` 小型 `?` 按鈕，並把指南包成 `#scanning-guide-panel`，內含 `.scanning-guide-backdrop`、`.scanning-guide` 與右上角 `#scanning-guide-close`。在 `Pages/DomUi.js` 新增 `hasSeenScanningGuide` 與 `scanningGuideOpen` 狀態，以及 `openScanningGuide()`、`closeScanningGuide()`、`syncScanningGuideDom()`。`syncDomUiState()` 會偵測從非 Scanning 進入 Scanning，若尚未看過指南就自動開啟；離開掃描頁時會關閉。`style.css` 將指南改為置中 modal，關閉後右上角保留圓形 `?` 指南按鈕。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇自製 DOM modal 而非原生 `<dialog>`，因為目前 DOM page active / aria-hidden / pointer-events 已由 `Pages/DomUi.js` 控制，自製 panel 比較容易與現有架構整合，也避免手機瀏覽器 `<dialog>` 行為差異。`hasSeenScanningGuide` 只在當前頁面生命週期中記錄，因此第一次從 Start 進入 Scanning 會顯示；從 Result 返回 Scanning 不會自動再次彈出，但玩家可以點 `?` 重開。
+
+#### 遇到的問題
+新增 modal 後，原本 CDP 腳本會在掃描頁截圖後直接點快門；如果不更新腳本，快門點擊會被 modal 擋住。為了保留視覺驗證與流程測試，腳本需先截 `scanning` 開啟狀態，再點 `×` 關閉，截 `scanning-closed`，再點 `?` 重開並截 `scanning-reopened`，最後再次關閉才按快門。
+
+#### 嘗試過的解法
+第一輪 `scanning-guide-modal-20260520` 已確認開啟與關閉後流程可進 Result。接著補強 CDP 腳本，加入 `guideButton` rect，點 `?` 後另存 `scanning-reopened`，再跑第二輪 `scanning-guide-modal-20260520-v2` 確認重新開啟也正常。
+
+#### 最終解法
+Scanning page 現在第一次進入會顯示中心指南 modal，背景暗化，右上角 `×` 可關閉。關閉後右上角顯示圓形 `?` 按鈕；玩家點擊後可重新開啟同一個指南，再用 `×` 關閉。指南開啟時 panel 接收 pointer events，避免誤按快門；關閉後快門與掃描 UI 正常操作。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId scanning-guide-modal-20260520-v2 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-closed.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-reopened.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning-closed.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。
+
+#### Codex 審美自評
+`8.1/10`。優點是指南不再永久壓住掃描頁，第一次進入又能確實被注意；右上角 `×` 清楚，關閉後的 `?` 很小，不干擾快門與色彩 swatch。弱點是 modal 面板目前偏深、偏功能性，與首頁紙質感連結稍弱；但在高飽和 fake camera 背景上可讀性很好，因此先保留。
+
+#### 使用者審美回饋
+使用者指定掃描指南應第一次進入掃描頁時置中跳出，關閉按鈕使用右上角 `×`，並提供指南按鈕以便關閉後重新打開。尚未收到使用者對截圖的分數或修正意見。
+
+#### 尚未解決的風險
+CDP 可驗證 modal 開關、重新開啟與拍攝流程，但不能取代真機 safe area 與觸控測試。右上角 `×` 與 `?` 在瀏海、瀏覽器工具列或不同 Android / iOS viewport 下的可點擊性仍需真機確認。
+
+#### 使用者回饋或修正
+等待使用者檢視 modal 視覺，確認面板是否太暗、`?` 是否太小、`×` 是否夠容易點。
+
+#### 建議的下一步
+用真機檢查第一次進 Scanning 的指南彈出與右上角 `×` hit area。如果 modal 太暗，可調 `style.css` 的 `.scanning-guide-backdrop background` alpha 或 `.scanning-guide background`；如果 `?` 太小，可調 `.scanning-guide-action width/height/font-size`。

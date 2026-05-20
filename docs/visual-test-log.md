@@ -2798,3 +2798,140 @@ Codex 自評：`8.1/10`。優點是四角素材和舊紙背景很自然地合成
 
 ### 備註 / 風險
 四張裝飾 PNG 均為 `440x440`，目前直接載入原圖。若 GitHub Pages 或手機網路首屏變慢，下一步可壓縮或產生較小尺寸版本。起始頁實際相機 / AR 行為未受本輪 CSS 裝飾影響，但仍需真機確認。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 精簡成封面入口，Scanning page 新增靜態遊玩說明 overlay。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-scan-ui-20260520-v2 -CameraFixture default`
+
+### 預期行為
+首頁應只保留入口氛圍、短文案、權限按鈕與開始按鈕，降低閱讀負擔；掃描頁應在相機畫面上顯示簡短遊玩說明，但不能遮住快門或主要操作區。Start -> Scanning -> Result 流程與權限狀態不應因 UI 調整而損壞。
+
+### 實際觀察
+直式首頁 `390x844`：標題、細分隔線與一句文案形成較乾淨的標本手冊封面感，下半部權限區與開始按鈕保持清楚；畫面中段留白變成有意識的紙面呼吸，而不是長文擠壓。直式掃描頁：`.scanning-guide` 位於上方，三行提示可讀，沒有壓到快門、色彩按鈕或右下角提示圖。橫式掃描頁第一版 overlay 稍重，後續縮窄到 `width: min(292px, 38vw)` 並降低 padding；第二輪截圖顯示它避開中央快門與右側提示圖，但仍略吃左上視覺空間。
+
+### 截圖
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-scanning.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是首頁現在更像一張安靜的自然調查封面，標題、短文案、植物四角與紙質背景有明確主次；使用者不必在開始前讀完整玩法。掃描頁提示在相機情境中出現更合理，資訊與行動時機一致。弱點是 fake camera 的亮綠背景讓掃描 overlay 對比偏硬，橫式高度很低時 overlay 仍略有存在感；目前選擇先停在可讀與不遮擋的平衡，等待使用者判斷是否要更輕或改成可收合 / 幾秒後淡出。
+
+### 使用者審美回饋
+使用者提議「文字部分要改成進入掃描頁面才顯示遊玩說明、精簡首頁內容」，並在 Codex 建議首頁只留入口與權限、掃描頁顯示說明後回覆「好」。尚未收到使用者對本輪截圖的分數或修正意見。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機直式確認首頁留白、標題與權限區在瀏覽器工具列下仍平衡
+- [ ] 真機直式確認掃描說明不遮住實際相機中重要觀察區
+- [ ] 真機橫式確認 `.scanning-guide` 不妨礙左下色彩 swatch 與中央快門
+- [ ] iOS / Android 實測相機與 DeviceOrientation 權限後，確認「開始探索」狀態文案與 disabled / ready 視覺清楚
+- [ ] 若使用者覺得掃描提示太重，下一步可改為首次進入幾秒後淡出或縮成一行提示
+
+### 備註 / 風險
+本輪只做靜態版面，沒有新增動畫。CDP fake camera 可驗證 UI 流程與基本遮擋，但不能代表真機相機背景、戶外亮度、瀏覽器 safe area 或 AR 疊合手感。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 權限操作改為 checkbox checklist 視覺。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId permission-checklist-20260520 -CameraFixture default`
+
+### 預期行為
+首頁的相機與陀螺儀權限操作應呈現為勾選框加文字的 checklist；玩家點擊方框或文字區域時，仍應觸發原本的瀏覽器權限請求。兩項權限 granted 後，開始按鈕應啟用並進入 Scanning page。
+
+### 實際觀察
+直式首頁：兩個權限項目改為縱向 checklist，左側方框與右側文字清楚，整體比原本兩顆並排矩形按鈕更像調查前檢查項。橫式首頁：checklist 位於右側欄位，文字未溢出，也沒有壓到開始按鈕。CDP 流程能依原本座標點擊 `camera-permission-action` 與 `motion-permission-action`，兩項權限皆變為 granted，並成功進入 Scanning / Result。
+
+### 截圖
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-landscape-844x390-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-scanning.png`
+
+### 審美評分與評語
+Codex 自評：`8.3/10`。優點是權限區更符合「野外調查前確認裝備」的語意，與舊紙背景和封面式首頁更一致；保留細邊線與透明紙面底色，沒有把 granted 狀態做成整顆綠色按鈕。弱點是 checkbox 框線偏細，在某些真機亮度下可能略淡；目前先保留克制感，避免變成制式表單。
+
+### 使用者審美回饋
+使用者要求把要求權限的兩個按鈕視覺改成 checkbox，也就是有勾選框，旁邊是文字，點擊勾選框或文字後仍像之前一樣跳出權限詢問視窗。使用者同意保留 button 行為、改成 checklist 外觀的方案。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機確認點擊 checkbox 方框與文字都能觸發系統權限彈窗
+- [ ] iOS 確認 DeviceOrientation 權限流程仍需要使用者手勢且未被 disabled 狀態影響
+- [ ] 戶外或高亮度螢幕確認 checkbox 方框線條夠清楚
+- [ ] 若使用者覺得勾選框太淡，可提高 `.permission-checkbox` 的 border alpha 或加粗到 `2px`
+
+### 備註 / 風險
+本輪只改視覺與 DOM 內部結構，仍保留 `button` 觸發權限請求，沒有改成真正的 checkbox input。這是因為系統權限狀態不應被誤解為一般表單勾選，且瀏覽器權限請求需要保留明確使用者手勢。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Scanning page 指南改為首次進入自動跳出的置中 modal，並新增可重新開啟的指南按鈕。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId scanning-guide-modal-20260520-v2 -CameraFixture default`
+
+### 預期行為
+第一次進入 Scanning page 時，掃描指南應出現在畫面中心，並用右上角 `×` 關閉。關閉後掃描頁應顯示小型指南按鈕，玩家點擊後可重新打開指南；再次關閉後快門應能正常拍攝並進入 Result page。
+
+### 實際觀察
+直式 `390x844`：首次進入掃描頁時，指南 modal 出現在畫面中心偏中上，背景暗化，右上角 `×` 清楚可見；關閉後右上角出現 `?` 指南按鈕，沒有遮住快門、色彩 swatch 或右下提示圖。點擊 `?` 後 `scanning-reopened` 截圖確認指南可重新打開。橫式 `844x390`：modal 保持置中且不超出畫面，雖然覆蓋中央快門，但這符合指南開啟時暫停操作的預期；關閉後 `?` 在右上角，不擋主要操作區。
+
+### 截圖
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-closed.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-reopened.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning-closed.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是指南不再永久壓住掃描畫面，第一次進入時又能確實被看見；右上角 `×` 符合使用者指定，也很直覺。關閉後的 `?` 按鈕很小，掃描畫面恢復乾淨。弱點是 modal 在 fake camera 的高飽和綠背景上仍偏深、偏功能性，和首頁紙質標本感的關聯稍弱；若後續要更精緻，可加入更紙感的邊框或半透明紙色面板，但目前先保留相機畫面上的可讀性。
+
+### 使用者審美回饋
+使用者要求掃描指南改成第一次進入掃描頁時跳到畫面中心，並有關閉按鈕；掃描頁也要新增指南按鈕，讓指南關閉後仍可重新打開。使用者進一步指定關閉按鈕使用右上角 `×`。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機確認第一次進入 Scanning 時指南會自動開啟
+- [ ] 真機確認右上角 `×` 在瀏海 / safe area 附近仍容易點擊
+- [ ] 真機確認關閉後右上角 `?` 不被瀏覽器 UI 或系統手勢區影響
+- [ ] 真機確認點 `?` 重新打開後，再點 `×` 關閉，快門仍正常
+- [ ] 若使用者覺得 modal 太暗，可降低 `.scanning-guide-backdrop` alpha 或改為較紙色的面板
+
+### 備註 / 風險
+本輪新增互動狀態，CDP 已驗證指南開啟、關閉、重新開啟與拍攝流程，但仍需真機確認觸控 hit area、safe area 與相機實景下的可讀性。

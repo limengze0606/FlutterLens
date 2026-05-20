@@ -532,12 +532,38 @@ try {
   runtimeHeight: height,
   shutter: { x: shutterX, y: shutterY, r: shutterR },
   cam: camLayout,
-  mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null
+  mockCamera: typeof window.__flutterLensMockCamera !== 'undefined' ? window.__flutterLensMockCamera : null,
+  guideOpen: !!document.getElementById('scanning-guide-panel')?.classList.contains('is-open'),
+  guideClose: (() => {
+    const element = document.getElementById('scanning-guide-close');
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })(),
+  guideButton: (() => {
+    const element = document.getElementById('scanning-guide-action');
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()
 }))()
 "@
         Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning")
 
         if ($scan.state -eq "SCANNING") {
+          if ($scan.guideOpen -and $scan.guideClose) {
+            Invoke-CdpClick -Socket $socket -Events $events -X $scan.guideClose.x -Y $scan.guideClose.y
+            Start-Sleep -Milliseconds 400
+            Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning-closed")
+            if ($scan.guideButton) {
+              Invoke-CdpClick -Socket $socket -Events $events -X $scan.guideButton.x -Y $scan.guideButton.y
+              Start-Sleep -Milliseconds 400
+              Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "scanning-reopened")
+              Invoke-CdpClick -Socket $socket -Events $events -X $scan.guideClose.x -Y $scan.guideClose.y
+              Start-Sleep -Milliseconds 300
+            }
+          }
+
           if (-not [double]::IsNaN($ForcedFinalPitch)) {
             $pitchLiteral = [Globalization.CultureInfo]::InvariantCulture.NumberFormat
             $pitchValue = $ForcedFinalPitch.ToString($pitchLiteral)

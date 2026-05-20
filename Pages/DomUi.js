@@ -9,6 +9,8 @@ const DomUi = {
 };
 const START_PAGE_FADE_OUT_MS = 420;
 let startPageFadeOutPending = false;
+let hasSeenScanningGuide = false;
+let scanningGuideOpen = false;
 
 function initDomUi() {
   DomUi.layer = document.getElementById("dom-ui-layer");
@@ -25,6 +27,9 @@ function initDomUi() {
   DomUi.start.status = document.getElementById("start-permission-status");
   DomUi.start.button = document.getElementById("start-action");
 
+  DomUi.scanning.guidePanel = document.getElementById("scanning-guide-panel");
+  DomUi.scanning.guideButton = document.getElementById("scanning-guide-action");
+  DomUi.scanning.guideClose = document.getElementById("scanning-guide-close");
   DomUi.scanning.shutter = document.getElementById("shutter-action");
 
   DomUi.result.toast = document.getElementById("result-toast");
@@ -131,6 +136,20 @@ function beginStartPageFadeOut(onComplete) {
     DomUi.start.button.disabled = true;
   }
 
+  if (DomUi.scanning.guideButton) {
+    DomUi.scanning.guideButton.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      openScanningGuide();
+    }, { passive: false });
+  }
+
+  if (DomUi.scanning.guideClose) {
+    DomUi.scanning.guideClose.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      closeScanningGuide();
+    }, { passive: false });
+  }
+
   window.setTimeout(() => {
     startPageFadeOutPending = false;
     if (typeof onComplete === "function") {
@@ -143,10 +162,19 @@ function beginStartPageFadeOut(onComplete) {
 
 function syncDomUiState() {
   if (!DomUi.layer || typeof currentPagesState === "undefined") return;
+  const wasScanning = DomUi.activeState === PagesState.SCANNING;
+  const isScanning = currentPagesState === PagesState.SCANNING;
   DomUi.activeState = currentPagesState;
   setDomPageActive(DomUi.pages.start, currentPagesState === PagesState.START);
-  setDomPageActive(DomUi.pages.scanning, currentPagesState === PagesState.SCANNING);
+  setDomPageActive(DomUi.pages.scanning, isScanning);
   setDomPageActive(DomUi.pages.result, currentPagesState === PagesState.RESULT);
+
+  if (isScanning && !wasScanning && !hasSeenScanningGuide) {
+    openScanningGuide();
+    hasSeenScanningGuide = true;
+  } else if (!isScanning && scanningGuideOpen) {
+    closeScanningGuide();
+  }
 }
 
 function setDomPageActive(page, isActive) {
@@ -183,8 +211,8 @@ function syncStartPermissionDom() {
   const motionGranted = !!(state && state.motion.granted);
   const ready = cameraGranted && motionGranted;
 
-  syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "相機權限");
-  syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "陀螺儀權限");
+  syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "允許相機權限");
+  syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "允許陀螺儀權限");
 
   DomUi.start.button.disabled = !ready || startPageFadeOutPending;
   DomUi.start.button.classList.toggle("is-ready", ready);
@@ -205,13 +233,20 @@ function syncPermissionButtonState(button, permission, defaultLabel) {
   button.classList.toggle("is-granted", status === "granted");
   button.classList.toggle("is-denied", status === "denied" || status === "error");
   button.classList.toggle("is-pending", status === "pending");
-  button.textContent = getPermissionButtonLabel(defaultLabel, status);
+  button.setAttribute("aria-pressed", status === "granted" ? "true" : "false");
+  const label = button.querySelector(".permission-label");
+  if (label) {
+    label.textContent = getPermissionButtonLabel(defaultLabel, status);
+  } else {
+    button.textContent = getPermissionButtonLabel(defaultLabel, status);
+  }
 }
 
 function getPermissionButtonLabel(defaultLabel, status) {
-  if (status === "granted") return `${defaultLabel} ✓`;
+  const grantedLabel = defaultLabel.replace("允許", "").replace("權限", "已允許");
+  if (status === "granted") return grantedLabel;
   if (status === "pending") return "詢問中...";
-  if (status === "denied" || status === "error") return `重試${defaultLabel}`;
+  if (status === "denied" || status === "error") return `重新${defaultLabel}`;
   return defaultLabel;
 }
 
@@ -222,6 +257,30 @@ function getStartPermissionStatusMessage(state) {
   if (state.camera.granted) return "相機已允許，請再允許陀螺儀。";
   if (state.motion.granted) return "陀螺儀已允許，請再允許相機。";
   return "";
+}
+
+function openScanningGuide() {
+  scanningGuideOpen = true;
+  syncScanningGuideDom();
+}
+
+function closeScanningGuide() {
+  scanningGuideOpen = false;
+  syncScanningGuideDom();
+}
+
+function syncScanningGuideDom() {
+  if (DomUi.pages.scanning) {
+    DomUi.pages.scanning.classList.toggle("is-guide-open", scanningGuideOpen);
+  }
+  if (DomUi.scanning.guidePanel) {
+    DomUi.scanning.guidePanel.classList.toggle("is-open", scanningGuideOpen);
+    DomUi.scanning.guidePanel.setAttribute("aria-hidden", scanningGuideOpen ? "false" : "true");
+  }
+  if (DomUi.scanning.guideButton) {
+    DomUi.scanning.guideButton.classList.toggle("is-hidden", scanningGuideOpen);
+    DomUi.scanning.guideButton.setAttribute("aria-expanded", scanningGuideOpen ? "true" : "false");
+  }
 }
 
 function syncShutterButtonDom() {
