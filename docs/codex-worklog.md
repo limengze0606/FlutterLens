@@ -4379,3 +4379,70 @@ CDP fake camera 不能取代真實手機測試。仍需在真機確認 portrait 
 
 #### 建議的下一步
 下一段可做 Scanning page 入場：例如 shutter / 角落框 / 掃描 UI 淡入，或在相機畫面出現前加一個很短的黑場 / aperture 感轉場。建議仍一次只做一層 motion。
+
+---
+
+### 2026-05-20 — Start page 淺色紙質背景與 UI 色彩調整
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將使用者放入 `assets/background/` 的紙質背景素材接到起始頁，並把原本偏黑底使用的白字、亮綠按鈕調整成適合淺色紙面的深墨色 / 深綠色系。
+
+#### 使用者需求
+使用者希望起始頁先直接放一張背景 PNG，不需要 CSS 做亮度與色調控制；圖片已放在 `assets/background/`，因為圖是淺色，所以可能需要修改原有 UI 顏色。實際檢查後資料夾內素材為 `assets/background/old-paper-texture.jpg`，不是 PNG，但可直接作為背景圖使用。
+
+#### 實作前理解
+Start page 的 DOM 版面目前主要由 `style.css` 控制，`Pages/StartPage/StartPage.js` 只同步文案與 compact 狀態。背景應加在 `.dom-page-start`，不要回到 p5 畫背景或新增 canvas 邏輯。由於素材是淺色紙質，原本白色文字、半透明白色權限按鈕與亮綠主按鈕會失去層次，因此需要改成深色文字、紙面邊線與較沉穩的綠色操作狀態。
+
+#### 實作方案
+在 `.dom-page-start` 加上 `background-image: url("assets/background/old-paper-texture.jpg")`、`background-position: center` 與 `background-size: cover`，不加入漸層、暗角、mix-blend 或亮度調整，保留素材原貌。將標題、說明、提示與狀態文字改成深墨褐色階；主按鈕改成深森林綠與米色文字；權限按鈕改成半透明紙色底、深色邊線，granted / denied / pending 各自使用較沉穩的狀態色。另同步調整 `Pages/DomUi.js` 中權限狀態文字的 inline color，避免它覆蓋 CSS 後仍停留在黑底版顏色。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `index.html`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `style.css`
+- `assets/background/old-paper-texture.jpg`
+
+#### 修改過的檔案
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+
+#### 決策紀錄
+本輪遵照使用者要求，只直接使用背景圖，不額外加 CSS 亮度、色調或暗角控制。由於目前素材檔是 JPG，先以現有檔名接入，不要求使用者改成 PNG。CDP 視覺測試第一次用 Chrome `--screenshot` 只截到 boot loader，因此改用既有 CDP 測試腳本，讓頁面完成初始化後再用 `Page.captureScreenshot` 取得正式截圖。
+
+#### 遇到的問題
+第一次 headless `--screenshot` 產生的是 loader-only 黑底截圖，無法用來判定起始頁視覺；該暫存截圖已刪除。第一版 disabled「等待權限」按鈕在紙質背景上太淡，像淡淡污漬而不是明確的 disabled control，因此做了一次小幅加深。
+
+#### 嘗試過的解法
+先修改 CSS 背景與色彩，跑一次 CDP 視覺測試後檢視 portrait / compact / landscape 起始頁截圖。發現 disabled 主按鈕權重不足後，將 disabled 主按鈕的文字 alpha 與背景 alpha 調高，再重跑 `start-paper-bg-20260520-v2` 驗證。
+
+#### 最終解法
+起始頁現在直接鋪滿 `assets/background/old-paper-texture.jpg`，文字使用深墨褐色，權限按鈕使用半透明紙色底與深色邊線，主按鈕使用深綠色系；狀態文字在 CSS 與 `DomUi.js` inline color 中都改為適合淺色背景的深色值。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-paper-bg-20260520-v2 -ServerPort 8782 -DebugPortBase 9350`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 測試也完成 Share / Save / Back，下載 `FlutterLens-result.png`。主要檢視截圖為 `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-portrait-390x844-start.png`、compact 與 landscape 起始頁截圖。觀察結果：紙質背景清楚可見，portrait / compact 文字層級可讀，權限按鈕與 disabled start button 不重疊；landscape 版面也可讀，但右側操作區仍偏緊，需要真機橫向再看觸控體感。Console 仍只有既有的 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.0/10`。優點是紙質背景立刻把起始頁從黑底工具感推向「調查紀錄 / 標本紙」氛圍，深墨文字與深綠按鈕比原本亮綠白字更貼合淺色材質，畫面也沒有因額外濾鏡變髒。弱點是目前仍只是背景材質 + 色彩適配，還沒有更具識別度的昆蟲調查視覺細節；disabled 主按鈕雖已加深，但在非常亮的紙紋區域仍偏柔。已做一次可辨識的小調整，暫停等待使用者對紙質氛圍與按鈕重量的回饋。
+
+#### 使用者審美回饋
+使用者目前要求「先放 png 就好，不需要 CSS 做亮度與色調控制」，並指出圖片是淺色，可能需要修改原有 UI 顏色；尚未提供本輪截圖分數或進一步審美修正。
+
+#### 尚未解決的風險
+CDP fake camera 與桌面 headless 不能取代真機確認。背景圖檔案約 5.86 MB，對 GitHub Pages 與手機載入速度可能偏重，後續若覺得首屏慢，應考慮壓縮或輸出手機尺寸版本。素材目前是 JPG 而不是使用者口中的 PNG；若使用者稍後替換成 PNG，需同步更新 `style.css` 路徑。真機仍需確認 iOS / Android 權限流程、觸控、loader 淡出後紙紋出現的節奏，以及 landscape 右側操作區是否太擠。
+
+#### 使用者回饋或修正
+等待使用者看 `start-paper-bg-20260520-v2` 截圖或本機頁面後，回饋紙質背景裁切、文字深淺、權限按鈕與 disabled 主按鈕是否符合預期。
+
+#### 建議的下一步
+請使用者先評估起始頁的整體氛圍：是否要更像標本紙、舊書頁、調查表，或保持現在的乾淨紙紋。若要微調，優先改 `style.css`：`.dom-page-start` 的 `background-position` 可改變紙紋裁切焦點；`.dom-page-start h1`、`#start-intro`、`#start-permission-hint`、`#start-permission-status` 的 `color` 可控制文字深淺；`.ui-button-primary` 與 `.ui-button-primary:disabled` 的 `background` / `color` 可控制開始按鈕重量；`.permission-button` 與狀態 class 可控制權限按鈕的紙面感與狀態辨識度。

@@ -2528,3 +2528,48 @@ Codex 自評：`7.8/10`。優點是轉場很克制，Start page 不再瞬間消�
 
 ### 備註 / 風險
 目前只實作 Start 內容 fadeout，尚未做 Scanning page fadein、相機畫面亮度/遮罩轉場或頁面間 crossfade。若下一輪要接續，建議先處理 Scanning UI 入場，而不是一次加入太多 motion。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 淺色紙質背景與 UI 色彩調整。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-paper-bg-20260520-v2 -ServerPort 8782 -DebugPortBase 9350`
+
+### 預期行為
+起始頁應直接顯示 `assets/background/old-paper-texture.jpg` 作為滿版背景，不額外加 CSS 亮度、暗角或色調控制。淺色紙面上，標題、說明文字、權限按鈕、提示文字與開始按鈕都應維持可讀；相機與陀螺儀權限按鈕仍可操作，允許後可進入 Scanning / Result。
+
+### 實際觀察
+三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 與 compact 起始頁截圖顯示紙紋滿版鋪底，深墨褐文字清楚可讀，權限按鈕與提示文字沒有重疊；disabled「等待權限」按鈕在第一次觀察後稍微加深，v2 截圖中已比較像明確 control，而不是消失在紙紋裡。Landscape 截圖仍可讀，右側操作區沒有重疊，但空間偏緊，適合真機橫向再確認觸控體感。
+
+### 截圖
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.0/10`。優點是紙質背景讓起始頁更像調查紀錄或標本紙，和「匿跡蟲蹤調查員」的語境更接近；深墨文字與深綠主按鈕比原本黑底白字 / 亮綠按鈕更穩，也沒有額外濾鏡造成髒灰感。弱點是目前仍是材質與顏色適配，還沒有更獨特的昆蟲調查細節；disabled 主按鈕雖已加深，但仍刻意保持柔和，需看使用者是否希望更明顯。
+
+### 使用者審美回饋
+使用者要求先直接放背景圖，不需要 CSS 亮度與色調控制；因圖片是淺色，接受同步修改原 UI 顏色。尚未提供本輪截圖分數或進一步修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機 portrait 重新整理，確認 loader 淡出後紙質背景完整出現
+- [ ] 真機確認淺色背景上標題、長說明、提示文字與 disabled start button 的可讀性
+- [ ] 真機橫向或矮 viewport，確認右側權限 / 開始按鈕不難點
+- [ ] GitHub Pages 環境確認背景圖載入時間；目前 JPG 約 5.86 MB，若首屏慢需壓縮或輸出手機尺寸版本
+- [ ] 若素材改成 PNG，確認 `style.css` 背景路徑同步更新
+
+### 備註 / 風險
+本輪沒有加入 CSS 亮度、暗角、漸層或混色，視覺完全依賴素材本身的亮度分布。若使用者後續想保留背景原貌但提高文字保險度，可優先微調文字與按鈕色值，而不是立刻加 overlay。

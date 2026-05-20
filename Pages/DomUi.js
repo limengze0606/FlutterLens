@@ -193,8 +193,8 @@ function syncStartPermissionDom() {
   if (DomUi.start.status) {
     DomUi.start.status.textContent = state ? getStartPermissionStatusMessage(state) : "";
     DomUi.start.status.style.color = state && (state.camera.error || state.motion.error)
-      ? "rgb(255, 180, 150)"
-      : "rgb(180, 180, 180)";
+      ? "#8b3a24"
+      : "#4f4436";
   }
 }
 

@@ -85,6 +85,10 @@ body.app-ready #boot-loader {
   align-items: center;
   padding: max(42px, 9.5svh) 7vw max(58px, 8.5svh);
   text-align: center;
+  background-image: url("assets/background/old-paper-texture.jpg");
+  background-position: center;
+  background-size: cover;
+  color: #271f17;
 }
 
 .dom-page-start h1,
@@ -118,6 +122,7 @@ body.app-ready #boot-loader {
   font-weight: 400;
   font-size: clamp(28px, min(8.5vw, 7svh), 44px);
   line-height: 1.15;
+  color: #241b13;
 }
 
 .dom-page-start p {
@@ -126,7 +131,7 @@ body.app-ready #boot-loader {
 
 #start-intro {
   margin-top: max(34px, 6.2svh);
-  color: rgb(210, 210, 210);
+  color: #493d31;
   font-size: clamp(14px, min(4.3vw, 2.8svh), 19px);
   line-height: 1.52;
 }
@@ -134,7 +139,7 @@ body.app-ready #boot-loader {
 #start-permission-hint {
   order: 3;
   margin-top: 18px;
-  color: rgb(150, 150, 150);
+  color: #655744;
   font-size: clamp(12px, 3.2vw, 16px);
   line-height: 1.2;
 }
@@ -143,7 +148,7 @@ body.app-ready #boot-loader {
   order: 4;
   min-height: 1.2em;
   margin-top: 10px;
-  color: rgb(180, 180, 180);
+  color: #4f4436;
   font-size: clamp(12px, 3.2vw, 16px);
   line-height: 1.2;
 }
@@ -168,12 +173,13 @@ body.app-ready #boot-loader {
 }
 
 .ui-button-primary {
-  color: #fff;
-  background: rgb(100, 200, 100);
+  color: #f7efd9;
+  background: #204b2f;
 }
 
 .ui-button-primary:disabled {
-  background: rgba(255, 255, 255, 0.18);
+  color: rgba(56, 47, 35, 0.72);
+  background: rgba(89, 73, 49, 0.24);
 }
 
 .ui-button:disabled {
@@ -182,7 +188,7 @@ body.app-ready #boot-loader {
 }
 
 .ui-button-primary.is-ready {
-  background: rgb(92, 205, 122);
+  background: #1f673b;
 }
 
 .permission-actions {
@@ -200,27 +206,27 @@ body.app-ready #boot-loader {
   height: clamp(40px, 5.8svh, 46px);
   border-radius: clamp(18px, 4svh, 23px);
   transform: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #2c2419;
+  background: rgba(255, 249, 227, 0.42);
+  border: 1px solid rgba(72, 58, 37, 0.46);
   font-size: clamp(13px, min(3.9vw, 2.6svh), 16px);
 }
 
 .permission-button.is-granted {
-  color: #07140a;
-  background: rgb(130, 220, 142);
-  border-color: rgba(255, 255, 255, 0.75);
+  color: #f6efd9;
+  background: #336c3d;
+  border-color: rgba(36, 66, 37, 0.78);
 }
 
 .permission-button.is-denied {
-  color: #fff;
-  background: rgba(214, 68, 68, 0.7);
-  border-color: rgba(255, 255, 255, 0.58);
+  color: #fff7e7;
+  background: rgba(151, 57, 38, 0.82);
+  border-color: rgba(98, 42, 30, 0.66);
 }
 
 .permission-button.is-pending {
-  color: #111;
-  background: rgb(236, 211, 111);
+  color: #2b2114;
+  background: rgb(220, 187, 93);
 }
 
 .permission-status {
