@@ -24,6 +24,7 @@
 - 已建立可重跑的 CDP 視覺測試流程，可操作 Start -> Scanning -> Result。
 - 測試腳本支援 fake camera、camera fixtures、forced pitch、forced spawn ratio、Save / Back 驗證與 console event 摘要。
 - 目前已採 hybrid UI 架構：`index.html` 內有 DOM app shell，`Pages/DomUi.js` 負責 Start / Scanning / Result 的 DOM 按鈕、toast、頁面 active 狀態與事件接線；p5 canvas 仍負責相機畫面、色彩分析、結果作品圖、昆蟲與 p5.brush。Start page 文字、相機權限按鈕、陀螺儀權限按鈕、開始按鈕、Scanning shutter、Result 的 Save / Share / Back / toast 已移到 HTML / CSS；尚未加入頁面轉場動畫。
+- Start page 目前有一個極簡初始 loader：`index.html` 的 `#boot-loader` 與 `style.css` 的 `.boot-loader-spinner` 會在頁面 first paint 時遮住畫面；`Pages/DomUi.js` 的 `markBootLayoutReady()` 會在第一次 `syncStartPageDom()` 後替 `body` 加上 `app-ready` 讓 loader 淡出。`style.css` 目前用 `transition: opacity 280ms ease 650ms` 讓 loader 在資源很快完成時仍至少停留一小段時間，作為開場準備節奏。`sketch.js` 的 `setup()` 會在等待掃描圖示與 brush 資源前先呼叫一次 `drawStartPage()`，避免 DOM UI 未定位時短暫擠到左上角。
 - Start 權限流程已改為分離式：使用者需先分別點擊「相機權限」與「陀螺儀權限」，兩者都 granted 後「開始探索」才會啟用。相機按鈕用原生 `navigator.mediaDevices.getUserMedia()` 取得 stream，再接到 p5 `createVideo([])`；陀螺儀按鈕在 iOS 會呼叫 `DeviceOrientationEvent.requestPermission()`，在不需要該 API 的環境會視為已允許。
 - Rough butterfly 已經歷多輪視覺迭代：翅膀圖案、雙翅、偽 3D pose / flap phase、body axis、p5.brush 具象頭胸腹。
 - Rough butterfly body 目前以頭、胸、腹三個輪廓為地基，已加回兩條簡單觸角，並新增 p5.brush 身體填色與腹部環狀紋理。Body 色彩可從常見黑 / 褐色、翅膀主色、翅膀對比色中選擇；依使用者修正，使用翅膀主色或對比色時不一定要降彩度，可保留較高彩度作為設計感。rough insect 的整體畫布旋轉已改由 `createRoughScreenRotationPlan()` 選離散 degree plan，再只套用一次 `rotate()`。

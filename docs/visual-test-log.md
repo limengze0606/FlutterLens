@@ -2356,3 +2356,87 @@ Codex 自評：`7.5/10`。Start page 的兩顆權限按鈕清楚、可掃讀，d
 
 ### 備註 / 風險
 CDP fake camera 可驗證 DOM 流程與 p5 stream 接線，但不能代表 iOS / Android 真機權限彈窗。若真機仍無法取得權限，下一步需根據畫面上的 `error.name`、`window.isSecureContext` 與 `location.protocol` 判斷是 HTTPS、網站權限、系統權限或瀏覽器政策問題。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 初始載入 loader：避免 DOM UI 在第一次 p5 layout 同步前短暫擠到左上角。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844`
+
+### 預期行為
+網頁剛開啟時先顯示沒有文字的簡單 loader；Start page DOM 完成第一次定位後，loader 淡出，畫面不應出現文字與按鈕短暫堆疊在左上角。
+
+### 實際觀察
+第一次截圖 `docs/boot-loader-check-2026-05-20.png` 顯示 loader 本身可正常覆蓋畫面，但因 Start layout 仍等到 p5 `draw()` 才同步，headless 截圖時 loader 尚未淡出。調整後在 `sketch.js` 的 `setup()` 前段提前呼叫 `drawStartPage()`，讓 Start DOM 在掃描圖示與 brush 資源等待前先完成定位。第二次截圖 `docs/boot-loader-check-2026-05-20-v2.png` 顯示 loader 已淡出，Start page 標題、說明、權限按鈕與等待權限按鈕位於正常位置，未觀察到左上角堆疊。
+
+### 截圖
+- 初版 loader 檢查：`docs/boot-loader-check-2026-05-20.png`
+- 調整後 Start page：`docs/boot-loader-check-2026-05-20-v2.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。loader 是黑底上的小型單線 spinner，沒有文字，視覺上安靜、不搶戲，能把初始化時的畫面不穩定藏起來。弱點是目前沒有品牌化或昆蟲語彙，但本輪目標是最小修正，先保留克制版本較適合。
+
+### 使用者審美回饋
+使用者指定「最簡單的 loader 小動畫，且不需要文字」，未提供審美分數。
+
+### Console 錯誤
+本輪未能透過 in-app browser 收集 console；in-app browser 開啟 local URL 時被 client 阻擋。Chrome headless 截圖成功，但未額外收集 console log。
+
+### 手機檢查清單
+- [ ] 真機重新整理頁面，確認開場不再看到文字擠在左上角
+- [ ] 確認 loader 沒有停留過久
+- [ ] 確認 Start page 權限按鈕仍可點擊
+- [ ] 確認相機權限、陀螺儀權限與開始探索流程不受 loader 影響
+
+### 備註 / 風險
+本輪驗證使用 headless Chrome 與手機尺寸 viewport；真機仍需確認實際載入速度、字型載入時間與觸控權限流程。若未來加入更完整品牌化開場，可在 `style.css` 的 loader 樣式中調整 spinner 尺寸、線條透明度與淡出時間。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page loader 最短顯示時間：即使資源與 layout 很快 ready，也保留一小段開場準備感。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844`
+
+### 預期行為
+loader 的淡出仍由 `body.app-ready` 代表的 layout ready 狀態觸發，但 CSS 會延遲 650ms 才開始淡出，讓它不只是遮 bug，也成為體驗的一部分。
+
+### 實際觀察
+程式改為在 `style.css` 使用 `transition: opacity 280ms ease 650ms`，讓 `body.app-ready #boot-loader` 的 opacity 變化有 650ms delay。`--dump-dom` 確認 headless 環境中 `body` 已出現 `app-ready`，且 Start title 已寫入正確 inline layout。`--screenshot --virtual-time-budget` 對 CSS transition delay 的截圖取樣不穩，仍可能截到 loader；`--timeout` 截圖也出現空白頁，因此本輪沒有取得可靠的 transition-delay 完成後截圖。
+
+### 截圖
+- 可用的 Start page 定位驗證仍以 `docs/boot-loader-check-2026-05-20-v2.png` 為準。
+- `docs/boot-loader-css-delay-ready-2026-05-20.png` 顯示 headless virtual-time 取樣仍停在 loader，不作為實際視覺結果判定。
+
+### 審美評分與評語
+Codex 自評：`8/10`。650ms 的最短停留讓 loader 有「準備一下」的節奏，又不會明顯拖慢操作。視覺仍是極簡黑底 spinner，符合使用者先前指定不加文字的方向。
+
+### 使用者審美回饋
+使用者補充 loader 未來可能真的要等資源，但也希望即使資源快速完成，loader 仍至少跑一小段時間，作為體驗準備。
+
+### Console 錯誤
+本輪未取得可靠 console；既有 CDP 腳本執行時遇到截圖 base64 回應的舊解析限制，summary 將 screenshot response 記成 `Unterminated string passed in`。
+
+### 手機檢查清單
+- [ ] 真機重新整理頁面，確認 loader 至少短暫出現
+- [ ] 確認 loader 不會停留過久
+- [ ] 確認 loader 淡出後 Start page 沒有左上角堆疊
+- [ ] 確認權限按鈕可以正常點擊
+
+### 備註 / 風險
+CSS delay 版本的邏輯較簡單，不依賴 JS `setTimeout`；但 headless screenshot 對 transition delay 的取樣不可靠，仍需真機或一般瀏覽器目視確認節奏。若未來 loader 要等更多真實資源，可把 `markBootLayoutReady()` 改成等待多個 ready flag 都完成後才加 `app-ready`。

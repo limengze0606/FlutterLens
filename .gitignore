@@ -10,3 +10,4 @@ docs/cdp-downloads-*/
 docs/chrome-profile*/
 
 tests/
+.codex/skills

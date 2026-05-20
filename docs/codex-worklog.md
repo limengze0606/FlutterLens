@@ -4101,3 +4101,138 @@ CDP fake camera 不能代表真機 iOS / Android 權限彈窗。真機仍需確�
 
 #### 建議的下一步
 繼續用目前分離式權限流程做真機測試；若其他裝置重現 `NotAllowedError`，先檢查該 domain 的網站相機權限是否被封鎖。
+
+---
+
+### 2026-05-20 — Start page 初始 loader
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+為 Start page 加入最簡單、無文字的初始 loader 小動畫，用來遮住 DOM UI 第一次定位完成前可能出現的左上角堆疊閃爍。
+
+#### 使用者需求
+使用者詢問初始閃爍是否可用開始前的載入動畫解決，並指定「先加入一個最簡單的 loader 小動畫，且不需要文字」。
+
+#### 實作前理解
+目前 Start page 已是 DOM UI 顯示，但位置與字級仍由 p5 的 Start page layout 計算後同步。`initDomUi()` 會先讓 Start page active，若 `syncStartPageDom()` 尚未寫入 `left/top/font-size`，DOM 元素可能短暫以預設絕對定位堆在左上角。loader 應使用純 HTML/CSS，避免依賴 p5 才能遮住 first paint。
+
+#### 實作方案
+在 `index.html` 新增 `#boot-loader` 與 `.boot-loader-spinner`，在 `style.css` 以 fixed 黑底遮罩與 CSS 旋轉動畫呈現。`Pages/DomUi.js` 在 `syncStartPageDom()` 完成第一次 Start DOM 定位後呼叫 `markBootLayoutReady()`，替 `body` 加上 `app-ready`，讓 loader 淡出。初次 headless 截圖發現只等 p5 `draw()` 仍可能太晚，因此在 `sketch.js` 的 `setup()` 前段、資源載入等待前，先呼叫 `drawStartPage()` 完成第一次 DOM layout。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/ScanningPage/ScanningPageSettings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定 loader 不放文字，只用黑底與小型單線 spinner，避免增加語意與版面噪音。loader 消失條件不設成固定時間，而是綁定「Start DOM 已完成第一次 layout」，讓它真正遮住造成閃爍的初始化空窗。
+
+#### 遇到的問題
+第一次 Chrome headless 截圖沒有產出圖片，改用絕對路徑後成功。第一次成功截圖顯示 loader 仍停留，代表 `drawStartPage()` 的同步時機被後續 p5 / 資源初始化拖住。in-app browser 嘗試開啟 `127.0.0.1` 時被 client 阻擋，無法用該方式收 console。
+
+#### 嘗試過的解法
+先在 `syncStartPageDom()` 後直接加 `app-ready`，截圖確認 loader 可顯示但未淡出。接著把第一次 Start layout 提前到 `setup()` 的 `initStartButtonLayout()` 後、`preloadScanningPage()` 前，讓 DOM 先取得正確位置，再等待掃描圖示與 brush 資源。
+
+#### 最終解法
+Start page 開啟時會先顯示黑底小 spinner；`setup()` 建立 canvas 與 DOM UI 後立即計算 Start page layout，`syncStartPageDom()` 寫入定位並加上 `body.app-ready`，CSS 讓 loader 以 280ms 淡出。後續 `draw()` 仍會照原本流程持續同步 Start page layout。
+
+#### 視覺驗證紀錄
+- 截圖一：`docs/boot-loader-check-2026-05-20.png`，觀察到 loader 可覆蓋畫面但尚未淡出。
+- 截圖二：`docs/boot-loader-check-2026-05-20-v2.png`，觀察到 loader 已淡出，Start page 標題、說明、權限按鈕與等待權限按鈕位於正常位置，沒有左上角堆疊。
+- 測試環境：Local Python static server、Google Chrome headless、viewport `390x844`。
+- in-app browser：開啟 local URL 時回報 client 阻擋，因此未用它收 console。
+
+#### Codex 審美自評
+`8/10`。loader 很簡單、乾淨，不會把 Start page 變成另一個設計主題；黑底與細線 spinner 和現有黑色開場一致。弱點是目前沒有獨特的 FlutterLens / 昆蟲語彙，但使用者指定要最簡單且無文字，本輪不做品牌化是合理取捨。
+
+#### 使用者審美回饋
+使用者指定 loader 要「最簡單」且「不需要文字」，未提供審美分數。
+
+#### 尚未解決的風險
+真機仍需確認 loader 在實際網路、字型載入與手機 GPU 上不會停留過久，且不影響相機與陀螺儀權限按鈕。若未來 p5 主程式發生 fatal error，loader 可能仍停留，後續可考慮加入錯誤 fallback 畫面，但本輪先不增加複雜度。
+
+#### 使用者回饋或修正
+等待使用者在真機或本機瀏覽器重新整理後觀察是否還會看到文字擠在左上角。
+
+#### 建議的下一步
+使用者可在手機上重新整理頁面，觀察開場是否只看到短暫 spinner 或直接進入正常 Start page；若覺得 spinner 太小、太久或太平淡，可再調整 `style.css` 的 `#boot-loader`、`.boot-loader-spinner` 與 `body.app-ready #boot-loader`。
+
+---
+
+### 2026-05-20 — Loader 最短顯示時間
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+依使用者補充，讓 Start page loader 不只遮住初始化閃爍，也作為體驗的一部分：即使資源很快 ready，仍至少停留一小段時間。
+
+#### 使用者需求
+使用者指出未來 loader 可能真的要等待某些資源載入，但也希望即使資源一下就完成，loader 仍至少跑一小段時間，作為體驗的準備。
+
+#### 實作前理解
+loader 需要同時承擔兩個角色：一是等待實際資源或 layout ready，二是建立開場節奏。若用 JS `setTimeout` 控制最短時間，會讓 ready 邏輯與時間控制混在一起；較單純的做法是 JS 只標記 layout ready，最短停留交給 CSS transition delay。
+
+#### 實作方案
+先嘗試在 `Pages/DomUi.js` 用 `BOOT_LOADER_MIN_MS = 650` 與 `setTimeout()` 延後加 `app-ready`。headless virtual-time 截圖顯示此方式在測試環境中可能卡住 loader，因此改回讓 `markBootLayoutReady()` 立即加上 `body.app-ready`，並在 `style.css` 將 `#boot-loader` 的 transition 改為 `opacity 280ms ease 650ms`。這樣 ready 訊號仍由 layout 完成控制，最短停留時間則由 CSS 控制。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不把最短顯示時間寫成 JS timer，而用 CSS transition delay。這讓後續若要等待更多資源時，只需要延後 `app-ready` 的加入；loader 的體驗節奏仍維持在 CSS。
+
+#### 遇到的問題
+Chrome headless `--screenshot --virtual-time-budget` 對 CSS transition delay 的取樣不可靠，會在 `body.app-ready` 已存在、Start title 已定位的情況下仍截到 loader。嘗試 `--timeout` 截圖則產生空白頁。既有 CDP 腳本可啟動流程，但在截圖 base64 回應上碰到舊的字串解析限制，summary 將 screenshot response 記成 `Unterminated string passed in`。
+
+#### 嘗試過的解法
+嘗試過 JS timer 版、CSS transition delay 版、Chrome headless virtual-time 截圖、Chrome headless timeout 截圖、既有 CDP 視覺測試腳本。最後保留 CSS transition delay 版，因其邏輯最單純且與未來資源 ready flag 相容。
+
+#### 最終解法
+`markBootLayoutReady()` 仍在第一次 `syncStartPageDom()` 後加上 `body.app-ready`。`style.css` 中 `#boot-loader` 使用 `transition: opacity 280ms ease 650ms`，因此 ready 後會等 650ms 才開始淡出，再用 280ms 完成透明化。
+
+#### 視覺驗證紀錄
+`--dump-dom` 確認 headless 中 `body class="app-ready"` 已出現，Start title 也有正確 inline layout。先前 `docs/boot-loader-check-2026-05-20-v2.png` 已確認 Start page 定位正常且無左上角堆疊。本輪未取得可靠的 CSS delay 完成後截圖，因 headless 截圖方式對 transition delay 不穩；真機或一般瀏覽器仍需目視確認節奏。
+
+#### Codex 審美自評
+`8/10`。650ms 讓 loader 有短暫呼吸感，像是在準備觀測，而不是一閃而過的技術遮罩；仍保持無文字、低干擾。若未來想更有 FlutterLens 風格，可把 spinner 改成更像鏡頭校準或昆蟲軌跡的動態，但本輪保持簡單。
+
+#### 使用者審美回饋
+使用者補充 loader 應該是體驗的一環，即使資源快速完成，也希望至少跑一小段時間。
+
+#### 尚未解決的風險
+真機仍需確認 650ms 加 280ms 淡出是否剛好；如果覺得拖，可以降低 delay；如果覺得準備感不足，可以提高 delay。若未來 loader 要等待更多真實資源，需整理 ready flag，而不是只依賴 Start DOM layout ready。
+
+#### 使用者回饋或修正
+等待使用者在真機或一般瀏覽器目視確認 loader 節奏。
+
+#### 建議的下一步
+使用者重新整理頁面，觀察 loader 是否有短暫準備感且不拖。可優先微調 `style.css` 的 `#boot-loader transition` 第四個時間值 `650ms`：調大會停留更久，調小會更快淡出。

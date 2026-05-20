@@ -26,6 +26,38 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+#boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 280ms ease 650ms;
+}
+
+.boot-loader-spinner {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  animation: boot-loader-spin 760ms linear infinite;
+}
+
+body.app-ready #boot-loader {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes boot-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 #dom-ui-layer {
   position: fixed;
   inset: 0;

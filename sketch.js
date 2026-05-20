@@ -18,11 +18,14 @@ async function setup() {
   if (typeof initDomUi === "function") {
     initDomUi();
   }
-  await preloadScanningPage();
-  
   if (typeof initStartButtonLayout === "function") {
     initStartButtonLayout();
   }
+  if (typeof drawStartPage === "function") {
+    drawStartPage();
+  }
+  await preloadScanningPage();
+
   angleMode(DEGREES);
 
   syncBrushToCanvas();

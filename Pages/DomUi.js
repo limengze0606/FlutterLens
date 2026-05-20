@@ -165,6 +165,12 @@ function syncStartPageDom(layout) {
   }
 
   syncStartPermissionDom();
+  markBootLayoutReady();
+}
+
+function markBootLayoutReady() {
+  if (document.body.classList.contains("app-ready")) return;
+  document.body.classList.add("app-ready");
 }
 
 function positionPermissionButton(button, layout) {
