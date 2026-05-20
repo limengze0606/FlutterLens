@@ -8,13 +8,41 @@
 
     <link rel="stylesheet" type="text/css" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
-
-
-    <script src="libraries/p5.min.js"></script>
-    <script src="libraries/p5.sound.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
+    <script src="libraries/p5.brush.js"></script>
   </head>
 
   <body>
+    <div id="dom-ui-layer" aria-live="polite">
+      <section id="start-page-ui" class="dom-page dom-page-start" aria-label="開始頁">
+        <h1 id="start-title">匿跡蟲蹤調查員</h1>
+        <p id="start-intro"></p>
+        <p id="start-permission-hint">( 進入時需允許相機與動作感測器權限 )</p>
+        <div id="start-permission-actions" class="permission-actions" aria-label="權限設定">
+          <button id="camera-permission-action" class="ui-button permission-button" type="button">相機權限</button>
+          <button id="motion-permission-action" class="ui-button permission-button" type="button">陀螺儀權限</button>
+        </div>
+        <p id="start-permission-status" class="permission-status" role="status"></p>
+        <button id="start-action" class="ui-button ui-button-primary" type="button">啟動探索</button>
+      </section>
+
+      <section id="scanning-page-ui" class="dom-page dom-page-scanning" aria-label="掃描頁">
+        <button id="shutter-action" class="shutter-button" type="button" aria-label="拍攝">
+          <span class="shutter-button-inner"></span>
+        </button>
+      </section>
+
+      <section id="result-page-ui" class="dom-page dom-page-result" aria-label="結果頁">
+        <div id="result-toast" class="result-toast" role="status"></div>
+        <div id="result-actions" class="result-actions">
+          <button id="result-save-action" class="ui-button result-button" type="button">儲存</button>
+          <button id="result-share-action" class="ui-button result-button" type="button">分享</button>
+          <button id="result-back-action" class="ui-button result-button result-button-secondary" type="button">返回</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="HandDrawn.js"></script>
     <script src="Pages/StartPage/StartPageSettings.js"></script>
     <script src="Pages/StartPage/StartPage.js"></script>
     <script src="Pages/pagesSettings.js"></script>
@@ -25,9 +53,13 @@
     <script src="Pages/ScanningPage/ScanningPage.js"></script>
     <script src="Pages/ResultPage/ResultPageSettings.js"></script>
     <script src="Pages/ResultPage/InsectGenerator/InsectWings.js"></script>
+    <script src="Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js"></script>
+    <script src="Pages/ResultPage/InsectGenerator/RoughInsectWings.js"></script>
+    <script src="Pages/ResultPage/InsectGenerator/RoughInsectBody.js"></script>
     <script src="Pages/ResultPage/InsectGenerator/InsectBody.js"></script>
     <script src="Pages/ResultPage/InsectGenerator/InsectManager.js"></script>
     <script src="Pages/ResultPage/ResultPage.js"></script>
+    <script src="Pages/DomUi.js"></script>
     <script src="sketch.js"></script>
   </body>
 </html>

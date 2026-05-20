@@ -1,0 +1,16 @@
+# .codex/config.toml
+
+# 專案層級 Codex 設定
+# 目標：允許 agent 在 workspace 內修改檔案與執行檢查，
+# 但需要保留人工確認權，不允許自行 commit / push。
+
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+# 如果日後需要 agent 下載套件或連網查資料，再考慮開啟。
+# 對 p5.js / GitHub Pages 專案，通常不需要讓 shell commands 有網路權限。
+[sandbox_workspace_write]
+network_access = false
+
+# 專案根目錄偵測
+project_root_markers = [".git"]

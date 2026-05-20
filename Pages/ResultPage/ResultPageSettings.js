@@ -1,5 +1,11 @@
 let spawnPosition = null;   // 儲存 {x: 0, y: 0}
-let resultCanvas = null;    // 儲存 p5.Graphics 物件
+let spawnPositionRatio = null;
+let resultPhoto = null;    // 儲存拍照瞬間的 p5.Image
+let resultPhotoLayout = { x: 0, y: 0, w: 0, h: 0 };
+let resultCaptureLayout = { x: 0, y: 0, w: 0, h: 0 };
+let resultArtworkImage = null;
+let resultArtworkLayout = { x: 0, y: 0, w: 0, h: 0 };
+let resultArtworkSourceSize = { w: 0, h: 0 };
 let currentSeed = 0;             // 儲存當前的隨機種子值
 let insectType = 0;              // 儲存當前的昆蟲類型 (0~2)
 let bodyHalfWidth = 0;    // 儲存昆蟲身體半寬度 (用於翅膀定位)

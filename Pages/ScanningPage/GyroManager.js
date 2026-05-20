@@ -28,12 +28,19 @@ function normalizeToPlusMinus90(angleDeg) {
 
 function drawGyroManager() {
     updateNormalizedPitch();
-    textSize(20);
-    text(`螢幕方向: ${currentOrientation}°`, width / 2, height / 2 - 60);
+    drawScreenText(`螢幕方向: ${currentOrientation}°`, width / 2, height / 2 - 60, {
+      fill: 255,
+      size: 20,
+      alignX: CENTER,
+      alignY: CENTER
+    });
 
-    textSize(32);
-    fill(0, 255, 0); // 綠色大字顯示最終的 Pitch
-    text(`仰俯角 (Pitch): ${nf(finalPitch, 1, 1)}°`, width / 2, height / 2);
+    drawScreenText(`仰俯角 (Pitch): ${nf(finalPitch, 1, 1)}°`, width / 2, height / 2, {
+      fill: color(0, 255, 0),
+      size: 32,
+      alignX: CENTER,
+      alignY: CENTER
+    });
 }
 
 // ==========================================
