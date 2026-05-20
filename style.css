@@ -9,6 +9,9 @@
 :root {
   --motion-soft-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-gentle-in-out: cubic-bezier(0.45, 0, 0.18, 1);
+  --start-decor-main-size: clamp(150px, 42vw, 260px);
+  --start-decor-secondary-size: clamp(120px, 34vw, 220px);
+  --start-decor-opacity: 0.92;
 }
 
 html, body {
@@ -106,6 +109,8 @@ body.app-ready .boot-loader-spinner {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   padding: max(42px, 9.5svh) 7vw max(58px, 8.5svh);
   text-align: center;
   background-color: #e9deca;
@@ -113,6 +118,7 @@ body.app-ready .boot-loader-spinner {
   background-position: center;
   background-size: cover;
   color: #271f17;
+  overflow: hidden;
 }
 
 .dom-page-start h1,
@@ -120,7 +126,8 @@ body.app-ready .boot-loader-spinner {
 #start-permission-hint,
 #start-permission-status,
 .permission-actions,
-#start-action {
+#start-action,
+.start-corner-decor {
   transition: opacity 420ms ease;
 }
 
@@ -129,22 +136,29 @@ body.app-ready .boot-loader-spinner {
 .dom-page-start.is-exiting #start-permission-hint,
 .dom-page-start.is-exiting #start-permission-status,
 .dom-page-start.is-exiting .permission-actions,
-.dom-page-start.is-exiting #start-action {
+.dom-page-start.is-exiting #start-action,
+.dom-page-start.is-exiting .start-corner-decor {
   opacity: 0;
 }
 
 .dom-page-start h1,
 .dom-page-start p {
+  position: relative;
+  z-index: 2;
   width: min(86vw, 560px);
+  max-width: calc(100vw - 44px);
   margin: 0;
   white-space: pre-line;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-break: strict;
   letter-spacing: 0;
   pointer-events: none;
 }
 
 .dom-page-start h1 {
   font-weight: 400;
-  font-size: clamp(28px, min(8.5vw, 7svh), 44px);
+  font-size: clamp(26px, min(7.6vw, 7svh), 42px);
   line-height: 1.15;
   color: #241b13;
 }
@@ -156,7 +170,7 @@ body.app-ready .boot-loader-spinner {
 #start-intro {
   margin-top: max(34px, 6.2svh);
   color: #493d31;
-  font-size: clamp(14px, min(4.3vw, 2.8svh), 19px);
+  font-size: clamp(14px, min(3.8vw, 2.8svh), 18px);
   line-height: 1.52;
 }
 
@@ -186,6 +200,44 @@ body.app-ready .boot-loader-spinner {
   border-radius: clamp(24px, 8.5svh, 30px);
   font-size: clamp(14px, min(4.3vw, 2.8svh), 18px);
   transform: none;
+  z-index: 2;
+}
+
+.start-corner-decor {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  width: var(--start-decor-main-size);
+  height: auto;
+  opacity: var(--start-decor-opacity);
+  pointer-events: none;
+  user-select: none;
+}
+
+.start-corner-decor-upper-left {
+  top: 0;
+  left: 0;
+  transform: translate(-32%, -30%) rotate(-8deg);
+}
+
+.start-corner-decor-upper-right {
+  top: 0;
+  right: 0;
+  width: var(--start-decor-secondary-size);
+  transform: translate(30%, -28%) rotate(10deg);
+}
+
+.start-corner-decor-bottom-left {
+  bottom: 0;
+  left: 0;
+  width: var(--start-decor-secondary-size);
+  transform: translate(-28%, 32%) rotate(8deg);
+}
+
+.start-corner-decor-bottom-right {
+  right: 0;
+  bottom: 0;
+  transform: translate(34%, 34%) rotate(-9deg);
 }
 
 .ui-button {
@@ -218,15 +270,17 @@ body.app-ready .boot-loader-spinner {
 .permission-actions {
   order: 2;
   position: relative;
+  z-index: 2;
   display: flex;
   gap: clamp(12px, 4vw, 18px);
+  max-width: calc(100vw - 44px);
   margin-top: auto;
   transform: none;
 }
 
 .permission-button {
   position: relative;
-  width: clamp(136px, 38vw, 168px);
+  width: clamp(128px, 36vw, 168px);
   height: clamp(40px, 5.8svh, 46px);
   border-radius: clamp(18px, 4svh, 23px);
   transform: none;
@@ -255,8 +309,12 @@ body.app-ready .boot-loader-spinner {
 
 .permission-status {
   width: min(86vw, 560px);
+  max-width: calc(100vw - 44px);
   margin: 0;
   white-space: pre-line;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-break: strict;
   letter-spacing: 0;
   pointer-events: none;
 }
@@ -270,6 +328,9 @@ body.app-ready .boot-loader-spinner {
     column-gap: max(24px, 4vw);
     padding: max(24px, 7svh) max(28px, 5.5vw);
     text-align: left;
+    --start-decor-main-size: clamp(96px, 20vw, 150px);
+    --start-decor-secondary-size: clamp(78px, 16vw, 122px);
+    --start-decor-opacity: 0.82;
   }
 
   .dom-page-start h1,
@@ -335,6 +396,22 @@ body.app-ready .boot-loader-spinner {
     margin-top: 0;
     border-radius: clamp(22px, 10svh, 25px);
     font-size: clamp(14px, 5.8svh, 16px);
+  }
+
+  .start-corner-decor-upper-left {
+    transform: translate(-34%, -34%) rotate(-8deg);
+  }
+
+  .start-corner-decor-upper-right {
+    transform: translate(34%, -34%) rotate(10deg);
+  }
+
+  .start-corner-decor-bottom-left {
+    transform: translate(-34%, 34%) rotate(8deg);
+  }
+
+  .start-corner-decor-bottom-right {
+    transform: translate(36%, 36%) rotate(-9deg);
   }
 }
 

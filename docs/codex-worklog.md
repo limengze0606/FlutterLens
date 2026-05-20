@@ -4695,3 +4695,77 @@ p5 global mode 在動態載入時可能不會自動啟動，因為 p5 script 載
 
 #### 建議的下一步
 使用 DevTools Performance 再錄一次 trace，對比 LCP 前的可見畫面是否已是 loader。若仍白，需檢查是否是 HTML response 前的空白、Live Server / browser extension 行為或外部 CSS blocking；若 loader 可見但等待時間長，下一步可考慮 loader 上顯示更明確的主題動畫或 loading 狀態，而不是繼續壓縮首屏。
+
+---
+
+### 2026-05-20 — Start page 四角外溢裝飾圖
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+把使用者放在 `assets/` 的四張 Start page 角落裝飾圖加入起始頁，並同時驗證直式與橫式手機 viewport 的構圖、可讀性與審美效果。
+
+#### 使用者需求
+使用者先詢問四角外溢裝飾圖的尺寸、留白與定位原則，接著表示已在 `assets/` 放入可放四角的圖片，並補充直式和橫式都要測試。
+
+#### 實作前理解
+起始頁已改為 DOM UI，`index.html` 的 `#start-page-ui` 承載標題、介紹文字、權限按鈕與開始按鈕，`style.css` 負責紙質背景與 responsive layout。四角裝飾屬於 UI frame，不應放進 p5 canvas；用 DOM `img` 與 CSS absolute positioning 可更穩定處理 viewport、safe area、淡出動畫與點擊穿透。
+
+#### 實作方案
+在 `index.html` 的 `#start-page-ui` 最前面加入四張 `img`，使用 `alt=""` 與 `aria-hidden="true"` 避免干擾輔助科技。於 `style.css` 新增 `--start-decor-main-size`、`--start-decor-secondary-size`、`--start-decor-opacity`，再用 `.start-corner-decor*` 分別控制四角尺寸、外溢與旋轉。裝飾圖 `z-index: 1`、文字與按鈕 `z-index: 2`，並設 `pointer-events: none`。橫式 compact layout 會縮小裝飾圖並降低透明度。另在驗證時發現窄直式介紹文字與按鈕有右側裁切 / 換行生硬風險，因此同步加上內容 `max-width`、較自然的 CJK 換行規則，並稍微降低 intro 手機字級。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `assets/StartPageUpperLeft.png`
+- `assets/StartPageUpperRight.png`
+- `assets/StartPageBottomLeft.png`
+- `assets/StartPageBottomRight.png`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇 DOM image 而不是 p5 繪製，因為這些素材是起始頁 UI 裝飾而非 AR 場景元素。圖片以局部外溢方式使用，不完整展示，避免四角平均貼滿造成海報感過重。直式主角落尺寸較大、次角落稍小；橫式則縮小到 `clamp(96px, 20vw, 150px)` / `clamp(78px, 16vw, 122px)` 並將透明度降到 `0.82`，避免矮螢幕搶走文字。
+
+#### 遇到的問題
+第一次用 Chrome CLI `--screenshot --window-size=390,844` 只截到 loader。後來用臨時 fixture 截圖時，又發現 CLI screenshot 的 layout viewport 與輸出圖尺寸不一致，造成看似右側裁切的假象。最後改用 Chrome DevTools Protocol 的 `Emulation.setDeviceMetricsOverride` 設定真正 mobile viewport，才取得可信的直式與橫式截圖。
+
+#### 嘗試過的解法
+先用正式首頁截圖，但畫面停在 loader；接著用臨時 HTML fixture 驗證同一份 `style.css` 與四張圖片，確認大方向後清除臨時檔；最後啟動本機 server 與 Chrome remote debugging，透過 CDP 對正式首頁設定 `390x844` 與 `844x390` mobile viewport 並截圖。早期失敗或過時的截圖與 Chrome profile 暫存目錄已清理，只保留最終 CDP 截圖。
+
+#### 最終解法
+正式首頁現在載入四張角落 PNG，放在紙質背景之上、內容之下。CSS 以變數集中控制主 / 次裝飾尺寸與透明度，並針對橫式 compact layout 另設較小尺寸。Start page fadeout 也包含 `.start-corner-decor`，所以進入掃描前裝飾會與文字、按鈕一起淡出。窄直式文字與權限按鈕的寬度約束也同步加固。
+
+#### 視覺驗證紀錄
+以 Chrome headless + CDP mobile viewport 驗證正式首頁：
+- `docs/start-corners-portrait-cdp-2026-05-20.png`：`390x844` 直式
+- `docs/start-corners-landscape-cdp-2026-05-20.png`：`844x390` 橫式
+
+直式觀察：上方兩角與下方邊緣都有裝飾，形成植物標本紙框景；標題、介紹文字、權限按鈕、提示與開始按鈕均未被遮擋。橫式觀察：四角縮小後保持框景感，中央內容仍清楚。`git diff --check` 通過，僅出現 Windows 行尾警告。未做真機相機 / AR 驗證，因本輪只調整 Start page DOM / CSS。
+
+#### Codex 審美自評
+`8.1/10`。優點是裝飾圖和舊紙背景風格貼合，入口更像自然調查筆記或標本紙，不再只是乾淨紙背景；直式畫面上下都有植物氣息但仍保留核心文字空氣感，橫式也不會被四角素材壓住。弱點是直式下半部仍偏空，開始按鈕周圍稍微保守；目前選擇先保留可讀性與權限流程清楚，等待使用者對四角重量給回饋後再決定是否讓下方裝飾更靠內。
+
+#### 使用者審美回饋
+使用者提供四角圖片並明確要求直式與橫式都要測試；本輪尚未收到使用者對截圖的分數、喜好或修正意見。
+
+#### 尚未解決的風險
+四張 PNG 皆為 `440x440`，目前直接載入原圖，GitHub Pages / 手機網路首屏速度仍需觀察。CDP 截圖能驗證 viewport 構圖，但無法取代真機 safe area、瀏覽器工具列與實際觸控權限流程。Chrome CLI 截圖對 mobile viewport 不可靠，本輪應以 CDP 截圖為準。
+
+#### 使用者回饋或修正
+等待使用者檢視兩張截圖，確認四角裝飾是否太重、太淡、太靠外或太靠內，尤其是直式下方角落是否需要更明顯。
+
+#### 建議的下一步
+請使用者先看直式與橫式截圖的裝飾重量。若想更有沉浸感，可把 `style.css` 的 `--start-decor-main-size` 或 bottom corner translate 往畫面內調；若覺得太花，先降低 `--start-decor-opacity` 或縮小 secondary size。接著用真機開 GitHub Pages 或 Live Server，確認四角圖片不被瀏海、底部手勢區或瀏覽器工具列影響。
