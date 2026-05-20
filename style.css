@@ -6,6 +6,11 @@
   font-display: swap;
 }
 
+:root {
+  --motion-soft-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-gentle-in-out: cubic-bezier(0.45, 0, 0.18, 1);
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -32,24 +37,42 @@ button {
   z-index: 100;
   display: grid;
   place-items: center;
-  background: #000;
-  opacity: 1;
+  background: transparent;
   pointer-events: auto;
-  transition: opacity 280ms ease 650ms;
+  visibility: visible;
+  transition: visibility 0s linear 52000ms;
+}
+
+#boot-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #e9deca;
+  opacity: 1;
+  transition: opacity 4000ms var(--motion-soft-out) 1200ms;
 }
 
 .boot-loader-spinner {
+  position: relative;
+  z-index: 1;
   width: 34px;
   height: 34px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: rgba(255, 255, 255, 0.82);
+  border: 2px solid rgba(83, 67, 47, 0.18);
+  border-top-color: rgba(64, 51, 35, 0.72);
   border-radius: 999px;
+  opacity: 1;
   animation: boot-loader-spin 760ms linear infinite;
+  transition: opacity 800ms var(--motion-soft-out);
 }
 
 body.app-ready #boot-loader {
-  opacity: 0;
   pointer-events: none;
+  visibility: hidden;
+}
+
+body.app-ready #boot-loader::before,
+body.app-ready .boot-loader-spinner {
+  opacity: 0;
 }
 
 @keyframes boot-loader-spin {
@@ -85,6 +108,7 @@ body.app-ready #boot-loader {
   align-items: center;
   padding: max(42px, 9.5svh) 7vw max(58px, 8.5svh);
   text-align: center;
+  background-color: #e9deca;
   background-image: url("assets/background/old-paper-texture.jpg");
   background-position: center;
   background-size: cover;

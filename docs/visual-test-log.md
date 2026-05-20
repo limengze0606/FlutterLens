@@ -2573,3 +2573,94 @@ Codex 自評：`8.0/10`。優點是紙質背景讓起始頁更像調查紀錄或
 
 ### 備註 / 風險
 本輪沒有加入 CSS 亮度、暗角、漸層或混色，視覺完全依賴素材本身的亮度分布。若使用者後續想保留背景原貌但提高文字保險度，可優先微調文字與按鈕色值，而不是立刻加 overlay。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Loading 頁淺褐米色背景與淡出銜接。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP，另用 Chrome headless early screenshot 檢查 loader / start fallback
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844` early screenshot；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId boot-paper-loader-20260520 -ServerPort 8783 -DebugPortBase 9360`
+
+### 預期行為
+Loading overlay 不再是黑底，而是淺褐米色背景搭配深褐灰 spinner。當 `body.app-ready` 後，loader 應以較柔的 opacity transition 淡出到起始頁；若紙質背景圖尚未載完，也不應短暫露出黑底。
+
+### 實際觀察
+第一次 early screenshot 發現仍可能露出黑底暗字，判斷是起始頁背景圖未載入時缺少 fallback 底色。補上 `.dom-page-start background-color: #e9deca` 後，`docs/boot-loader-paper-2026-05-20-v2.png` 顯示早期畫面已是米白底與深色 UI，不再露黑。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`；正式 start screenshot 仍顯示紙質背景與原本起始頁版面。
+
+### 截圖
+- `docs/boot-loader-paper-2026-05-20-v2.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是入口不再從黑色 loading 硬跳到淺色紙面，而是從米色底自然過渡到紙質起始頁；spinner 深淺克制，不會破壞標本紙 / 調查紀錄的語氣。弱點是 early screenshot 只能確認不露黑與最終畫面，淡出中段的節奏仍需真機或一般瀏覽器目視確認。
+
+### 使用者審美回饋
+使用者希望 loading 頁背景改成淺褐色或米白，然後才淡入淡出至起始頁；已同意本輪小範圍方案，尚未提供新截圖分數或速度修正。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機重新整理，確認 loading 是米色而非黑色
+- [ ] 確認 loader 淡出時不露黑底，即使網路較慢
+- [ ] 目視確認 `opacity 520ms ease 360ms` 的速度是否自然
+- [ ] 若背景圖載入慢，確認米色 fallback 停留時不突兀
+- [ ] GitHub Pages / 手機網路下觀察背景圖 5.86 MB 對首屏速度的影響
+
+### 備註 / 風險
+目前仍沿用 CSS opacity fade，不新增 JS 中間狀態；好處是穩定，限制是截圖測試較難精準捕捉淡出中段。若後續要更細膩，可以用 CDP 針對固定時間點截圖或在 CSS 加入可測試 class，但目前尚無必要。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Loading spinner 與背景分層淡出，並建立 CSS motion easing 變數。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId boot-layered-loader-20260520 -ServerPort 8784 -DebugPortBase 9370`
+
+### 預期行為
+`body.app-ready` 後，loading 動畫元素應先淡出，米色背景遮罩再慢慢淡出至起始頁紙質背景。專案應有可共用的 CSS easing 變數，讓後續動畫可用曲線控制速度。分層後不應阻止 Start page 權限按鈕或後續 Scanning / Result 流程。
+
+### 實際觀察
+完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 也完成 Share / Save / Back，結果圖下載成功。正式 start screenshot 顯示紙質背景與 UI 正常，代表 loader 容器在測試截圖時間點已正確隱藏，不再覆蓋頁面。CSS 結構確認 `.boot-loader-spinner` 與 `#boot-loader::before` 分別有獨立 opacity transition；但本輪 Chrome `--screenshot` 嘗試擷取 early / middle frame 時未落檔，因此尚未用截圖捕捉 spinner 先消失的中間狀態。
+
+### 截圖
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是 loader 的動作語法變清楚：動畫元素先退場，米色背景再作為柔和遮罩慢慢揭開起始頁，符合目前標本紙 / 調查紀錄的入口感。弱點是背景淡出目前保留 4 秒，可能偏有儀式感，也可能在真機上太慢；中間幀沒有截圖佐證，因此需要使用者用肉眼確認節奏。
+
+### 使用者審美回饋
+使用者希望 spinner 或未來設定的動畫先消失，背景才淡出，並希望專案動畫可以用曲線控制速度；已同意用 loader 分層與 CSS motion variables 的方式實作。尚未提供實際速度分數。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機重新整理，確認 spinner 會先淡出，而不是和背景一起消失
+- [ ] 確認米色背景 4 秒淡出是否太慢
+- [ ] 確認背景淡出期間頁面看起來是被柔和揭開，不是卡住或霧掉
+- [ ] 若修改 `#boot-loader::before transition` 的 duration / delay，記得同步修改 `#boot-loader transition` 的 visibility delay
+- [ ] 後續新增 loading animation 時，應接在 `.boot-loader-spinner` 同一層或新增獨立動畫層，不要把動畫畫進背景層
+
+### 備註 / 風險
+目前用純 CSS 分層，沒有 JS `transitionend` 管理生命週期；這很輕量，但 duration / delay 需要手動同步。若未來 loader 動畫變複雜，可以考慮加一個小型 transition controller，或用 CSS variables 管理 duration 後透過 calc 減少同步錯誤。
