@@ -7,6 +7,10 @@ const DomUi = {
   bound: false,
   activeState: null,
 };
+const START_PAGE_FADE_OUT_MS = 420;
+let startPageFadeOutPending = false;
+let hasSeenScanningGuide = false;
+let scanningGuideOpen = false;
 
 function initDomUi() {
   DomUi.layer = document.getElementById("dom-ui-layer");
@@ -23,6 +27,9 @@ function initDomUi() {
   DomUi.start.status = document.getElementById("start-permission-status");
   DomUi.start.button = document.getElementById("start-action");
 
+  DomUi.scanning.guidePanel = document.getElementById("scanning-guide-panel");
+  DomUi.scanning.guideButton = document.getElementById("scanning-guide-action");
+  DomUi.scanning.guideClose = document.getElementById("scanning-guide-close");
   DomUi.scanning.shutter = document.getElementById("shutter-action");
 
   DomUi.result.toast = document.getElementById("result-toast");
@@ -119,17 +126,65 @@ function handleDomStartAction(event) {
   requestStartPermissions();
 }
 
+function beginStartPageFadeOut(onComplete) {
+  if (!DomUi.pages.start || startPageFadeOutPending) return false;
+
+  startPageFadeOutPending = true;
+  DomUi.pages.start.classList.add("is-exiting");
+  DomUi.pages.start.style.pointerEvents = "none";
+  if (DomUi.start.button) {
+    DomUi.start.button.disabled = true;
+  }
+
+  if (DomUi.scanning.guideButton) {
+    DomUi.scanning.guideButton.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      openScanningGuide();
+    }, { passive: false });
+  }
+
+  if (DomUi.scanning.guideClose) {
+    DomUi.scanning.guideClose.addEventListener("click", (event) => {
+      stopDomUiEvent(event);
+      closeScanningGuide();
+    }, { passive: false });
+  }
+
+  window.setTimeout(() => {
+    startPageFadeOutPending = false;
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+  }, START_PAGE_FADE_OUT_MS);
+
+  return true;
+}
+
 function syncDomUiState() {
   if (!DomUi.layer || typeof currentPagesState === "undefined") return;
+  const wasScanning = DomUi.activeState === PagesState.SCANNING;
+  const isScanning = currentPagesState === PagesState.SCANNING;
   DomUi.activeState = currentPagesState;
   setDomPageActive(DomUi.pages.start, currentPagesState === PagesState.START);
-  setDomPageActive(DomUi.pages.scanning, currentPagesState === PagesState.SCANNING);
+  setDomPageActive(DomUi.pages.scanning, isScanning);
   setDomPageActive(DomUi.pages.result, currentPagesState === PagesState.RESULT);
+
+  if (isScanning && !wasScanning && !hasSeenScanningGuide) {
+    openScanningGuide();
+    hasSeenScanningGuide = true;
+  } else if (!isScanning && scanningGuideOpen) {
+    closeScanningGuide();
+  }
 }
 
 function setDomPageActive(page, isActive) {
   if (!page) return;
   page.classList.toggle("is-active", isActive);
+  const keepStartExitState = page === DomUi.pages.start && startPageFadeOutPending;
+  if (isActive && !keepStartExitState) {
+    page.classList.remove("is-exiting");
+    page.style.pointerEvents = "";
+  }
   page.setAttribute("aria-hidden", isActive ? "false" : "true");
 }
 
@@ -137,42 +192,16 @@ function syncStartPageDom(layout) {
   if (!DomUi.start.button || !layout) return;
 
   DomUi.pages.start.classList.toggle("is-landscape-compact", layout.compact);
-  DomUi.start.title.style.cssText = positionTextStyle(layout.title);
-  DomUi.start.intro.style.cssText = positionTextStyle(layout.intro);
-  DomUi.start.hint.style.cssText = positionTextStyle(layout.hint);
-  DomUi.start.button.style.width = `${StartButton.ButtonWidth}px`;
-  DomUi.start.button.style.height = `${StartButton.ButtonHeight}px`;
-  DomUi.start.button.style.borderRadius = `${StartButton.ButtonBorderRadius}px`;
-  DomUi.start.button.style.left = `${StartButton.ButtonX}px`;
-  DomUi.start.button.style.top = `${StartButton.ButtonY}px`;
-  DomUi.start.button.style.fontSize = `${layout.buttonTextSize}px`;
-  DomUi.start.button.textContent = StartButton.Text;
-
   DomUi.start.intro.textContent = layout.introText;
   DomUi.start.hint.textContent = layout.hintText;
 
-  if (DomUi.start.permissionActions && layout.permissionActions) {
-    const actions = layout.permissionActions;
-    DomUi.start.permissionActions.style.left = `${actions.x}px`;
-    DomUi.start.permissionActions.style.top = `${actions.y}px`;
-    DomUi.start.permissionActions.style.gap = `${actions.gap}px`;
-    positionPermissionButton(DomUi.start.camera, actions);
-    positionPermissionButton(DomUi.start.motion, actions);
-  }
-
-  if (DomUi.start.status && layout.status) {
-    DomUi.start.status.style.cssText = positionTextStyle(layout.status);
-  }
-
   syncStartPermissionDom();
+  markBootLayoutReady();
 }
 
-function positionPermissionButton(button, layout) {
-  if (!button) return;
-  button.style.width = `${layout.buttonW}px`;
-  button.style.height = `${layout.buttonH}px`;
-  button.style.borderRadius = `${layout.radius}px`;
-  button.style.fontSize = `${layout.labelSize}px`;
+function markBootLayoutReady() {
+  if (document.body.classList.contains("app-ready")) return;
+  document.body.classList.add("app-ready");
 }
 
 function syncStartPermissionDom() {
@@ -182,18 +211,18 @@ function syncStartPermissionDom() {
   const motionGranted = !!(state && state.motion.granted);
   const ready = cameraGranted && motionGranted;
 
-  syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "相機權限");
-  syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "陀螺儀權限");
+  syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "允許相機權限");
+  syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "允許陀螺儀權限");
 
-  DomUi.start.button.disabled = !ready;
+  DomUi.start.button.disabled = !ready || startPageFadeOutPending;
   DomUi.start.button.classList.toggle("is-ready", ready);
   DomUi.start.button.textContent = ready ? "開始探索" : "等待權限";
 
   if (DomUi.start.status) {
     DomUi.start.status.textContent = state ? getStartPermissionStatusMessage(state) : "";
     DomUi.start.status.style.color = state && (state.camera.error || state.motion.error)
-      ? "rgb(255, 180, 150)"
-      : "rgb(180, 180, 180)";
+      ? "#8b3a24"
+      : "#4f4436";
   }
 }
 
@@ -204,13 +233,20 @@ function syncPermissionButtonState(button, permission, defaultLabel) {
   button.classList.toggle("is-granted", status === "granted");
   button.classList.toggle("is-denied", status === "denied" || status === "error");
   button.classList.toggle("is-pending", status === "pending");
-  button.textContent = getPermissionButtonLabel(defaultLabel, status);
+  button.setAttribute("aria-pressed", status === "granted" ? "true" : "false");
+  const label = button.querySelector(".permission-label");
+  if (label) {
+    label.textContent = getPermissionButtonLabel(defaultLabel, status);
+  } else {
+    button.textContent = getPermissionButtonLabel(defaultLabel, status);
+  }
 }
 
 function getPermissionButtonLabel(defaultLabel, status) {
-  if (status === "granted") return `${defaultLabel} ✓`;
+  const grantedLabel = defaultLabel.replace("允許", "").replace("權限", "已允許");
+  if (status === "granted") return grantedLabel;
   if (status === "pending") return "詢問中...";
-  if (status === "denied" || status === "error") return `重試${defaultLabel}`;
+  if (status === "denied" || status === "error") return `重新${defaultLabel}`;
   return defaultLabel;
 }
 
@@ -223,18 +259,28 @@ function getStartPermissionStatusMessage(state) {
   return "";
 }
 
-function positionTextStyle(item) {
-  const xTransform = item.alignX === "left" ? "0" : "-50%";
-  const yTransform = item.alignY === "center" ? "-50%" : "0";
-  return [
-    `left:${item.x}px`,
-    `top:${item.y}px`,
-    `font-size:${item.size}px`,
-    `line-height:${item.leading}px`,
-    `text-align:${item.alignX}`,
-    `color:${item.color}`,
-    `transform:translate(${xTransform}, ${yTransform})`,
-  ].join(";");
+function openScanningGuide() {
+  scanningGuideOpen = true;
+  syncScanningGuideDom();
+}
+
+function closeScanningGuide() {
+  scanningGuideOpen = false;
+  syncScanningGuideDom();
+}
+
+function syncScanningGuideDom() {
+  if (DomUi.pages.scanning) {
+    DomUi.pages.scanning.classList.toggle("is-guide-open", scanningGuideOpen);
+  }
+  if (DomUi.scanning.guidePanel) {
+    DomUi.scanning.guidePanel.classList.toggle("is-open", scanningGuideOpen);
+    DomUi.scanning.guidePanel.setAttribute("aria-hidden", scanningGuideOpen ? "false" : "true");
+  }
+  if (DomUi.scanning.guideButton) {
+    DomUi.scanning.guideButton.classList.toggle("is-hidden", scanningGuideOpen);
+    DomUi.scanning.guideButton.setAttribute("aria-expanded", scanningGuideOpen ? "true" : "false");
+  }
 }
 
 function syncShutterButtonDom() {

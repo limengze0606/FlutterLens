@@ -1,124 +1,27 @@
 function drawStartPage() {
-  if (!StartButton && typeof initStartButtonLayout === "function") {
-    initStartButtonLayout();
-  }
-  if (!StartButton) return;
-
-  if (width > height && height < 360) {
-    updateStartPageLandscapeCompactDom();
-  } else {
-    updateStartPagePortraitDom();
-  }
-}
-
-function updateStartPagePortraitDom() {
-  const cx = width / 2;
-  const titleSize = constrain(min(width * 0.085, height * 0.07), 28, 44);
-  const bodySize = constrain(min(width * 0.043, height * 0.028), 14, 19);
-  const leading = bodySize * 1.52;
-  const hintSize = constrain(width * 0.032, 12, 16);
-
-  updateStartButtonMetrics(
-    constrain(width * 0.48, 168, 210),
-    constrain(height * 0.085, 48, 58),
-    constrain(height * 0.085, 24, 30)
-  );
-
-  const titleY = max(42, height * 0.095);
-  const bodyY = max(titleY + titleSize + 34, height * 0.255);
-  const buttonBottomMargin = max(58, height * 0.085);
-  const buttonY = height - buttonBottomMargin;
-  const hintY = buttonY - StartButton.ButtonHeight / 2 - 28;
-  const permissionButtonY = hintY - 54;
-  const statusY = hintY + hintSize * 1.9;
-
-  const introText =
-    "大自然裡，許多未知昆蟲正以保護色隱身於周遭。\n" +
-    "請透過鏡頭捕捉環境的色彩，揭開牠們的偽裝。\n\n" +
-    "不同的昆蟲有著各自偏好的棲地與習性。\n" +
-    "試著改變你觀察的角度——\n" +
-    "無論是低頭探尋、平視周圍，抑或仰望天際，\n" +
-    "都可能遇見截然不同的驚喜。";
-
-  updateStartButtonPosition(cx, buttonY);
   syncStartPageDomIfReady({
-    compact: false,
-    title: createStartTextLayout(cx, titleY, titleSize, titleSize * 1.15, "center", "top", "rgb(255, 255, 255)"),
-    intro: createStartTextLayout(cx, bodyY, bodySize, leading, "center", "top", "rgb(210, 210, 210)"),
-    hint: createStartTextLayout(cx, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
-    permissionActions: {
-      x: cx,
-      y: permissionButtonY,
-      buttonW: constrain(width * 0.38, 136, 168),
-      buttonH: constrain(height * 0.058, 40, 46),
-      gap: constrain(width * 0.04, 12, 18),
-      radius: constrain(height * 0.04, 18, 23),
-      labelSize: constrain(bodySize * 0.92, 13, 16)
-    },
-    status: createStartTextLayout(cx, statusY, hintSize, hintSize * 1.2, "center", "top", "rgb(180, 180, 180)"),
-    introText,
-    hintText: "請先分別允許相機與陀螺儀權限",
-    buttonTextSize: constrain(bodySize, 14, 18)
+    compact: isStartPageLandscapeCompact(),
+    introText: getStartPageIntroText(),
+    hintText: getStartPageHintText()
   });
 }
 
-function updateStartPageLandscapeCompactDom() {
-  const marginX = max(28, width * 0.055);
-  const titleSize = constrain(height * 0.13, 24, 34);
-  const bodySize = constrain(height * 0.058, 12, 16);
-  const hintSize = constrain(height * 0.052, 11, 14);
-  const leading = bodySize * 1.42;
-
-  updateStartButtonMetrics(
-    constrain(width * 0.22, 150, 178),
-    constrain(height * 0.2, 44, 50),
-    constrain(height * 0.1, 22, 25)
-  );
-
-  const leftX = marginX;
-  const titleY = max(26, height * 0.18);
-  const bodyY = titleY + titleSize + max(12, height * 0.055);
-  const rightX = width - marginX - StartButton.ButtonWidth / 2;
-  const buttonY = height * 0.61;
-  const hintY = buttonY - StartButton.ButtonHeight / 2 - 24;
-  const permissionButtonY = buttonY + StartButton.ButtonHeight / 2 + 22;
-  const statusY = permissionButtonY + 30;
-
-  updateStartButtonPosition(rightX, buttonY);
-  syncStartPageDomIfReady({
-    compact: true,
-    title: createStartTextLayout(leftX, titleY, titleSize, titleSize * 1.15, "left", "top", "rgb(255, 255, 255)"),
-    intro: createStartTextLayout(leftX, bodyY, bodySize, leading, "left", "top", "rgb(210, 210, 210)"),
-    hint: createStartTextLayout(rightX, hintY, hintSize, hintSize * 1.2, "center", "top", "rgb(150, 150, 150)"),
-    permissionActions: {
-      x: rightX,
-      y: permissionButtonY,
-      buttonW: constrain(width * 0.15, 112, 136),
-      buttonH: constrain(height * 0.15, 34, 40),
-      gap: 10,
-      radius: constrain(height * 0.07, 16, 20),
-      labelSize: constrain(bodySize * 0.9, 12, 14)
-    },
-    status: createStartTextLayout(rightX, statusY, hintSize, hintSize * 1.2, "center", "top", "rgb(180, 180, 180)"),
-    introText: "捕捉環境色彩，\n揭開未知昆蟲的偽裝。\n換個角度，也許會遇見新的驚喜。",
-    hintText: "先允許兩項權限",
-    buttonTextSize: constrain(bodySize, 14, 18)
-  });
+function isStartPageLandscapeCompact() {
+  return width > height && height < 360;
 }
 
-function updateStartButtonMetrics(buttonWidth, buttonHeight, borderRadius) {
-  StartButton.ButtonWidth = buttonWidth;
-  StartButton.ButtonHeight = buttonHeight;
-  StartButton.ButtonBorderRadius = borderRadius;
+function getStartPageIntroText() {
+  if (isStartPageLandscapeCompact()) {
+    return "以鏡頭採集環境色彩，尋找隱身其中的未知昆蟲。";
+  }
+
+  return "以鏡頭採集環境色彩，尋找隱身其中的未知昆蟲。";
 }
 
-function updateStartButtonPosition(x, y) {
-  StartButton.ButtonX = x;
-  StartButton.ButtonY = y;
-}
-
-function createStartTextLayout(x, y, size, leading, alignX, alignY, colorValue) {
-  return { x, y, size, leading, alignX, alignY, color: colorValue };
+function getStartPageHintText() {
+  return isStartPageLandscapeCompact()
+    ? "先允許兩項權限"
+    : "請先分別允許相機與陀螺儀權限";
 }
 
 function syncStartPageDomIfReady(layout) {

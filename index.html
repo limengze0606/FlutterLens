@@ -6,27 +6,92 @@
 
     <title>Sketch</title>
 
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #e9deca;
+      }
+
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: transparent;
+      }
+
+      #boot-loader::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: #e9deca;
+      }
+
+      .boot-loader-spinner {
+        position: relative;
+        z-index: 1;
+        width: 34px;
+        height: 34px;
+        border: 2px solid rgba(83, 67, 47, 0.18);
+        border-top-color: rgba(64, 51, 35, 0.72);
+        border-radius: 999px;
+        animation: boot-loader-spin 760ms linear infinite;
+      }
+
+      @keyframes boot-loader-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     <link rel="stylesheet" type="text/css" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
-    <script src="libraries/p5.brush.js"></script>
   </head>
 
   <body>
+    <div id="boot-loader" aria-hidden="true">
+      <span class="boot-loader-spinner"></span>
+    </div>
+
     <div id="dom-ui-layer" aria-live="polite">
       <section id="start-page-ui" class="dom-page dom-page-start" aria-label="開始頁">
+        <img class="start-corner-decor start-corner-decor-upper-left" src="assets/StartPageUpperLeft.png" alt="" aria-hidden="true">
+        <img class="start-corner-decor start-corner-decor-upper-right" src="assets/StartPageUpperRight.png" alt="" aria-hidden="true">
+        <img class="start-corner-decor start-corner-decor-bottom-left" src="assets/StartPageBottomLeft.png" alt="" aria-hidden="true">
+        <img class="start-corner-decor start-corner-decor-bottom-right" src="assets/StartPageBottomRight.png" alt="" aria-hidden="true">
+        <p id="start-kicker">野外色彩採集</p>
         <h1 id="start-title">匿跡蟲蹤調查員</h1>
         <p id="start-intro"></p>
         <p id="start-permission-hint">( 進入時需允許相機與動作感測器權限 )</p>
         <div id="start-permission-actions" class="permission-actions" aria-label="權限設定">
-          <button id="camera-permission-action" class="ui-button permission-button" type="button">相機權限</button>
-          <button id="motion-permission-action" class="ui-button permission-button" type="button">陀螺儀權限</button>
+          <button id="camera-permission-action" class="ui-button permission-button" type="button" aria-pressed="false">
+            <span class="permission-checkbox" aria-hidden="true"></span>
+            <span class="permission-label">允許相機權限</span>
+          </button>
+          <button id="motion-permission-action" class="ui-button permission-button" type="button" aria-pressed="false">
+            <span class="permission-checkbox" aria-hidden="true"></span>
+            <span class="permission-label">允許陀螺儀權限</span>
+          </button>
         </div>
         <p id="start-permission-status" class="permission-status" role="status"></p>
         <button id="start-action" class="ui-button ui-button-primary" type="button">啟動探索</button>
       </section>
 
       <section id="scanning-page-ui" class="dom-page dom-page-scanning" aria-label="掃描頁">
+        <button id="scanning-guide-action" class="scanning-guide-action" type="button" aria-label="開啟掃描指南">?</button>
+        <div id="scanning-guide-panel" class="scanning-guide-panel" role="dialog" aria-modal="true" aria-labelledby="scanning-guide-title" aria-hidden="true">
+          <div class="scanning-guide-backdrop" aria-hidden="true"></div>
+          <div class="scanning-guide" aria-label="遊玩說明">
+            <button id="scanning-guide-close" class="scanning-guide-close" type="button" aria-label="關閉掃描指南">×</button>
+            <p id="scanning-guide-title" class="scanning-guide-title">掃描指南</p>
+            <ol class="scanning-guide-steps">
+              <li>移動鏡頭採集周圍色彩</li>
+              <li>改變角度會影響遇見的昆蟲</li>
+              <li>找到喜歡的畫面後按下快門</li>
+            </ol>
+          </div>
+        </div>
         <button id="shutter-action" class="shutter-button" type="button" aria-label="拍攝">
           <span class="shutter-button-inner"></span>
         </button>
@@ -42,24 +107,69 @@
       </section>
     </div>
 
-    <script src="HandDrawn.js"></script>
-    <script src="Pages/StartPage/StartPageSettings.js"></script>
-    <script src="Pages/StartPage/StartPage.js"></script>
-    <script src="Pages/pagesSettings.js"></script>
-    <script src="Pages/ScanningPage/ScanningPageSettings.js"></script>
-    <script src="Pages/ScanningPage/ColorProcessor.js"></script>
-    <script src="Pages/ScanningPage/GyroManager.js"></script>
-    <script src="Pages/ScanningPage/ShutterButton.js"></script>
-    <script src="Pages/ScanningPage/ScanningPage.js"></script>
-    <script src="Pages/ResultPage/ResultPageSettings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectWings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughInsectWings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughInsectBody.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectBody.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectManager.js"></script>
-    <script src="Pages/ResultPage/ResultPage.js"></script>
-    <script src="Pages/DomUi.js"></script>
-    <script src="sketch.js"></script>
+    <script>
+      (() => {
+        const bootScripts = [
+          "https://cdn.jsdelivr.net/npm/d3-delaunay@6",
+          "https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js",
+          "libraries/p5.brush.js",
+          "HandDrawn.js",
+          "Pages/StartPage/StartPage.js",
+          "Pages/pagesSettings.js",
+          "Pages/ScanningPage/ScanningPageSettings.js",
+          "Pages/ScanningPage/ColorProcessor.js",
+          "Pages/ScanningPage/GyroManager.js",
+          "Pages/ScanningPage/ShutterButton.js",
+          "Pages/ScanningPage/ScanningPage.js",
+          "Pages/ResultPage/ResultPageSettings.js",
+          "Pages/ResultPage/InsectGenerator/InsectWings.js",
+          "Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js",
+          "Pages/ResultPage/InsectGenerator/RoughInsectWings.js",
+          "Pages/ResultPage/InsectGenerator/RoughInsectBody.js",
+          "Pages/ResultPage/InsectGenerator/InsectBody.js",
+          "Pages/ResultPage/InsectGenerator/InsectManager.js",
+          "Pages/ResultPage/ResultPage.js",
+          "Pages/DomUi.js",
+          "sketch.js"
+        ];
+
+        const waitForFirstPaint = () => new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
+
+        const loadScript = (src) => new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = false;
+          script.onload = () => resolve(src);
+          script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+          document.body.appendChild(script);
+        });
+
+        const startP5IfNeeded = () => {
+          if (typeof window.p5 !== "function" || document.querySelector("canvas")) return;
+          window.__flutterLensP5Instance = new window.p5();
+        };
+
+        const bootApp = async () => {
+          window.__flutterLensBootStatus = "painting-loader";
+          await waitForFirstPaint();
+          window.__flutterLensBootStatus = "loading-scripts";
+
+          for (const src of bootScripts) {
+            await loadScript(src);
+          }
+
+          window.__flutterLensBootStatus = "starting-p5";
+          startP5IfNeeded();
+          window.__flutterLensBootStatus = "ready";
+        };
+
+        bootApp().catch((error) => {
+          window.__flutterLensBootStatus = "error";
+          console.error(error);
+        });
+      })();
+    </script>
   </body>
 </html>

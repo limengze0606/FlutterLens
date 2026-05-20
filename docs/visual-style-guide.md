@@ -5,6 +5,9 @@
 ## 核心方向
 
 - 這是手機 AR 視覺專案，昆蟲需要像出現在真實相機畫面中的手繪生命體，而不只是程式產生的圖案。
+- Start page 目前以淺色舊紙 / 標本紙感作為入口氛圍，背景直接使用 `assets/background/old-paper-texture.jpg`，不加亮度或色調 overlay；UI 應以深墨褐文字、紙面邊線與深綠操作色維持可讀，避免回到黑底白字或過亮螢光綠的工具感。
+- Start page 四角裝飾使用 `assets/StartPageUpperLeft.png`、`StartPageUpperRight.png`、`StartPageBottomLeft.png`、`StartPageBottomRight.png`，方向是「植物標本紙框景」而不是平均貼滿四角；直式中上方兩角建立入口氣氛，下方兩角只在邊緣露出，避免搶走 Start button。橫式會縮小與降低透明度，讓四角有包圍感但不壓文字。
+- Start page 的文字策略已調整為「封面入口」：首頁不再放完整遊玩說明，只保留一行氣氛文案與必要權限流程，讓舊紙、四角植物與標題成為第一印象。權限操作應像調查前 checklist，而不是一般 app 的兩顆 CTA；目前以方形勾選框加文字呈現，但仍用 `button` 觸發系統權限請求。操作說明移到 Scanning page，首次進入時以置中 modal 顯示，右上角 `×` 關閉；關閉後只留下右上角小型 `?` 指南按鈕，避免長時間遮擋掃描畫面。
 - p5.brush 應被當成真實畫筆使用：先想清楚筆觸從哪裡開始、在哪裡轉折、在哪裡收尾、壓力如何變化，再把這個意圖系統化。
 - Rough butterfly 的風格應保留手繪、不完全規則、帶有筆觸質地的感覺，但仍要能讀出昆蟲結構。
 

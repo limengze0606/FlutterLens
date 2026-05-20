@@ -18,11 +18,11 @@ async function setup() {
   if (typeof initDomUi === "function") {
     initDomUi();
   }
-  await preloadScanningPage();
-  
-  if (typeof initStartButtonLayout === "function") {
-    initStartButtonLayout();
+  if (typeof drawStartPage === "function") {
+    drawStartPage();
   }
+  await preloadScanningPage();
+
   angleMode(DEGREES);
 
   syncBrushToCanvas();
@@ -146,9 +146,6 @@ function draw() {
 function handleInteraction() {
   switch (currentPagesState) {
     case PagesState.START:
-      if (dist(mouseX, mouseY, StartButton.ButtonX, StartButton.ButtonY) < StartButton.ButtonWidth / 2) {
-        requestStartPermissions();
-      }
       break;
       
     case PagesState.SCANNING:
@@ -350,11 +347,19 @@ function requestStartPermissions() {
     return;
   }
 
-  currentPagesState = PagesState.SCANNING;
-  if (typeof syncDomUiState === "function") {
-    syncDomUiState();
+  const goToScanning = () => {
+    currentPagesState = PagesState.SCANNING;
+    if (typeof syncDomUiState === "function") {
+      syncDomUiState();
+    }
+    loop();
+  };
+
+  if (typeof beginStartPageFadeOut === "function" && beginStartPageFadeOut(goToScanning)) {
+    return;
   }
-  loop();
+
+  goToScanning();
 }
 
 function markCameraPermissionGranted() {

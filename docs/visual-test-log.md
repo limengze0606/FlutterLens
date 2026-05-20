@@ -2356,3 +2356,582 @@ Codex 自評：`7.5/10`。Start page 的兩顆權限按鈕清楚、可掃讀，d
 
 ### 備註 / 風險
 CDP fake camera 可驗證 DOM 流程與 p5 stream 接線，但不能代表 iOS / Android 真機權限彈窗。若真機仍無法取得權限，下一步需根據畫面上的 `error.name`、`window.isSecureContext` 與 `location.protocol` 判斷是 HTTPS、網站權限、系統權限或瀏覽器政策問題。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 初始載入 loader：避免 DOM UI 在第一次 p5 layout 同步前短暫擠到左上角。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844`
+
+### 預期行為
+網頁剛開啟時先顯示沒有文字的簡單 loader；Start page DOM 完成第一次定位後，loader 淡出，畫面不應出現文字與按鈕短暫堆疊在左上角。
+
+### 實際觀察
+第一次截圖 `docs/boot-loader-check-2026-05-20.png` 顯示 loader 本身可正常覆蓋畫面，但因 Start layout 仍等到 p5 `draw()` 才同步，headless 截圖時 loader 尚未淡出。調整後在 `sketch.js` 的 `setup()` 前段提前呼叫 `drawStartPage()`，讓 Start DOM 在掃描圖示與 brush 資源等待前先完成定位。第二次截圖 `docs/boot-loader-check-2026-05-20-v2.png` 顯示 loader 已淡出，Start page 標題、說明、權限按鈕與等待權限按鈕位於正常位置，未觀察到左上角堆疊。
+
+### 截圖
+- 初版 loader 檢查：`docs/boot-loader-check-2026-05-20.png`
+- 調整後 Start page：`docs/boot-loader-check-2026-05-20-v2.png`
+
+### 審美評分與評語
+Codex 自評：`8/10`。loader 是黑底上的小型單線 spinner，沒有文字，視覺上安靜、不搶戲，能把初始化時的畫面不穩定藏起來。弱點是目前沒有品牌化或昆蟲語彙，但本輪目標是最小修正，先保留克制版本較適合。
+
+### 使用者審美回饋
+使用者指定「最簡單的 loader 小動畫，且不需要文字」，未提供審美分數。
+
+### Console 錯誤
+本輪未能透過 in-app browser 收集 console；in-app browser 開啟 local URL 時被 client 阻擋。Chrome headless 截圖成功，但未額外收集 console log。
+
+### 手機檢查清單
+- [ ] 真機重新整理頁面，確認開場不再看到文字擠在左上角
+- [ ] 確認 loader 沒有停留過久
+- [ ] 確認 Start page 權限按鈕仍可點擊
+- [ ] 確認相機權限、陀螺儀權限與開始探索流程不受 loader 影響
+
+### 備註 / 風險
+本輪驗證使用 headless Chrome 與手機尺寸 viewport；真機仍需確認實際載入速度、字型載入時間與觸控權限流程。若未來加入更完整品牌化開場，可在 `style.css` 的 loader 樣式中調整 spinner 尺寸、線條透明度與淡出時間。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page loader 最短顯示時間：即使資源與 layout 很快 ready，也保留一小段開場準備感。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844`
+
+### 預期行為
+loader 的淡出仍由 `body.app-ready` 代表的 layout ready 狀態觸發，但 CSS 會延遲 650ms 才開始淡出，讓它不只是遮 bug，也成為體驗的一部分。
+
+### 實際觀察
+程式改為在 `style.css` 使用 `transition: opacity 280ms ease 650ms`，讓 `body.app-ready #boot-loader` 的 opacity 變化有 650ms delay。`--dump-dom` 確認 headless 環境中 `body` 已出現 `app-ready`，且 Start title 已寫入正確 inline layout。`--screenshot --virtual-time-budget` 對 CSS transition delay 的截圖取樣不穩，仍可能截到 loader；`--timeout` 截圖也出現空白頁，因此本輪沒有取得可靠的 transition-delay 完成後截圖。
+
+### 截圖
+- 可用的 Start page 定位驗證仍以 `docs/boot-loader-check-2026-05-20-v2.png` 為準。
+- `docs/boot-loader-css-delay-ready-2026-05-20.png` 顯示 headless virtual-time 取樣仍停在 loader，不作為實際視覺結果判定。
+
+### 審美評分與評語
+Codex 自評：`8/10`。650ms 的最短停留讓 loader 有「準備一下」的節奏，又不會明顯拖慢操作。視覺仍是極簡黑底 spinner，符合使用者先前指定不加文字的方向。
+
+### 使用者審美回饋
+使用者補充 loader 未來可能真的要等資源，但也希望即使資源快速完成，loader 仍至少跑一小段時間，作為體驗準備。
+
+### Console 錯誤
+本輪未取得可靠 console；既有 CDP 腳本執行時遇到截圖 base64 回應的舊解析限制，summary 將 screenshot response 記成 `Unterminated string passed in`。
+
+### 手機檢查清單
+- [ ] 真機重新整理頁面，確認 loader 至少短暫出現
+- [ ] 確認 loader 不會停留過久
+- [ ] 確認 loader 淡出後 Start page 沒有左上角堆疊
+- [ ] 確認權限按鈕可以正常點擊
+
+### 備註 / 風險
+CSS delay 版本的邏輯較簡單，不依賴 JS `setTimeout`；但 headless screenshot 對 transition delay 的取樣不可靠，仍需真機或一般瀏覽器目視確認節奏。若未來 loader 要等更多真實資源，可把 `markBootLayoutReady()` 改成等待多個 ready flag 都完成後才加 `app-ready`。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page layout ownership 轉移：將 Start page 的位置、尺寸與 responsive 排版由 p5 計算改為 HTML / CSS 控制。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-css-layout-2026-05-20`
+
+### 預期行為
+Start page 的標題、說明文字、權限按鈕、提示文字、狀態文字與開始按鈕都由 CSS 排版，不再依賴 p5 寫入 `left/top/width/height/font-size`。三種 viewport 不應出現左上角堆疊、文字重疊或按鈕互蓋；權限按鈕仍應可被點擊，允許相機與陀螺儀後可進入 Scanning / Result。
+
+### 實際觀察
+CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。`startPermissionState.camera` 與 `startPermissionState.motion` 均為 `granted`。Start page 截圖顯示 portrait 與 compact 版面維持置中、層級清楚；landscape 版面維持左側文案與右側操作區，按鈕沒有互相覆蓋。未觀察到左上角堆疊或明顯 overflow。
+
+### 截圖
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`7.6/10`。優點是版面比 p5 inline layout 更穩定，CSS 負責 responsive 後，portrait / compact 的視覺仍乾淨、安靜，操作區落點清楚。弱點是 Start page 仍偏純文字與標準按鈕，缺少更強烈的 FlutterLens / 昆蟲調查感；但本輪目標是職責轉移，不主動改視覺語彙，因此先停在穩定版本。
+
+### 使用者審美回饋
+本輪使用者同意實作方案，尚未提供新截圖分數或審美修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機 portrait 重新整理，確認 Start page 不重疊且 loader 淡出後版面穩定
+- [ ] 真機橫向或矮 viewport，確認右側操作區不擠壓
+- [ ] 確認相機權限、陀螺儀權限、開始探索三顆按鈕觸控手感正常
+- [ ] GitHub Pages HTTPS 環境確認相機與 DeviceOrientation 權限流程
+
+### 備註 / 風險
+本輪 CDP fake camera 可驗證 DOM layout、按鈕點擊與頁面狀態，但不能取代真實手機相機、DeviceOrientation 權限與觸控體感。若後續要調 Start page 視覺，應優先改 `style.css`，不要把座標計算加回 p5。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start -> Scanning 第一段轉場：按下「開始探索」後，Start page 的文字與按鈕逐漸淡出，再切到 Scanning page。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-fadeout-2026-05-20`
+
+### 預期行為
+相機與陀螺儀權限都允許後，按下「開始探索」不應立刻硬切畫面，而是先讓 Start page 的標題、說明、提示、權限按鈕與開始按鈕以約 420ms 淡出；淡出完成後才進入 Scanning。流程不應卡在 Start，也不應讓按鈕在淡出時重複觸發。
+
+### 實際觀察
+CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Start page 初始截圖仍維持正常版面；Scanning 截圖顯示淡出後頁面可正常切換到相機掃描 UI。`beginStartPageFadeOut()` 會在淡出期間加上 `.is-exiting`、暫停 Start page pointer events，並讓 `syncStartPermissionDom()` 保持開始按鈕 disabled。既有 CDP 截圖未專門捕捉 420ms 中間幀，因此本輪視覺截圖主要確認起點與終點，轉場中段仍需一般瀏覽器或真機目視確認。
+
+### 截圖
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`7.8/10`。優點是轉場很克制，Start page 不再瞬間消失，按下開始後有一個柔和收尾；只淡 opacity 不改位置，也不會和目前黑底 Start page 打架。弱點是目前還沒有 Scanning page 的對應 fadein 或相機畫面節奏，因此轉場後半段仍偏硬切；下一輪可接 Scanning UI / camera overlay 的入場。
+
+### 使用者審美回饋
+使用者要求「按下開始探索按鈕後，開始頁面的文字及按鈕會逐漸淡化 fadeout」，尚未提供截圖分數或後續節奏修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機按下「開始探索」後，確認文字與按鈕真的可見地淡出
+- [ ] 確認 420ms 不會感覺拖太久或太快
+- [ ] 淡出期間連點開始按鈕不應重複觸發或卡住
+- [ ] 淡出後相機掃描畫面應順利出現，權限流程不受影響
+
+### 備註 / 風險
+目前只實作 Start 內容 fadeout，尚未做 Scanning page fadein、相機畫面亮度/遮罩轉場或頁面間 crossfade。若下一輪要接續，建議先處理 Scanning UI 入場，而不是一次加入太多 motion。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 淺色紙質背景與 UI 色彩調整。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-paper-bg-20260520-v2 -ServerPort 8782 -DebugPortBase 9350`
+
+### 預期行為
+起始頁應直接顯示 `assets/background/old-paper-texture.jpg` 作為滿版背景，不額外加 CSS 亮度、暗角或色調控制。淺色紙面上，標題、說明文字、權限按鈕、提示文字與開始按鈕都應維持可讀；相機與陀螺儀權限按鈕仍可操作，允許後可進入 Scanning / Result。
+
+### 實際觀察
+三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 與 compact 起始頁截圖顯示紙紋滿版鋪底，深墨褐文字清楚可讀，權限按鈕與提示文字沒有重疊；disabled「等待權限」按鈕在第一次觀察後稍微加深，v2 截圖中已比較像明確 control，而不是消失在紙紋裡。Landscape 截圖仍可讀，右側操作區沒有重疊，但空間偏緊，適合真機橫向再確認觸控體感。
+
+### 截圖
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.0/10`。優點是紙質背景讓起始頁更像調查紀錄或標本紙，和「匿跡蟲蹤調查員」的語境更接近；深墨文字與深綠主按鈕比原本黑底白字 / 亮綠按鈕更穩，也沒有額外濾鏡造成髒灰感。弱點是目前仍是材質與顏色適配，還沒有更獨特的昆蟲調查細節；disabled 主按鈕雖已加深，但仍刻意保持柔和，需看使用者是否希望更明顯。
+
+### 使用者審美回饋
+使用者要求先直接放背景圖，不需要 CSS 亮度與色調控制；因圖片是淺色，接受同步修改原 UI 顏色。尚未提供本輪截圖分數或進一步修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機 portrait 重新整理，確認 loader 淡出後紙質背景完整出現
+- [ ] 真機確認淺色背景上標題、長說明、提示文字與 disabled start button 的可讀性
+- [ ] 真機橫向或矮 viewport，確認右側權限 / 開始按鈕不難點
+- [ ] GitHub Pages 環境確認背景圖載入時間；目前 JPG 約 5.86 MB，若首屏慢需壓縮或輸出手機尺寸版本
+- [ ] 若素材改成 PNG，確認 `style.css` 背景路徑同步更新
+
+### 備註 / 風險
+本輪沒有加入 CSS 亮度、暗角、漸層或混色，視覺完全依賴素材本身的亮度分布。若使用者後續想保留背景原貌但提高文字保險度，可優先微調文字與按鈕色值，而不是立刻加 overlay。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Loading 頁淺褐米色背景與淡出銜接。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP，另用 Chrome headless early screenshot 檢查 loader / start fallback
+- 裝置：桌機模擬手機視窗
+- Viewport：`390x844` early screenshot；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId boot-paper-loader-20260520 -ServerPort 8783 -DebugPortBase 9360`
+
+### 預期行為
+Loading overlay 不再是黑底，而是淺褐米色背景搭配深褐灰 spinner。當 `body.app-ready` 後，loader 應以較柔的 opacity transition 淡出到起始頁；若紙質背景圖尚未載完，也不應短暫露出黑底。
+
+### 實際觀察
+第一次 early screenshot 發現仍可能露出黑底暗字，判斷是起始頁背景圖未載入時缺少 fallback 底色。補上 `.dom-page-start background-color: #e9deca` 後，`docs/boot-loader-paper-2026-05-20-v2.png` 顯示早期畫面已是米白底與深色 UI，不再露黑。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`；正式 start screenshot 仍顯示紙質背景與原本起始頁版面。
+
+### 截圖
+- `docs/boot-loader-paper-2026-05-20-v2.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是入口不再從黑色 loading 硬跳到淺色紙面，而是從米色底自然過渡到紙質起始頁；spinner 深淺克制，不會破壞標本紙 / 調查紀錄的語氣。弱點是 early screenshot 只能確認不露黑與最終畫面，淡出中段的節奏仍需真機或一般瀏覽器目視確認。
+
+### 使用者審美回饋
+使用者希望 loading 頁背景改成淺褐色或米白，然後才淡入淡出至起始頁；已同意本輪小範圍方案，尚未提供新截圖分數或速度修正。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機重新整理，確認 loading 是米色而非黑色
+- [ ] 確認 loader 淡出時不露黑底，即使網路較慢
+- [ ] 目視確認 `opacity 520ms ease 360ms` 的速度是否自然
+- [ ] 若背景圖載入慢，確認米色 fallback 停留時不突兀
+- [ ] GitHub Pages / 手機網路下觀察背景圖 5.86 MB 對首屏速度的影響
+
+### 備註 / 風險
+目前仍沿用 CSS opacity fade，不新增 JS 中間狀態；好處是穩定，限制是截圖測試較難精準捕捉淡出中段。若後續要更細膩，可以用 CDP 針對固定時間點截圖或在 CSS 加入可測試 class，但目前尚無必要。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Loading spinner 與背景分層淡出，並建立 CSS motion easing 變數。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId boot-layered-loader-20260520 -ServerPort 8784 -DebugPortBase 9370`
+
+### 預期行為
+`body.app-ready` 後，loading 動畫元素應先淡出，米色背景遮罩再慢慢淡出至起始頁紙質背景。專案應有可共用的 CSS easing 變數，讓後續動畫可用曲線控制速度。分層後不應阻止 Start page 權限按鈕或後續 Scanning / Result 流程。
+
+### 實際觀察
+完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 也完成 Share / Save / Back，結果圖下載成功。正式 start screenshot 顯示紙質背景與 UI 正常，代表 loader 容器在測試截圖時間點已正確隱藏，不再覆蓋頁面。CSS 結構確認 `.boot-loader-spinner` 與 `#boot-loader::before` 分別有獨立 opacity transition；但本輪 Chrome `--screenshot` 嘗試擷取 early / middle frame 時未落檔，因此尚未用截圖捕捉 spinner 先消失的中間狀態。
+
+### 截圖
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是 loader 的動作語法變清楚：動畫元素先退場，米色背景再作為柔和遮罩慢慢揭開起始頁，符合目前標本紙 / 調查紀錄的入口感。弱點是背景淡出目前保留 4 秒，可能偏有儀式感，也可能在真機上太慢；中間幀沒有截圖佐證，因此需要使用者用肉眼確認節奏。
+
+### 使用者審美回饋
+使用者希望 spinner 或未來設定的動畫先消失，背景才淡出，並希望專案動畫可以用曲線控制速度；已同意用 loader 分層與 CSS motion variables 的方式實作。尚未提供實際速度分數。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機重新整理，確認 spinner 會先淡出，而不是和背景一起消失
+- [ ] 確認米色背景 4 秒淡出是否太慢
+- [ ] 確認背景淡出期間頁面看起來是被柔和揭開，不是卡住或霧掉
+- [ ] 若修改 `#boot-loader::before transition` 的 duration / delay，記得同步修改 `#boot-loader transition` 的 visibility delay
+- [ ] 後續新增 loading animation 時，應接在 `.boot-loader-spinner` 同一層或新增獨立動畫層，不要把動畫畫進背景層
+
+### 備註 / 風險
+目前用純 CSS 分層，沒有 JS `transitionend` 管理生命週期；這很輕量，但 duration / delay 需要手動同步。若未來 loader 動畫變複雜，可以考慮加一個小型 transition controller，或用 CSS variables 管理 duration 後透過 calc 減少同步錯誤。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+修正 Live Server 首屏白畫面，讓 loader / 米色底更早顯示。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP；另用 Chrome headless `--virtual-time-budget=500` 取得 early first-paint screenshot
+- 裝置：桌機模擬手機視窗
+- Viewport：early screenshot `390x844`；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId defer-loader-firstpaint-20260520 -ServerPort 8785 -DebugPortBase 9380`
+
+### 預期行為
+瀏覽器不應先顯示預設白畫面再進 loader。即使 p5 / CDN / 專案 scripts 尚未執行，第一個可見畫面也應至少是米色底與 loader spinner；完整 app 初始化後仍應進入 Start page，權限流程、Scanning、Result 不應受 `defer` 影響。
+
+### 實際觀察
+早期截圖 `docs/first-paint-loader-2026-05-20.png` 顯示畫面為米色底與淡淡 spinner，沒有白畫面。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 測試完成 Share / Save / Back，結果圖下載成功。這表示 scripts 改成 `defer` 後，p5 global mode、DOM UI 與互動流程仍正常。
+
+### 截圖
+- `docs/first-paint-loader-2026-05-20.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.3/10`。優點是首屏從瀏覽器預設白底變成米色 loader，等待感和紙質 Start page 更連續；使用者不會在 loader 出現前先看到一個脫離專案風格的白色空窗。弱點是 critical CSS 與正式 CSS 有少量重複，未來改 loader 顏色或 spinner 尺寸時要同步維護。
+
+### 使用者審美回饋
+使用者回報 Live Server 會先卡白畫面再進 loader，並指出 loader 原本就是為了避免這種狀況；修正後尚未收到使用者目視確認。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] Live Server hard refresh，確認不再先出現全白畫面
+- [ ] 無痕視窗測試，排除快取影響
+- [ ] GitHub Pages 上確認 CDN 載入慢時仍先看到米色 loader
+- [ ] 確認 `defer` 後 iOS / Android 的 p5 setup、相機權限與 DeviceOrientation 權限仍正常
+- [ ] 若仍白屏，檢查 Live Server 外掛注入或其他 head blocking resource
+
+### 備註 / 風險
+白畫面問題主要是 HTML parsing 被 head scripts 阻塞，而不是紙質背景圖本身。若要進一步降低 CDN 等待風險，可評估使用本地 `libraries/p5.min.js` 取代 CDN p5。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Post-paint script bootstrap：先顯示 loader，再載入 / compile CDN p5 與專案 scripts。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP；另用 Chrome headless `--virtual-time-budget=500` 取得 first-frame screenshot
+- 裝置：桌機模擬手機視窗
+- Viewport：first-frame screenshot `390x844`；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId postpaint-script-boot-20260520 -ServerPort 8786 -DebugPortBase 9390`
+
+### 預期行為
+頁面應先 paint 米色 loader，再開始載入與 compile p5。CDN p5 版本保持不變，不改成本地 p5。動態載入後 p5 global mode 仍應正常啟動，Start / Scanning / Result 流程不應損壞。
+
+### 實際觀察
+First-frame screenshot `docs/postpaint-loader-first-frame-2026-05-20.png` 顯示米色 loader 與 spinner，沒有白畫面。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 完成 Share / Save / Back，結果圖下載成功。正式 start screenshot 顯示紙質背景與 UI 正常。
+
+### 截圖
+- `docs/postpaint-loader-first-frame-2026-05-20.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.5/10`。優點是 loader 的功能與視覺目標一致了：重 JS 開始工作前，使用者已經看到米色等待畫面，整體等待感不再被瀏覽器預設白底破壞。弱點是目前 loader 仍是簡單 spinner，若 p5 / CDN 等待較長，未來可能需要更有主題性的 loading 動畫來承接等待。
+
+### 使用者審美回饋
+使用者提供 Performance trace，指出 p5 compile / evaluate 會卡住首次 render，並要求保留 CDN p5 版本、不改成本地版本；同意先讓 loader paint 後再載入重 scripts。尚未收到修正後的 Live Server 目視回饋。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。First-frame screenshot 命令出現 Chrome 背景服務的 deprecated endpoint 訊息，但不影響頁面截圖。
+
+### 手機檢查清單
+- [ ] Live Server hard refresh，確認 p5 compile 期間看到的是 loader，不是白畫面
+- [ ] DevTools Performance 重新錄 trace，比對 first paint / LCP 前可見畫面
+- [ ] iOS / Android 真機確認動態載入後 p5 setup、相機權限與 DeviceOrientation 權限正常
+- [ ] CDN p5 載入失敗時目前只有 console error，未來可補可見錯誤提示
+- [ ] 後續新增 JS 檔案時，需同步更新 `index.html` 的 `bootScripts` 順序
+
+### 備註 / 風險
+此方案不降低 p5 compile 成本，而是把 compile 成本移到 loader 已可見之後。若使用者之後要進一步縮短等待，才需要考慮降低 p5 / p5.brush parse cost、拆延後載入的功能、或提供更明確的 loading progress。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 四角外溢裝飾圖與直式 / 橫式構圖驗證。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport
+- Viewport：直式 `390x844`、橫式 `844x390`
+
+### 預期行為
+起始頁四角應顯示使用者放入 `assets/` 的裝飾 PNG，圖片可局部超出畫面形成標本紙框景；裝飾不應擋住標題、介紹文字、權限按鈕、提示文字或開始按鈕。直式與橫式都應可讀，按下開始時裝飾應跟 Start page 內容一起淡出。
+
+### 實際觀察
+直式 `390x844`：四角裝飾出現在紙質背景上方、內容下方，上方左右角提供明顯入口氣氛，下方只在邊緣露出，沒有遮住按鈕。介紹文字原本在窄螢幕換行略生硬，本輪把 start intro 字級稍降並改用較自然的 CJK 換行後，直式文字不再被裁切。橫式 `844x390`：四角裝飾縮小且透明度較低，左右邊形成框景，沒有壓到中央文字與權限按鈕。
+
+### 截圖
+- `docs/start-corners-portrait-cdp-2026-05-20.png`
+- `docs/start-corners-landscape-cdp-2026-05-20.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是四角素材和舊紙背景很自然地合成「植物標本 / 野外調查筆記」入口，讓 Start page 比單純紙背景更完整；裝飾的外溢比例在直式有前景感，橫式則克制不擋內容。弱點是直式下半部仍留有較大空白，這和權限按鈕 / 開始按鈕流程有關，未來若使用者希望入口更豐富，可考慮讓下方裝飾稍微再往內或增加很淡的中央紙張痕跡，但目前先保留乾淨可讀。
+
+### 使用者審美回饋
+使用者表示已在 `assets/` 放入可放四角的圖片，並要求直式與橫式都要測試；本輪尚未收到使用者對截圖的審美分數或偏好修正。
+
+### Console 錯誤
+本輪主要以 CDP 截圖與 viewport metrics 驗證構圖；未做完整互動 console 蒐集。第一次 Chrome CLI 截圖曾停在 loader，後續改用 CDP 設定 mobile viewport 並截正式首頁。此限制已記錄，完整 Start -> Scanning -> Result 流程仍以既有 CDP 測試腳本驗證。
+
+### 手機檢查清單
+- [ ] 真機直式確認四角圖片在瀏海 / safe area 附近不顯得太擠
+- [ ] 真機橫式確認下方裝飾不被瀏覽器工具列或手勢區裁得突兀
+- [ ] 權限允許後按「開始探索」，確認裝飾與文字按鈕一起淡出
+- [ ] GitHub Pages 載入時確認四張 PNG 不會明顯拖慢 Start page 首屏
+
+### 備註 / 風險
+四張裝飾 PNG 均為 `440x440`，目前直接載入原圖。若 GitHub Pages 或手機網路首屏變慢，下一步可壓縮或產生較小尺寸版本。起始頁實際相機 / AR 行為未受本輪 CSS 裝飾影響，但仍需真機確認。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 精簡成封面入口，Scanning page 新增靜態遊玩說明 overlay。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-scan-ui-20260520-v2 -CameraFixture default`
+
+### 預期行為
+首頁應只保留入口氛圍、短文案、權限按鈕與開始按鈕，降低閱讀負擔；掃描頁應在相機畫面上顯示簡短遊玩說明，但不能遮住快門或主要操作區。Start -> Scanning -> Result 流程與權限狀態不應因 UI 調整而損壞。
+
+### 實際觀察
+直式首頁 `390x844`：標題、細分隔線與一句文案形成較乾淨的標本手冊封面感，下半部權限區與開始按鈕保持清楚；畫面中段留白變成有意識的紙面呼吸，而不是長文擠壓。直式掃描頁：`.scanning-guide` 位於上方，三行提示可讀，沒有壓到快門、色彩按鈕或右下角提示圖。橫式掃描頁第一版 overlay 稍重，後續縮窄到 `width: min(292px, 38vw)` 並降低 padding；第二輪截圖顯示它避開中央快門與右側提示圖，但仍略吃左上視覺空間。
+
+### 截圖
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-scanning.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是首頁現在更像一張安靜的自然調查封面，標題、短文案、植物四角與紙質背景有明確主次；使用者不必在開始前讀完整玩法。掃描頁提示在相機情境中出現更合理，資訊與行動時機一致。弱點是 fake camera 的亮綠背景讓掃描 overlay 對比偏硬，橫式高度很低時 overlay 仍略有存在感；目前選擇先停在可讀與不遮擋的平衡，等待使用者判斷是否要更輕或改成可收合 / 幾秒後淡出。
+
+### 使用者審美回饋
+使用者提議「文字部分要改成進入掃描頁面才顯示遊玩說明、精簡首頁內容」，並在 Codex 建議首頁只留入口與權限、掃描頁顯示說明後回覆「好」。尚未收到使用者對本輪截圖的分數或修正意見。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機直式確認首頁留白、標題與權限區在瀏覽器工具列下仍平衡
+- [ ] 真機直式確認掃描說明不遮住實際相機中重要觀察區
+- [ ] 真機橫式確認 `.scanning-guide` 不妨礙左下色彩 swatch 與中央快門
+- [ ] iOS / Android 實測相機與 DeviceOrientation 權限後，確認「開始探索」狀態文案與 disabled / ready 視覺清楚
+- [ ] 若使用者覺得掃描提示太重，下一步可改為首次進入幾秒後淡出或縮成一行提示
+
+### 備註 / 風險
+本輪只做靜態版面，沒有新增動畫。CDP fake camera 可驗證 UI 流程與基本遮擋，但不能代表真機相機背景、戶外亮度、瀏覽器 safe area 或 AR 疊合手感。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page 權限操作改為 checkbox checklist 視覺。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId permission-checklist-20260520 -CameraFixture default`
+
+### 預期行為
+首頁的相機與陀螺儀權限操作應呈現為勾選框加文字的 checklist；玩家點擊方框或文字區域時，仍應觸發原本的瀏覽器權限請求。兩項權限 granted 後，開始按鈕應啟用並進入 Scanning page。
+
+### 實際觀察
+直式首頁：兩個權限項目改為縱向 checklist，左側方框與右側文字清楚，整體比原本兩顆並排矩形按鈕更像調查前檢查項。橫式首頁：checklist 位於右側欄位，文字未溢出，也沒有壓到開始按鈕。CDP 流程能依原本座標點擊 `camera-permission-action` 與 `motion-permission-action`，兩項權限皆變為 granted，並成功進入 Scanning / Result。
+
+### 截圖
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-landscape-844x390-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-scanning.png`
+
+### 審美評分與評語
+Codex 自評：`8.3/10`。優點是權限區更符合「野外調查前確認裝備」的語意，與舊紙背景和封面式首頁更一致；保留細邊線與透明紙面底色，沒有把 granted 狀態做成整顆綠色按鈕。弱點是 checkbox 框線偏細，在某些真機亮度下可能略淡；目前先保留克制感，避免變成制式表單。
+
+### 使用者審美回饋
+使用者要求把要求權限的兩個按鈕視覺改成 checkbox，也就是有勾選框，旁邊是文字，點擊勾選框或文字後仍像之前一樣跳出權限詢問視窗。使用者同意保留 button 行為、改成 checklist 外觀的方案。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機確認點擊 checkbox 方框與文字都能觸發系統權限彈窗
+- [ ] iOS 確認 DeviceOrientation 權限流程仍需要使用者手勢且未被 disabled 狀態影響
+- [ ] 戶外或高亮度螢幕確認 checkbox 方框線條夠清楚
+- [ ] 若使用者覺得勾選框太淡，可提高 `.permission-checkbox` 的 border alpha 或加粗到 `2px`
+
+### 備註 / 風險
+本輪只改視覺與 DOM 內部結構，仍保留 `button` 觸發權限請求，沒有改成真正的 checkbox input。這是因為系統權限狀態不應被誤解為一般表單勾選，且瀏覽器權限請求需要保留明確使用者手勢。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Scanning page 指南改為首次進入自動跳出的置中 modal，並新增可重新開啟的指南按鈕。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId scanning-guide-modal-20260520-v2 -CameraFixture default`
+
+### 預期行為
+第一次進入 Scanning page 時，掃描指南應出現在畫面中心，並用右上角 `×` 關閉。關閉後掃描頁應顯示小型指南按鈕，玩家點擊後可重新打開指南；再次關閉後快門應能正常拍攝並進入 Result page。
+
+### 實際觀察
+直式 `390x844`：首次進入掃描頁時，指南 modal 出現在畫面中心偏中上，背景暗化，右上角 `×` 清楚可見；關閉後右上角出現 `?` 指南按鈕，沒有遮住快門、色彩 swatch 或右下提示圖。點擊 `?` 後 `scanning-reopened` 截圖確認指南可重新打開。橫式 `844x390`：modal 保持置中且不超出畫面，雖然覆蓋中央快門，但這符合指南開啟時暫停操作的預期；關閉後 `?` 在右上角，不擋主要操作區。
+
+### 截圖
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-closed.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-reopened.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning-closed.png`
+
+### 審美評分與評語
+Codex 自評：`8.1/10`。優點是指南不再永久壓住掃描畫面，第一次進入時又能確實被看見；右上角 `×` 符合使用者指定，也很直覺。關閉後的 `?` 按鈕很小，掃描畫面恢復乾淨。弱點是 modal 在 fake camera 的高飽和綠背景上仍偏深、偏功能性，和首頁紙質標本感的關聯稍弱；若後續要更精緻，可加入更紙感的邊框或半透明紙色面板，但目前先保留相機畫面上的可讀性。
+
+### 使用者審美回饋
+使用者要求掃描指南改成第一次進入掃描頁時跳到畫面中心，並有關閉按鈕；掃描頁也要新增指南按鈕，讓指南關閉後仍可重新打開。使用者進一步指定關閉按鈕使用右上角 `×`。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。Portrait 流程完成 Share / Save / Back，下載 `FlutterLens-result.png` 成功。
+
+### 手機檢查清單
+- [ ] 真機確認第一次進入 Scanning 時指南會自動開啟
+- [ ] 真機確認右上角 `×` 在瀏海 / safe area 附近仍容易點擊
+- [ ] 真機確認關閉後右上角 `?` 不被瀏覽器 UI 或系統手勢區影響
+- [ ] 真機確認點 `?` 重新打開後，再點 `×` 關閉，快門仍正常
+- [ ] 若使用者覺得 modal 太暗，可降低 `.scanning-guide-backdrop` alpha 或改為較紙色的面板
+
+### 備註 / 風險
+本輪新增互動狀態，CDP 已驗證指南開啟、關閉、重新開啟與拍攝流程，但仍需真機確認觸控 hit area、safe area 與相機實景下的可讀性。

@@ -4101,3 +4101,902 @@ CDP fake camera 不能代表真機 iOS / Android 權限彈窗。真機仍需確�
 
 #### 建議的下一步
 繼續用目前分離式權限流程做真機測試；若其他裝置重現 `NotAllowedError`，先檢查該 domain 的網站相機權限是否被封鎖。
+
+---
+
+### 2026-05-20 — Start page 初始 loader
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+為 Start page 加入最簡單、無文字的初始 loader 小動畫，用來遮住 DOM UI 第一次定位完成前可能出現的左上角堆疊閃爍。
+
+#### 使用者需求
+使用者詢問初始閃爍是否可用開始前的載入動畫解決，並指定「先加入一個最簡單的 loader 小動畫，且不需要文字」。
+
+#### 實作前理解
+目前 Start page 已是 DOM UI 顯示，但位置與字級仍由 p5 的 Start page layout 計算後同步。`initDomUi()` 會先讓 Start page active，若 `syncStartPageDom()` 尚未寫入 `left/top/font-size`，DOM 元素可能短暫以預設絕對定位堆在左上角。loader 應使用純 HTML/CSS，避免依賴 p5 才能遮住 first paint。
+
+#### 實作方案
+在 `index.html` 新增 `#boot-loader` 與 `.boot-loader-spinner`，在 `style.css` 以 fixed 黑底遮罩與 CSS 旋轉動畫呈現。`Pages/DomUi.js` 在 `syncStartPageDom()` 完成第一次 Start DOM 定位後呼叫 `markBootLayoutReady()`，替 `body` 加上 `app-ready`，讓 loader 淡出。初次 headless 截圖發現只等 p5 `draw()` 仍可能太晚，因此在 `sketch.js` 的 `setup()` 前段、資源載入等待前，先呼叫 `drawStartPage()` 完成第一次 DOM layout。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/ScanningPage/ScanningPageSettings.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定 loader 不放文字，只用黑底與小型單線 spinner，避免增加語意與版面噪音。loader 消失條件不設成固定時間，而是綁定「Start DOM 已完成第一次 layout」，讓它真正遮住造成閃爍的初始化空窗。
+
+#### 遇到的問題
+第一次 Chrome headless 截圖沒有產出圖片，改用絕對路徑後成功。第一次成功截圖顯示 loader 仍停留，代表 `drawStartPage()` 的同步時機被後續 p5 / 資源初始化拖住。in-app browser 嘗試開啟 `127.0.0.1` 時被 client 阻擋，無法用該方式收 console。
+
+#### 嘗試過的解法
+先在 `syncStartPageDom()` 後直接加 `app-ready`，截圖確認 loader 可顯示但未淡出。接著把第一次 Start layout 提前到 `setup()` 的 `initStartButtonLayout()` 後、`preloadScanningPage()` 前，讓 DOM 先取得正確位置，再等待掃描圖示與 brush 資源。
+
+#### 最終解法
+Start page 開啟時會先顯示黑底小 spinner；`setup()` 建立 canvas 與 DOM UI 後立即計算 Start page layout，`syncStartPageDom()` 寫入定位並加上 `body.app-ready`，CSS 讓 loader 以 280ms 淡出。後續 `draw()` 仍會照原本流程持續同步 Start page layout。
+
+#### 視覺驗證紀錄
+- 截圖一：`docs/boot-loader-check-2026-05-20.png`，觀察到 loader 可覆蓋畫面但尚未淡出。
+- 截圖二：`docs/boot-loader-check-2026-05-20-v2.png`，觀察到 loader 已淡出，Start page 標題、說明、權限按鈕與等待權限按鈕位於正常位置，沒有左上角堆疊。
+- 測試環境：Local Python static server、Google Chrome headless、viewport `390x844`。
+- in-app browser：開啟 local URL 時回報 client 阻擋，因此未用它收 console。
+
+#### Codex 審美自評
+`8/10`。loader 很簡單、乾淨，不會把 Start page 變成另一個設計主題；黑底與細線 spinner 和現有黑色開場一致。弱點是目前沒有獨特的 FlutterLens / 昆蟲語彙，但使用者指定要最簡單且無文字，本輪不做品牌化是合理取捨。
+
+#### 使用者審美回饋
+使用者指定 loader 要「最簡單」且「不需要文字」，未提供審美分數。
+
+#### 尚未解決的風險
+真機仍需確認 loader 在實際網路、字型載入與手機 GPU 上不會停留過久，且不影響相機與陀螺儀權限按鈕。若未來 p5 主程式發生 fatal error，loader 可能仍停留，後續可考慮加入錯誤 fallback 畫面，但本輪先不增加複雜度。
+
+#### 使用者回饋或修正
+等待使用者在真機或本機瀏覽器重新整理後觀察是否還會看到文字擠在左上角。
+
+#### 建議的下一步
+使用者可在手機上重新整理頁面，觀察開場是否只看到短暫 spinner 或直接進入正常 Start page；若覺得 spinner 太小、太久或太平淡，可再調整 `style.css` 的 `#boot-loader`、`.boot-loader-spinner` 與 `body.app-ready #boot-loader`。
+
+---
+
+### 2026-05-20 — Loader 最短顯示時間
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+依使用者補充，讓 Start page loader 不只遮住初始化閃爍，也作為體驗的一部分：即使資源很快 ready，仍至少停留一小段時間。
+
+#### 使用者需求
+使用者指出未來 loader 可能真的要等待某些資源載入，但也希望即使資源一下就完成，loader 仍至少跑一小段時間，作為體驗的準備。
+
+#### 實作前理解
+loader 需要同時承擔兩個角色：一是等待實際資源或 layout ready，二是建立開場節奏。若用 JS `setTimeout` 控制最短時間，會讓 ready 邏輯與時間控制混在一起；較單純的做法是 JS 只標記 layout ready，最短停留交給 CSS transition delay。
+
+#### 實作方案
+先嘗試在 `Pages/DomUi.js` 用 `BOOT_LOADER_MIN_MS = 650` 與 `setTimeout()` 延後加 `app-ready`。headless virtual-time 截圖顯示此方式在測試環境中可能卡住 loader，因此改回讓 `markBootLayoutReady()` 立即加上 `body.app-ready`，並在 `style.css` 將 `#boot-loader` 的 transition 改為 `opacity 280ms ease 650ms`。這樣 ready 訊號仍由 layout 完成控制，最短停留時間則由 CSS 控制。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不把最短顯示時間寫成 JS timer，而用 CSS transition delay。這讓後續若要等待更多資源時，只需要延後 `app-ready` 的加入；loader 的體驗節奏仍維持在 CSS。
+
+#### 遇到的問題
+Chrome headless `--screenshot --virtual-time-budget` 對 CSS transition delay 的取樣不可靠，會在 `body.app-ready` 已存在、Start title 已定位的情況下仍截到 loader。嘗試 `--timeout` 截圖則產生空白頁。既有 CDP 腳本可啟動流程，但在截圖 base64 回應上碰到舊的字串解析限制，summary 將 screenshot response 記成 `Unterminated string passed in`。
+
+#### 嘗試過的解法
+嘗試過 JS timer 版、CSS transition delay 版、Chrome headless virtual-time 截圖、Chrome headless timeout 截圖、既有 CDP 視覺測試腳本。最後保留 CSS transition delay 版，因其邏輯最單純且與未來資源 ready flag 相容。
+
+#### 最終解法
+`markBootLayoutReady()` 仍在第一次 `syncStartPageDom()` 後加上 `body.app-ready`。`style.css` 中 `#boot-loader` 使用 `transition: opacity 280ms ease 650ms`，因此 ready 後會等 650ms 才開始淡出，再用 280ms 完成透明化。
+
+#### 視覺驗證紀錄
+`--dump-dom` 確認 headless 中 `body class="app-ready"` 已出現，Start title 也有正確 inline layout。先前 `docs/boot-loader-check-2026-05-20-v2.png` 已確認 Start page 定位正常且無左上角堆疊。本輪未取得可靠的 CSS delay 完成後截圖，因 headless 截圖方式對 transition delay 不穩；真機或一般瀏覽器仍需目視確認節奏。
+
+#### Codex 審美自評
+`8/10`。650ms 讓 loader 有短暫呼吸感，像是在準備觀測，而不是一閃而過的技術遮罩；仍保持無文字、低干擾。若未來想更有 FlutterLens 風格，可把 spinner 改成更像鏡頭校準或昆蟲軌跡的動態，但本輪保持簡單。
+
+#### 使用者審美回饋
+使用者補充 loader 應該是體驗的一環，即使資源快速完成，也希望至少跑一小段時間。
+
+#### 尚未解決的風險
+真機仍需確認 650ms 加 280ms 淡出是否剛好；如果覺得拖，可以降低 delay；如果覺得準備感不足，可以提高 delay。若未來 loader 要等待更多真實資源，需整理 ready flag，而不是只依賴 Start DOM layout ready。
+
+#### 使用者回饋或修正
+等待使用者在真機或一般瀏覽器目視確認 loader 節奏。
+
+#### 建議的下一步
+使用者重新整理頁面，觀察 loader 是否有短暫準備感且不拖。可優先微調 `style.css` 的 `#boot-loader transition` 第四個時間值 `650ms`：調大會停留更久，調小會更快淡出。
+
+---
+
+### 2026-05-20 — Start page layout ownership 轉交 HTML / CSS
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將 Start page UI 的位置、尺寸與 responsive 排版職責從 p5 計算轉交給 HTML / CSS，讓 p5 不再控制 start page 元素座標。
+
+#### 使用者需求
+使用者指出目前 Start page UI 的位置計算都由 p5 控制，希望將這份職責交給 HTML / CSS。使用者先要求先規劃，閱讀現況與提出方案後同意實作。
+
+#### 實作前理解
+專案已經有 DOM app shell 與 hybrid UI 架構，但 Start page 仍由 `Pages/StartPage/StartPage.js` 依 p5 `width` / `height` 計算 title、intro、hint、權限按鈕、status 與 start button 的座標、尺寸、字級，再由 `Pages/DomUi.js` 寫成 inline style。`sketch.js` 的 START 互動也仍依賴 `StartButton.ButtonX` / `ButtonY` / `ButtonWidth` 做 p5 hit-test。這代表 DOM 已經存在，但 layout ownership 還沒有真正交給 CSS。
+
+#### 實作方案
+把 Start page layout 移到 `style.css`：portrait / compact 以 flex 排版，矮 landscape 以 media query + grid 排成左文案、右操作區。`Pages/StartPage/StartPage.js` 改成只同步目前 intro 與 hint 文案，並標記 compact 狀態。`Pages/DomUi.js` 移除 Start page 的 `left/top/width/height/font-size` inline style 寫入，只保留文字與權限狀態同步。`sketch.js` 移除 START 狀態的 p5 button hit-test，讓 Start page 的點擊完全由 DOM button 處理。最後移除已不再使用的 `Pages/StartPage/StartPageSettings.js` 與 `index.html` 中的載入。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`（移除）
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不新增框架，也不改 DOM 層級，只用既有 DOM 元素配合 CSS flex / grid / media query。Start page 的 compact 判斷仍由 `StartPage.js` 提供給文案切換與 class，但具體位置、間距、尺寸與字級都在 CSS。為避免未來誤用，移除 `StartPageSettings.js` 這個舊 p5 layout state 檔。
+
+#### 遇到的問題
+Windows sandbox 對一般 PowerShell 讀取命令回報 `CreateProcessAsUserW failed: 5`，因此依照環境規範改用 escalated shell 讀檔與執行 CDP 視覺測試。視覺測試仍出現每個 viewport 一筆既有 `404 File not found` resource event，但沒有新增 JS exception。
+
+#### 嘗試過的解法
+先用 `rg` 尋找 `StartButton`、`positionTextStyle`、`positionPermissionButton`、`ButtonX`、`ButtonY` 等舊 layout 依賴；移除後再次搜尋，確認除了已刪除檔案外不再有 Start page p5 layout 關鍵字。接著跑既有 CDP 腳本，以 portrait、compact、landscape 三種 viewport 操作完整 Start -> Scanning -> Result 流程。
+
+#### 最終解法
+`style.css` 現在是 Start page layout owner：`.dom-page-start`、`#start-intro`、`.permission-actions`、`.permission-button`、`#start-permission-hint`、`#start-permission-status`、`#start-action` 與 landscape media query 決定所有位置與尺寸。`Pages/StartPage/StartPage.js` 只回傳 `introText`、`hintText` 與 compact flag。`Pages/DomUi.js` 只同步文字、權限按鈕 class、disabled state 與 loader ready。`sketch.js` 不再用 p5 判斷 Start page button hit-test。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-css-layout-2026-05-20`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，相機與陀螺儀權限狀態皆為 `granted`。檢視截圖：
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-landscape-844x390-start.png`
+
+portrait 與 compact 版面置中穩定，沒有文字或按鈕互蓋；landscape 版面左文案、右操作區可讀，按鈕沒有重疊。CDP console 只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`7.6/10`。優點是版面責任變乾淨，CSS 排版後 portrait / compact 仍維持安靜、穩定、清楚的 Start page；landscape 的左右分區也比 inline style 更容易維護。弱點是視覺語彙仍偏標準黑底文字與圓角按鈕，尚未把 FlutterLens / 昆蟲調查的個性推得更強；本輪因目標是 ownership 轉移，沒有做額外風格擴張。
+
+#### 使用者審美回饋
+本輪使用者同意實作方案，尚未提供新截圖分數或審美修正。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機測試。仍需在真機確認 portrait / landscape 觸控、相機權限、DeviceOrientation 權限、GitHub Pages HTTPS 與 loader 淡出體感。若後續調 Start page 視覺，需避免把座標計算加回 p5。
+
+#### 使用者回饋或修正
+等待使用者確認 CSS-controlled Start page 的視覺落點是否符合預期，尤其是 landscape 右側操作區順序與間距。
+
+#### 建議的下一步
+真機測試 Start page：重新整理、允許相機、允許陀螺儀、按開始探索，確認觸控流程與 GitHub Pages HTTPS 權限表現。若要微調版面，優先改 `style.css`；portrait 主要看 `.dom-page-start` 的 `padding`、`#start-intro margin-top`、`.permission-actions margin-top`、`#start-action margin-top`，landscape 主要看 media query 內的 `grid-template-columns`、`column-gap`、`.permission-actions margin-top` 與 `#start-action` 尺寸。
+
+---
+
+### 2026-05-20 — Start page 開始按鈕後 fadeout 轉場
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+新增 Start -> Scanning 的第一段轉場：使用者按下「開始探索」後，Start page 的文字與按鈕先逐漸淡出，再切換到 Scanning page。
+
+#### 使用者需求
+使用者想開始分段處理轉場效果，第一段先做按下「開始探索」按鈕後，開始頁面的文字與按鈕逐漸淡化 fadeout。
+
+#### 實作前理解
+目前 Start page 按鈕已由 DOM 控制，權限齊全後 `sketch.js` 的 `requestStartPermissions()` 會立刻把 `currentPagesState` 改成 `PagesState.SCANNING`，`syncDomUiState()` 隨即讓 Start page 失去 `.is-active`。如果只加 CSS transition，Start page 會立刻被切掉，看不到 fadeout。因此需要一個短暫的 exiting 狀態，讓 Start page 在仍為 active 時先淡出，timeout 完成後再切換 state。
+
+#### 實作方案
+在 `style.css` 新增 Start page 子元素的 `opacity 420ms ease` transition，並用 `.dom-page-start.is-exiting` 讓標題、intro、hint、status、權限按鈕群與開始按鈕淡到 0。在 `Pages/DomUi.js` 新增 `START_PAGE_FADE_OUT_MS`、`startPageFadeOutPending` 與 `beginStartPageFadeOut(onComplete)`，負責加上 `.is-exiting`、暫停 Start page pointer events、停用開始按鈕，並在 timeout 後執行切頁 callback。在 `sketch.js` 的 `requestStartPermissions()` 中，權限齊全後先呼叫 `beginStartPageFadeOut()`，若 DOM helper 不存在則保留直接切到 Scanning 的 fallback。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `sketch.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `sketch.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪只做 Start page 內容 fadeout，不加入位移、blur、縮放或 Scanning fadein，避免一次引入太多 motion。選擇 420ms 作為第一版時間：比瞬間切頁有明顯感覺，但不至於讓使用者覺得等待。為了避免 `draw()` 每 frame 的 `syncDomUiState()` 清掉 `.is-exiting`，`setDomPageActive()` 會在 `startPageFadeOutPending` 時保留 Start page exit class；`syncStartPermissionDom()` 也會在 pending 時保持開始按鈕 disabled，避免淡出期間重新啟用。
+
+#### 遇到的問題
+初步接上 `is-exiting` 後發現 `draw()` 會反覆同步 DOM state，若不處理，Start page 仍處於 `PagesState.START` 時會被 `setDomPageActive()` 立刻移除 `is-exiting`。因此補上 `keepStartExitState` 判斷。另外，權限狀態同步也可能在 fadeout 期間把開始按鈕重新啟用，因此 disabled 條件加入 `startPageFadeOutPending`。
+
+#### 嘗試過的解法
+先用 CSS class 控制 opacity，再檢查 `beginStartPageFadeOut`、`goToScanning` 與 pending state 的呼叫位置。接著跑 CDP 視覺測試確認完整流程沒有因 420ms delay 卡住。
+
+#### 最終解法
+`style.css` 中 `.dom-page-start.is-exiting` 控制 Start page 子元素 opacity fadeout。`Pages/DomUi.js` 的 `beginStartPageFadeOut()` 管理 exit class、pointer events、button disabled 與 timeout。`sketch.js` 的 `requestStartPermissions()` 在權限齊全時先淡出，再進入 `PagesState.SCANNING`。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-fadeout-2026-05-20`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，相機與陀螺儀權限狀態皆為 `granted`。檢視 `portrait-390x844` 的 Start 與 Scanning 截圖，確認起點版面正常、終點掃描畫面正常。CDP console 只有既有 404 resource event 與相機權限 log，未見新的 JS exception。既有 CDP 截圖未捕捉 420ms 中間幀，因此 fadeout 的實際節奏仍需一般瀏覽器或真機目視確認。
+
+#### Codex 審美自評
+`7.8/10`。優點是動作克制，Start page 不再突然消失，按下開始後有柔和收尾，而且沒有破壞黑底極簡開場。弱點是目前只有 Start 內容淡出，Scanning page 仍是淡出結束後直接出現，後半段節奏還不完整；下一輪適合接 Scanning UI 或相機畫面的入場。
+
+#### 使用者審美回饋
+使用者要求先做「開始頁面的文字及按鈕逐漸淡化 fadeout」，尚未提供新截圖分數或節奏修正。
+
+#### 尚未解決的風險
+真機仍需確認 420ms 的手感、連點行為、相機權限後第一次進入 Scanning 是否順，以及 iOS / Android 上 CSS transition 與 camera startup 是否搭配自然。CDP fake camera 不能替代真機轉場體感。
+
+#### 使用者回饋或修正
+等待使用者試看淡出速度與感覺；若覺得太快，可提高 `START_PAGE_FADE_OUT_MS` 與 CSS transition duration；若覺得拖，可降低。
+
+#### 建議的下一步
+下一段可做 Scanning page 入場：例如 shutter / 角落框 / 掃描 UI 淡入，或在相機畫面出現前加一個很短的黑場 / aperture 感轉場。建議仍一次只做一層 motion。
+
+---
+
+### 2026-05-20 — Start page 淺色紙質背景與 UI 色彩調整
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將使用者放入 `assets/background/` 的紙質背景素材接到起始頁，並把原本偏黑底使用的白字、亮綠按鈕調整成適合淺色紙面的深墨色 / 深綠色系。
+
+#### 使用者需求
+使用者希望起始頁先直接放一張背景 PNG，不需要 CSS 做亮度與色調控制；圖片已放在 `assets/background/`，因為圖是淺色，所以可能需要修改原有 UI 顏色。實際檢查後資料夾內素材為 `assets/background/old-paper-texture.jpg`，不是 PNG，但可直接作為背景圖使用。
+
+#### 實作前理解
+Start page 的 DOM 版面目前主要由 `style.css` 控制，`Pages/StartPage/StartPage.js` 只同步文案與 compact 狀態。背景應加在 `.dom-page-start`，不要回到 p5 畫背景或新增 canvas 邏輯。由於素材是淺色紙質，原本白色文字、半透明白色權限按鈕與亮綠主按鈕會失去層次，因此需要改成深色文字、紙面邊線與較沉穩的綠色操作狀態。
+
+#### 實作方案
+在 `.dom-page-start` 加上 `background-image: url("assets/background/old-paper-texture.jpg")`、`background-position: center` 與 `background-size: cover`，不加入漸層、暗角、mix-blend 或亮度調整，保留素材原貌。將標題、說明、提示與狀態文字改成深墨褐色階；主按鈕改成深森林綠與米色文字；權限按鈕改成半透明紙色底、深色邊線，granted / denied / pending 各自使用較沉穩的狀態色。另同步調整 `Pages/DomUi.js` 中權限狀態文字的 inline color，避免它覆蓋 CSS 後仍停留在黑底版顏色。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `index.html`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `style.css`
+- `assets/background/old-paper-texture.jpg`
+
+#### 修改過的檔案
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+
+#### 決策紀錄
+本輪遵照使用者要求，只直接使用背景圖，不額外加 CSS 亮度、色調或暗角控制。由於目前素材檔是 JPG，先以現有檔名接入，不要求使用者改成 PNG。CDP 視覺測試第一次用 Chrome `--screenshot` 只截到 boot loader，因此改用既有 CDP 測試腳本，讓頁面完成初始化後再用 `Page.captureScreenshot` 取得正式截圖。
+
+#### 遇到的問題
+第一次 headless `--screenshot` 產生的是 loader-only 黑底截圖，無法用來判定起始頁視覺；該暫存截圖已刪除。第一版 disabled「等待權限」按鈕在紙質背景上太淡，像淡淡污漬而不是明確的 disabled control，因此做了一次小幅加深。
+
+#### 嘗試過的解法
+先修改 CSS 背景與色彩，跑一次 CDP 視覺測試後檢視 portrait / compact / landscape 起始頁截圖。發現 disabled 主按鈕權重不足後，將 disabled 主按鈕的文字 alpha 與背景 alpha 調高，再重跑 `start-paper-bg-20260520-v2` 驗證。
+
+#### 最終解法
+起始頁現在直接鋪滿 `assets/background/old-paper-texture.jpg`，文字使用深墨褐色，權限按鈕使用半透明紙色底與深色邊線，主按鈕使用深綠色系；狀態文字在 CSS 與 `DomUi.js` inline color 中都改為適合淺色背景的深色值。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-paper-bg-20260520-v2 -ServerPort 8782 -DebugPortBase 9350`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 測試也完成 Share / Save / Back，下載 `FlutterLens-result.png`。主要檢視截圖為 `docs/cdp-runs/start-paper-bg-20260520-v2/screenshots/start-paper-bg-20260520-v2-default-portrait-390x844-start.png`、compact 與 landscape 起始頁截圖。觀察結果：紙質背景清楚可見，portrait / compact 文字層級可讀，權限按鈕與 disabled start button 不重疊；landscape 版面也可讀，但右側操作區仍偏緊，需要真機橫向再看觸控體感。Console 仍只有既有的 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.0/10`。優點是紙質背景立刻把起始頁從黑底工具感推向「調查紀錄 / 標本紙」氛圍，深墨文字與深綠按鈕比原本亮綠白字更貼合淺色材質，畫面也沒有因額外濾鏡變髒。弱點是目前仍只是背景材質 + 色彩適配，還沒有更具識別度的昆蟲調查視覺細節；disabled 主按鈕雖已加深，但在非常亮的紙紋區域仍偏柔。已做一次可辨識的小調整，暫停等待使用者對紙質氛圍與按鈕重量的回饋。
+
+#### 使用者審美回饋
+使用者目前要求「先放 png 就好，不需要 CSS 做亮度與色調控制」，並指出圖片是淺色，可能需要修改原有 UI 顏色；尚未提供本輪截圖分數或進一步審美修正。
+
+#### 尚未解決的風險
+CDP fake camera 與桌面 headless 不能取代真機確認。背景圖檔案約 5.86 MB，對 GitHub Pages 與手機載入速度可能偏重，後續若覺得首屏慢，應考慮壓縮或輸出手機尺寸版本。素材目前是 JPG 而不是使用者口中的 PNG；若使用者稍後替換成 PNG，需同步更新 `style.css` 路徑。真機仍需確認 iOS / Android 權限流程、觸控、loader 淡出後紙紋出現的節奏，以及 landscape 右側操作區是否太擠。
+
+#### 使用者回饋或修正
+等待使用者看 `start-paper-bg-20260520-v2` 截圖或本機頁面後，回饋紙質背景裁切、文字深淺、權限按鈕與 disabled 主按鈕是否符合預期。
+
+#### 建議的下一步
+請使用者先評估起始頁的整體氛圍：是否要更像標本紙、舊書頁、調查表，或保持現在的乾淨紙紋。若要微調，優先改 `style.css`：`.dom-page-start` 的 `background-position` 可改變紙紋裁切焦點；`.dom-page-start h1`、`#start-intro`、`#start-permission-hint`、`#start-permission-status` 的 `color` 可控制文字深淺；`.ui-button-primary` 與 `.ui-button-primary:disabled` 的 `background` / `color` 可控制開始按鈕重量；`.permission-button` 與狀態 class 可控制權限按鈕的紙面感與狀態辨識度。
+
+---
+
+### 2026-05-20 — Loading 頁淺褐米色背景與淡出銜接
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將初始 loading overlay 從黑底改成淺褐米色，讓它淡出時更自然銜接到起始頁的紙質背景，並補上 start page 的米色 fallback，避免紙張大圖尚未載入時露出黑底。
+
+#### 使用者需求
+使用者希望 loading 頁面背景改成淺褐色或米白，然後才淡入淡出至起始頁面。
+
+#### 實作前理解
+目前 loading 由 `#boot-loader` 控制，`body.app-ready #boot-loader` 只做 opacity fadeout。起始頁已有紙質背景圖，但圖檔約 5.86 MB，若淡出時圖片還沒載完，透明的 Start page 可能露出全域黑底。因此除了改 loader 色彩，也需要替 `.dom-page-start` 補一個接近 loader 的 `background-color`，作為圖片載入前的底色。
+
+#### 實作方案
+在 `style.css` 將 `#boot-loader background` 改為 `#e9deca`，spinner 改成深褐灰低對比邊線，並把 loader transition 從 `opacity 280ms ease 650ms` 調成 `opacity 520ms ease 360ms`，讓淡出更柔但不拖太久。另在 `.dom-page-start` 加入 `background-color: #e9deca`，確保 loader 透明化時先接到米白底，再由紙質背景圖覆蓋。
+
+#### 檢視過的檔案
+- `style.css`
+- `Pages/DomUi.js`
+- `index.html`
+- `docs/agent-quickstart.md`
+
+#### 修改過的檔案
+- `style.css`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+- `docs/agent-quickstart.md`
+
+#### 決策紀錄
+本輪不新增 JS 轉場狀態，維持既有 `app-ready` 機制，只調整 CSS 色彩與 transition。第一次早期截圖顯示淡出期間仍可能露出黑底與暗色文字，判斷是紙張背景圖尚未載入時缺少 Start page fallback 底色，因此補上 `.dom-page-start background-color`。這比改 body 全域背景安全，因為掃描頁與結果頁仍可能需要黑色 / camera canvas 的底層環境。
+
+#### 遇到的問題
+第一次 `boot-loader-paper-2026-05-20.png` 截到黑底暗字，表示只改 loader 色彩還不夠，轉場中仍可能因背景圖尚未載入而露出全域黑底。該失敗測試截圖已刪除，保留修正後的 `boot-loader-paper-2026-05-20-v2.png`。
+
+#### 嘗試過的解法
+先改 loader 背景、spinner 與 transition，抓 early screenshot；看到黑底後補上 `.dom-page-start background-color`，再抓 v2 early screenshot，確認畫面變成米白底與深色 start UI，不再露黑。最後跑完整 CDP 視覺測試確認流程未被影響。
+
+#### 最終解法
+`#boot-loader` 使用淺褐米色背景與深褐灰 spinner，淡出時間為 520ms、延遲 360ms；`.dom-page-start` 有相同米色 fallback background-color，背景圖載入完成後仍以 `old-paper-texture.jpg` 覆蓋。
+
+#### 視覺驗證紀錄
+早期轉場截圖：`docs/boot-loader-paper-2026-05-20-v2.png`，確認在紙張圖片未完全呈現時，畫面也會落在米白底而不是黑底。完整流程測試執行 `.\scripts\run-cdp-visual-test.ps1 -RunId boot-paper-loader-20260520 -ServerPort 8783 -DebugPortBase 9360`；三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 也完成 Share / Save / Back。正式起始頁截圖 `docs/cdp-runs/boot-paper-loader-20260520/screenshots/boot-paper-loader-20260520-default-portrait-390x844-start.png` 仍顯示紙質背景與深色 UI。Console 只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.2/10`。優點是 loading 不再以黑場開頭，整個入口從米色 loading 到紙質 start page 的語氣更一致；spinner 對比足夠但不搶，像是紙面上的細小等待標記。弱點是目前仍只驗證到 early screenshot 與 final screenshot，淡出中間幀的時間感需要真機或一般瀏覽器目視；此外米色 fallback 比紙質背景乾淨，若圖片載入很慢，短暫畫面會比較像純色紙而不是舊紙。
+
+#### 使用者審美回饋
+使用者指定 loading 頁改為淺褐色或米白，並同意小範圍實作方案；尚未提供本輪截圖分數或速度修正。
+
+#### 尚未解決的風險
+CDP 與 headless 截圖不能完全代表真機淡入淡出手感。背景圖仍偏大，若手機網路慢，使用者可能看到米色 fallback 停留較久；這是比黑底更可接受的 fallback，但仍建議後續壓縮背景圖。
+
+#### 使用者回饋或修正
+等待使用者確認 loading 米色、spinner 深淺與淡出速度是否舒服；若覺得太慢或太快，可直接調 `#boot-loader transition`。
+
+#### 建議的下一步
+在一般瀏覽器或真機重新整理頁面，目視確認 loading 停留與淡出是否自然。可微調 `style.css`：`#boot-loader background` 越接近 `#efe7d6` 會更米白乾淨，越接近 `#e0d0b6` 會更舊紙；`#boot-loader transition` 第一個時間越長淡出越慢，delay 越長 loading 停留越久；`.boot-loader-spinner border-top-color` alpha 越高，spinner 越明顯。
+
+---
+
+### 2026-05-20 — Loading spinner 與背景分層淡出、建立動畫曲線變數
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將 boot loader 拆成容器、背景層與動畫層，讓 spinner 或未來 loading 動畫可以先消失，米色背景再慢慢淡出；同時在 CSS 建立可共用的 motion easing 變數，作為後續專案動畫速度曲線的基礎。
+
+#### 使用者需求
+使用者詢問 loader 的消失與背景淡出是否連動、能否分開設定；接著明確表示希望 spinner 或以後設定的動畫先消失，背景才淡出，也希望專案動畫可以用曲線控制速度，但不確定適合的實作方式。
+
+#### 實作前理解
+原本 `#boot-loader` 整層用 `opacity` 淡出，spinner、背景與整個 overlay 會同步消失，無法分別設定時序。適合的修正是保留 `#boot-loader` 作為 fixed overlay 容器，用 `#boot-loader::before` 承擔背景淡出，讓 `.boot-loader-spinner` 自己有獨立 opacity transition。速度曲線不需要引入 JS 或動畫函式庫，先用 CSS custom properties 即可，符合目前靜態 GitHub Pages 與輕量前端的需求。
+
+#### 實作方案
+在 `style.css` 新增 `:root` motion 變數：`--motion-soft-out: cubic-bezier(0.22, 1, 0.36, 1)` 與 `--motion-gentle-in-out: cubic-bezier(0.45, 0, 0.18, 1)`。將 `#boot-loader` 改成透明容器，不再自己控制 opacity；新增 `#boot-loader::before` 作為 `#e9deca` 背景層，使用 `opacity 4000ms var(--motion-soft-out) 360ms` 淡出；`.boot-loader-spinner` 加上 `opacity 220ms var(--motion-soft-out)`，在 `body.app-ready` 後先淡出。容器本身用 `visibility 0s linear 4360ms` 在背景淡出結束後隱藏，並立即關閉 pointer events。
+
+#### 檢視過的檔案
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇 CSS pseudo-element 而不是改 `index.html` 新增背景 div，因為目前只需要一個背景遮罩層，`::before` 可保持 DOM 結構乾淨。保留現有工作區中的 `4000ms` 背景淡出意圖，把它移到背景層；spinner 則用 220ms 快速淡出，符合「動畫先消失，背景才淡出」。不在 app-ready 時暫停 spinner animation，避免淡出一開始 spinner 突然停止造成僵硬感。
+
+#### 遇到的問題
+嘗試用 Chrome `--screenshot` 抓 early layered loader 截圖時連續沒有落檔，因此本輪無法取得可靠的中間幀截圖。改以 CSS 結構檢查與完整 CDP 流程驗證為主，並明確記錄中段手感仍需真機或一般瀏覽器目視。
+
+#### 嘗試過的解法
+先讀取 `style.css` 確認目前 loader transition 已被調成 `4000ms ease 360ms`，判斷應保留為背景淡出時長。套用分層 CSS 後，原本加過 `animation-play-state: paused`，但發現這會讓 spinner 在淡出一開始停住，因此移除，讓 spinner 維持旋轉並快速淡出。
+
+#### 最終解法
+`#boot-loader` 是透明 fixed 容器，`#boot-loader::before` 是米色背景層，`.boot-loader-spinner` 是獨立動畫層。`body.app-ready` 後，spinner 先以 220ms 淡出，背景再以 4000ms、360ms delay 慢慢淡出；motion easing 由 CSS 變數統一控制。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId boot-layered-loader-20260520 -ServerPort 8784 -DebugPortBase 9370`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 也完成 Share / Save / Back。正式起始頁截圖 `docs/cdp-runs/boot-layered-loader-20260520/screenshots/boot-layered-loader-20260520-default-portrait-390x844-start.png` 顯示紙質背景與 UI 正常。Console 仍只有既有 404 resource event 與相機權限 log，未見新的 JS exception。中間幀因 headless screenshot 未落檔，尚未以截圖確認。
+
+#### Codex 審美自評
+`8.1/10`。優點是轉場結構變得更有導演感：loading 動畫先退場，米色遮罩再慢慢揭開紙質起始頁，未來替換成更具主題性的 loading animation 也不需要重寫整層 loader。弱點是目前背景淡出 4 秒偏慢，可能很有儀式感，也可能在真機上顯得拖；需要使用者實際看過節奏後決定是否縮短。中間幀未截到，因此本輪自評偏保守。
+
+#### 使用者審美回饋
+使用者希望 spinner 或未來設定的動畫先消失，背景才淡出，並希望專案動畫能用曲線控制速度；已同意本輪分層與 CSS 曲線變數方案。尚未提供實際節奏分數。
+
+#### 尚未解決的風險
+CDP 可確認流程不壞，但不能替代真機目視淡出中段。`visibility` 目前在 4360ms 後隱藏，需和背景 transition 的 `4000ms + 360ms` 保持一致；若未來改背景 duration / delay，需同步調整 visibility delay，或改用 JS 在 transitionend 後處理。若 4 秒淡出太慢，可能讓使用者覺得 Start page 被米色遮罩蓋太久。
+
+#### 使用者回饋或修正
+等待使用者在一般瀏覽器或手機看過 loading 節奏後，回饋 spinner 淡出速度、背景淡出速度與曲線是否舒服。
+
+#### 建議的下一步
+真機或一般瀏覽器重新整理頁面，專門看 loading：spinner 是否太快消失、米色背景 4 秒淡出是否太慢。可調參數集中於 `style.css`：`.boot-loader-spinner transition` 的 `220ms` 控制動畫元素消失速度；`#boot-loader::before transition` 的 `4000ms` 控制背景淡出速度，`360ms` 控制背景開始淡出的延遲；`#boot-loader transition` 的 `4360ms` 應等於背景 duration + delay；`:root --motion-soft-out` 可調整整體淡出曲線。
+
+---
+
+### 2026-05-20 — 修正 Live Server 首屏白畫面與 loader 提早顯示
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+針對 Live Server 開啟時先出現全白頁面、之後才進入 loader 的問題，調整 HTML 載入順序與 critical loader CSS，讓瀏覽器第一個可見畫面就是米色底 / loader，而不是預設白底。
+
+#### 使用者需求
+使用者回報自己調整 loader 數字後，發現 Live Server 測試時網頁會先卡在全白頁面，然後才進入 loader，而且白畫面時似乎就開始計時；詢問這是否和素材載入有關，並認為 loader 應該是為了避免這種狀況。使用者同意嘗試修正。
+
+#### 實作前理解
+白畫面主要不是 `assets/background/old-paper-texture.jpg` 載入慢造成，而是 `index.html` 的 `<head>` 中有未加 `defer` 的 blocking scripts。瀏覽器解析到 `d3-delaunay`、p5 與 `p5.brush` 時會先載入 / 執行，尚未解析到 `<body>` 裡的 `#boot-loader`，因此畫面只能維持瀏覽器預設白底。loader 的計時也可能在使用者已看到白畫面後才開始，造成「白畫面算進等待感」的體感問題。
+
+#### 實作方案
+在 `index.html` 的 `<head>` 加入最小 critical CSS：`html, body` 米色背景、`#boot-loader` fixed overlay、`#boot-loader::before` 米色背景層、`.boot-loader-spinner` 基礎樣式與 keyframes。將 head 裡三個 library scripts 與 body 尾端所有專案 scripts 都加上 `defer`，保留文件順序但不阻塞 HTML 解析，讓 loader DOM 可以先被解析並繪製。另將 `style.css` 的 `html, body background` 從黑色改成 `#e9deca`，讓即使 loader 尚未建立，也不會露出白底或黑底。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇 `defer` 而不是把 scripts 全部移到 `<body>` 前段或改成 dynamic import，因為目前專案依賴傳統全域 script 順序，`defer` 能保留順序、減少結構改動，也讓 loader DOM 較早可見。保留使用者已自行調整的 loader transition 數字，不在本輪改回先前值；文件改以目前檔案實際值記錄。Critical CSS 只放最小 loader 樣式，完整動畫與 responsive UI 仍以 `style.css` 為主。
+
+#### 遇到的問題
+此類首屏白畫面很難只靠一般 CDP 完整流程判定，因為完整流程通常在頁面已 ready 後截圖。需另外用很短的 `--virtual-time-budget=500` 早期截圖確認 first paint 顏色。Chrome 命令輸出同時出現 `SHOT_MISSING` 與 `bytes written`，但實際檔案有成功產生，可用 `view_image` 檢視。
+
+#### 嘗試過的解法
+先將所有 scripts 加上 `defer` 並加入 inline critical CSS，再跑完整 CDP 測試確認 p5 global mode 沒被破壞。接著用 Chrome headless 早期截圖檢查首屏，確認畫面是米色 loader / spinner，而不是白畫面。
+
+#### 最終解法
+`index.html` 現在有 critical loader CSS，所有 scripts 使用 `defer`；`style.css` 的全域 body 背景改成 `#e9deca`。這讓 loader DOM 和米色底能在 scripts 執行前先建立，Live Server 的首屏等待不應再是白底。
+
+#### 視覺驗證紀錄
+完整 CDP 測試：`.\scripts\run-cdp-visual-test.ps1 -RunId defer-loader-firstpaint-20260520 -ServerPort 8785 -DebugPortBase 9380`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 完成 Share / Save / Back，表示 `defer` 未破壞 p5 初始化或互動流程。早期 first-paint 截圖：`docs/first-paint-loader-2026-05-20.png`，畫面為米色背景與淡淡 spinner，沒有白畫面。Console 仍只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.3/10`。優點是第一個可見畫面終於和 loading / 紙質入口語氣一致，不再有瀏覽器預設白底這種脫戲的空窗；米色 first paint 和後續米色 loader、紙質 start page 之間連續性較好。弱點是 inline critical CSS 會和 `style.css` 有少量重複，未來若改 loader 尺寸 / 顏色，需要注意同步，但這是換取更早 first paint 的合理成本。
+
+#### 使用者審美回饋
+使用者指出 Live Server 會先全白再進 loader，並認為 loader 應避免這種狀況；本輪尚未收到修正後的真機或 Live Server 目視回饋。
+
+#### 尚未解決的風險
+`defer` 已通過 CDP 流程，但仍需使用者在 Live Server 實際觀察是否完全消除白畫面。若 CDN 連線非常慢，米色底與 loader 可先出現，但 p5 初始化仍會等 CDN 回來；若要進一步降低等待，需考慮本地化 p5 或加載入錯誤 fallback。Inline critical CSS 與 `style.css` 的 loader 基礎樣式需維持一致。
+
+#### 使用者回饋或修正
+等待使用者用 Live Server 重新整理測試，確認是否還有白畫面，以及目前使用者調整過的長淡出節奏是否符合預期。
+
+#### 建議的下一步
+用 Live Server 做一次 hard refresh 或無痕頁測試，觀察第一個畫面是否為米色 loader。若仍有白畫面，下一步應檢查 Live Server 是否有外掛注入、瀏覽器快取、或 CDN script 之前是否還有其他阻塞資源；若只是等待 p5 CDN，建議評估把 p5 改回本地 `libraries/p5.min.js`。
+
+---
+
+### 2026-05-20 — Post-paint script bootstrap，讓 loader 先於 p5 compile 顯示
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+根據使用者提供的 Performance trace，確認白畫面延遲主因是 p5 CDN script compile / evaluate 在首次 paint 前佔住 main thread；本輪將重 scripts 從直接 `defer` 改為 post-paint dynamic loader，先讓 loader 畫出來，再載入 p5 與專案 scripts。
+
+#### 使用者需求
+使用者提供 DevTools trace，指出 LCP 的 render delay 約 1187ms，p5 compile / third-party main thread 成本很高；使用者也強調 p5 不要改成本地版本，因為版本不同，並認為 loader 本來就應該避免被 compile / evaluate p5 卡住。本輪使用者同意改成 loader 先 paint、再載入 CDN p5 的方案。
+
+#### 實作前理解
+前一輪 `defer` 能避免 script 阻塞 HTML parsing，但不能保證瀏覽器會先 paint loader；實際 trace 顯示 p5 compile / evaluate 仍可能在首次 paint 前發生，使 loader DOM 雖已存在，但主執行緒沒有機會把它畫到螢幕上。因此真正要修的是執行順序：critical loader CSS 與 DOM 先完成並至少 paint 一次，再開始載入重 scripts。使用者要求保留 CDN p5 版本，因此不可改成 `libraries/p5.min.js`。
+
+#### 實作方案
+移除 `index.html` 中所有直接 `defer` script tags，改用 body 底部的一段小型 bootstrap。Bootstrap 先設定 `bootScripts`，維持原本載入順序與 CDN p5 URL；接著用兩層 `requestAnimationFrame` 等待 first paint，再用 `loadScript()` 逐一 append classic scripts。全部載入後呼叫 `startP5IfNeeded()`：若 `window.p5` 存在且頁面尚無 canvas，才建立 `window.__flutterLensP5Instance = new window.p5()`，避免動態載入時 p5 global mode 因錯過 window load 而不自動啟動。另用 `window.__flutterLensBootStatus` 留下簡單狀態，方便日後除錯。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `index.html`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不改 p5 來源，保留 `https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js`。選擇動態 classic script loader 而不是 ES modules，因為專案目前大量依賴全域函式與 shared global lexical scope。選擇兩層 `requestAnimationFrame` 而不是單一 `setTimeout`，目標是讓瀏覽器至少有機會完成一個可見 paint，再開始重 script compile。保留 `style.css` 中使用者已調整的 loader timing：spinner `800ms`、背景 `4000ms` + `1200ms`、visibility `5200ms`。
+
+#### 遇到的問題
+p5 global mode 在動態載入時可能不會自動啟動，因為 p5 script 載入時 `setup()` 尚未定義，或 window load timing 已經過去。因此加入 `startP5IfNeeded()`，在所有 scripts 載完後檢查是否已有 canvas，沒有才手動 `new p5()`。早期 Chrome screenshot 期間出現一筆 Google API deprecated endpoint 訊息，屬 Chrome 背景服務噪音，截圖仍成功產生。
+
+#### 嘗試過的解法
+先用 dynamic script loader 保持原 script 順序，跑 CDP 驗證是否能進入 `START`、`SCANNING`、`RESULT`。確認 p5 能啟動後，再用 `--virtual-time-budget=500` 抓 first-frame screenshot，確認 p5 compile 前可見畫面是米色 loader，而不是白畫面。
+
+#### 最終解法
+`index.html` 現在先顯示 critical loader shell，再由 post-paint bootstrap 依序載入 `d3`、CDN p5、`p5.brush` 與所有專案 scripts。若 p5 沒有自動啟動，bootstrap 會在 scripts 載完後手動建立 p5 instance。這讓 p5 compile / evaluate 的等待發生在 loader 已經可見之後。
+
+#### 視覺驗證紀錄
+完整 CDP 測試：`.\scripts\run-cdp-visual-test.ps1 -RunId postpaint-script-boot-20260520 -ServerPort 8786 -DebugPortBase 9390`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 完成 Share / Save / Back，表示動態載入沒有破壞 p5、權限流程或結果頁。早期 first-frame 截圖：`docs/postpaint-loader-first-frame-2026-05-20.png`，畫面是米色 loader 與 spinner，沒有白畫面。正式 start screenshot：`docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-portrait-390x844-start.png`。Console 仍只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.5/10`。優點是 loader 的概念終於真的成立：p5 compile / evaluate 即使卡住，使用者看到的也應該是米色 loading，而不是瀏覽器預設白畫面；且保留使用者指定的 CDN p5 版本與既有轉場節奏。弱點是 index 內的 bootstrap 變長，未來可考慮抽成獨立 `scripts/boot-app.js`，但目前 inline 可以最早執行並維持首屏穩定。
+
+#### 使用者審美回饋
+使用者提供 trace 並指出 loader 應避免 p5 compile / evaluate 卡住的白畫面；同時明確要求 p5 不要改成本地版本。本輪尚未收到使用者在 Live Server 重新測試後的目視回饋。
+
+#### 尚未解決的風險
+動態載入已通過 CDP，但仍需 Live Server 與真機測試。若 CDN p5 載入失敗，現在只會 `console.error` 並讓 `window.__flutterLensBootStatus = "error"`，尚未有可見錯誤 UI；未來可加 loader error message。Bootstrap 目前 inline 在 `index.html`，可維護性不如外部檔，但最早可執行。若後續新增 scripts，必須同步更新 `bootScripts` 順序。
+
+#### 使用者回饋或修正
+等待使用者用 Live Server hard refresh 檢查白畫面是否消失，並觀察 p5 compile 期間 loader 是否保持可見。
+
+#### 建議的下一步
+使用 DevTools Performance 再錄一次 trace，對比 LCP 前的可見畫面是否已是 loader。若仍白，需檢查是否是 HTML response 前的空白、Live Server / browser extension 行為或外部 CSS blocking；若 loader 可見但等待時間長，下一步可考慮 loader 上顯示更明確的主題動畫或 loading 狀態，而不是繼續壓縮首屏。
+
+---
+
+### 2026-05-20 — Start page 四角外溢裝飾圖
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+把使用者放在 `assets/` 的四張 Start page 角落裝飾圖加入起始頁，並同時驗證直式與橫式手機 viewport 的構圖、可讀性與審美效果。
+
+#### 使用者需求
+使用者先詢問四角外溢裝飾圖的尺寸、留白與定位原則，接著表示已在 `assets/` 放入可放四角的圖片，並補充直式和橫式都要測試。
+
+#### 實作前理解
+起始頁已改為 DOM UI，`index.html` 的 `#start-page-ui` 承載標題、介紹文字、權限按鈕與開始按鈕，`style.css` 負責紙質背景與 responsive layout。四角裝飾屬於 UI frame，不應放進 p5 canvas；用 DOM `img` 與 CSS absolute positioning 可更穩定處理 viewport、safe area、淡出動畫與點擊穿透。
+
+#### 實作方案
+在 `index.html` 的 `#start-page-ui` 最前面加入四張 `img`，使用 `alt=""` 與 `aria-hidden="true"` 避免干擾輔助科技。於 `style.css` 新增 `--start-decor-main-size`、`--start-decor-secondary-size`、`--start-decor-opacity`，再用 `.start-corner-decor*` 分別控制四角尺寸、外溢與旋轉。裝飾圖 `z-index: 1`、文字與按鈕 `z-index: 2`，並設 `pointer-events: none`。橫式 compact layout 會縮小裝飾圖並降低透明度。另在驗證時發現窄直式介紹文字與按鈕有右側裁切 / 換行生硬風險，因此同步加上內容 `max-width`、較自然的 CJK 換行規則，並稍微降低 intro 手機字級。
+
+#### 檢視過的檔案
+- `AGENTS.md`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `assets/StartPageUpperLeft.png`
+- `assets/StartPageUpperRight.png`
+- `assets/StartPageBottomLeft.png`
+- `assets/StartPageBottomRight.png`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇 DOM image 而不是 p5 繪製，因為這些素材是起始頁 UI 裝飾而非 AR 場景元素。圖片以局部外溢方式使用，不完整展示，避免四角平均貼滿造成海報感過重。直式主角落尺寸較大、次角落稍小；橫式則縮小到 `clamp(96px, 20vw, 150px)` / `clamp(78px, 16vw, 122px)` 並將透明度降到 `0.82`，避免矮螢幕搶走文字。
+
+#### 遇到的問題
+第一次用 Chrome CLI `--screenshot --window-size=390,844` 只截到 loader。後來用臨時 fixture 截圖時，又發現 CLI screenshot 的 layout viewport 與輸出圖尺寸不一致，造成看似右側裁切的假象。最後改用 Chrome DevTools Protocol 的 `Emulation.setDeviceMetricsOverride` 設定真正 mobile viewport，才取得可信的直式與橫式截圖。
+
+#### 嘗試過的解法
+先用正式首頁截圖，但畫面停在 loader；接著用臨時 HTML fixture 驗證同一份 `style.css` 與四張圖片，確認大方向後清除臨時檔；最後啟動本機 server 與 Chrome remote debugging，透過 CDP 對正式首頁設定 `390x844` 與 `844x390` mobile viewport 並截圖。早期失敗或過時的截圖與 Chrome profile 暫存目錄已清理，只保留最終 CDP 截圖。
+
+#### 最終解法
+正式首頁現在載入四張角落 PNG，放在紙質背景之上、內容之下。CSS 以變數集中控制主 / 次裝飾尺寸與透明度，並針對橫式 compact layout 另設較小尺寸。Start page fadeout 也包含 `.start-corner-decor`，所以進入掃描前裝飾會與文字、按鈕一起淡出。窄直式文字與權限按鈕的寬度約束也同步加固。
+
+#### 視覺驗證紀錄
+以 Chrome headless + CDP mobile viewport 驗證正式首頁：
+- `docs/start-corners-portrait-cdp-2026-05-20.png`：`390x844` 直式
+- `docs/start-corners-landscape-cdp-2026-05-20.png`：`844x390` 橫式
+
+直式觀察：上方兩角與下方邊緣都有裝飾，形成植物標本紙框景；標題、介紹文字、權限按鈕、提示與開始按鈕均未被遮擋。橫式觀察：四角縮小後保持框景感，中央內容仍清楚。`git diff --check` 通過，僅出現 Windows 行尾警告。未做真機相機 / AR 驗證，因本輪只調整 Start page DOM / CSS。
+
+#### Codex 審美自評
+`8.1/10`。優點是裝飾圖和舊紙背景風格貼合，入口更像自然調查筆記或標本紙，不再只是乾淨紙背景；直式畫面上下都有植物氣息但仍保留核心文字空氣感，橫式也不會被四角素材壓住。弱點是直式下半部仍偏空，開始按鈕周圍稍微保守；目前選擇先保留可讀性與權限流程清楚，等待使用者對四角重量給回饋後再決定是否讓下方裝飾更靠內。
+
+#### 使用者審美回饋
+使用者提供四角圖片並明確要求直式與橫式都要測試；本輪尚未收到使用者對截圖的分數、喜好或修正意見。
+
+#### 尚未解決的風險
+四張 PNG 皆為 `440x440`，目前直接載入原圖，GitHub Pages / 手機網路首屏速度仍需觀察。CDP 截圖能驗證 viewport 構圖，但無法取代真機 safe area、瀏覽器工具列與實際觸控權限流程。Chrome CLI 截圖對 mobile viewport 不可靠，本輪應以 CDP 截圖為準。
+
+#### 使用者回饋或修正
+等待使用者檢視兩張截圖，確認四角裝飾是否太重、太淡、太靠外或太靠內，尤其是直式下方角落是否需要更明顯。
+
+#### 建議的下一步
+請使用者先看直式與橫式截圖的裝飾重量。若想更有沉浸感，可把 `style.css` 的 `--start-decor-main-size` 或 bottom corner translate 往畫面內調；若覺得太花，先降低 `--start-decor-opacity` 或縮小 secondary size。接著用真機開 GitHub Pages 或 Live Server，確認四角圖片不被瀏海、底部手勢區或瀏覽器工具列影響。
+
+---
+
+### 2026-05-20 — Start page 精簡與 Scanning 說明 overlay
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+把起始頁從「長篇說明頁」調整為「封面入口」，並把主要遊玩說明移到進入掃描頁後顯示的靜態 overlay。
+
+#### 使用者需求
+使用者要求運用前端設計專長修改起始頁排版與 UI，要有設計感，暫時不做動畫。討論後，使用者提出是否應該把文字說明改成進入掃描頁才顯示，並精簡首頁內容；Codex 建議首頁只保留入口氛圍與權限，掃描頁顯示簡短玩法，使用者回覆「好」。
+
+#### 實作前理解
+目前 Start page 已由 DOM / CSS 控制，背景是舊紙質感與四角植物裝飾。既有長 intro 雖能說明世界觀、操作方式與觀察角度，但會讓第一屏閱讀負擔過重，也削弱「標本紙封面」的入口氣氛。權限流程已拆成相機與陀螺儀兩顆按鈕，`Pages/DomUi.js` 負責同步狀態，因此本輪應避免改動權限邏輯。
+
+#### 實作方案
+在 `index.html` 的 Start page 加入小型 `#start-kicker`，讓首頁像自然調查手冊封面；將 `Pages/StartPage/StartPage.js` 的 intro 改為一句短文案：「以鏡頭採集環境色彩，尋找隱身其中的未知昆蟲。」於 `style.css` 調整標題分隔線、intro 間距、主按鈕質感與權限按鈕邊角，使首頁更像印在紙上的 UI。另在 `#scanning-page-ui` 加入 `.scanning-guide`，用三行靜態提示承接遊玩說明：移動鏡頭採集色彩、改變角度影響昆蟲、按快門捕捉畫面。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/StartPage/StartPage.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定首頁不再放完整遊玩說明，而是把文字責任拆成兩層：Start page 負責建立入口氣氛與完成必要權限；Scanning page 負責在使用者已進入相機情境後提供操作提示。掃描說明先做靜態 overlay，不加入淡出動畫，符合使用者「先設計版面就好」的要求。權限按鈕 ID、狀態 class 與 `DomUi` 同步邏輯不變。
+
+#### 遇到的問題
+第一輪橫式掃描截圖中 `.scanning-guide` 視覺重量偏大，雖未直接遮住快門，但在 `844x390` 的低高度畫面中吃掉較多左上空間。另需注意 CSS 規則避免引入非必要 letter-spacing；本輪新增標籤與說明標題皆維持 `letter-spacing: 0`。
+
+#### 嘗試過的解法
+先加入首頁 kicker、短 intro 與掃描頁三步驟 overlay，跑 `start-scan-ui-20260520` CDP 測試後檢視截圖。看見橫式 overlay 偏重後，將橫式寬度由 `min(318px, 43vw)` 調整為 `min(292px, 38vw)`，並降低 padding 與行距，再跑第二輪 `start-scan-ui-20260520-v2` 驗證。
+
+#### 最終解法
+首頁現在保留 `野外色彩採集`、主標題、一句入口文案、權限提示、兩顆權限按鈕、狀態文字與開始按鈕。原本長篇說明移出首頁，掃描頁上方新增 `.scanning-guide` 靜態 overlay，直式置中靠上，橫式靠左上並縮小。主按鈕加上內側高光與陰影，disabled 狀態保持低調；權限按鈕改成較像檢查項的 6px 圓角。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId start-scan-ui-20260520-v2 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-start.png`
+- `docs/cdp-runs/start-scan-ui-20260520-v2/screenshots/start-scan-ui-20260520-v2-default-landscape-844x390-scanning.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。
+
+#### Codex 審美自評
+`8.2/10`。首頁變得更像一張安靜的標本調查封面，四角植物、舊紙、標題與一句話之間的留白更有呼吸感；把說明移到掃描頁後，資訊出現的時機更合理。弱點是掃描頁 overlay 在 fake camera 的高飽和綠背景上對比偏硬，橫式仍略有存在感；目前為了可讀性先保留，下一步可依使用者回饋改成更薄、更透明、首次幾秒後淡出或可收合。
+
+#### 使用者審美回饋
+使用者提出首頁應精簡、遊玩說明可移到掃描頁顯示，並同意此方向。本輪尚未收到使用者對截圖的分數、偏好或修正意見。
+
+#### 尚未解決的風險
+CDP fake camera 可以驗證 DOM 排版、基本流程與遮擋，但不能取代真機相機背景、戶外亮度、iOS / Android 權限彈窗、safe area 與觸控手感。掃描 overlay 是否在真實環境中太重，仍需實機或使用者截圖判斷。
+
+#### 使用者回饋或修正
+等待使用者檢視首頁與掃描頁截圖，尤其是首頁是否太空、掃描說明是否太重或需要淡出。
+
+#### 建議的下一步
+請使用者用真機或 Live Server 檢查 Start -> 權限 -> Scanning 流程。若希望首頁更像封面，可微調 `style.css` 的 `#start-kicker`、`.dom-page-start h1::after`、`#start-intro` 間距；若覺得掃描說明太重，可調 `.scanning-guide` 的 `background` alpha、`width`、`padding`，或下一輪加入首次顯示後淡出。
+
+---
+
+### 2026-05-20 — 權限操作改為 checkbox checklist 視覺
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將 Start page 的相機與陀螺儀權限操作從矩形按鈕外觀改成 checkbox checklist 外觀，保留原本點擊後觸發瀏覽器權限請求的行為。
+
+#### 使用者需求
+使用者表示想把要求權限的兩個按鈕視覺呈現改成 checkbox，也就是會有勾選框，勾選框旁是文字；玩家點擊勾選框或文字後，仍要像之前一樣跳出詢問權限的視窗。Codex 建議保留 `button` 行為、改成 checklist 外觀，使用者回覆「好」。
+
+#### 實作前理解
+瀏覽器相機與 DeviceOrientation 權限請求需要清楚的使用者手勢；如果改成真正的 `input type="checkbox"`，容易讓使用者誤會只是頁面內勾選，也不能準確代表系統權限狀態。因此應保留 `button` 元素與原本 `DomUi` click handler，只改內部 DOM 與 CSS，讓它看起來像 checklist。
+
+#### 實作方案
+在 `index.html` 的 `camera-permission-action` 與 `motion-permission-action` 內加入 `.permission-checkbox` 與 `.permission-label`。在 `Pages/DomUi.js` 中讓 `syncPermissionButtonState()` 更新 `.permission-label`，並設定 `aria-pressed` 反映 granted 狀態；保留 pending / granted 時 disabled，避免重複觸發。於 `style.css` 將 `.permission-actions` 改為直向 checklist，`.permission-button` 改為兩欄 grid，左側繪製方形 checkbox，granted 時顯示勾勾，pending / denied 以低彩度紙面狀態呈現。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+保留 `button` 而非使用真正 checkbox input，因為點擊權限項目的主要行為是觸發系統權限請求，不是切換本地表單值。`button.disabled` 仍用於 pending / granted 狀態，但 `.permission-button:disabled { opacity: 1; }` 避免 granted checklist 被整體淡化成「不可用」的錯覺。視覺上不再把 granted 狀態整顆塗綠，而是只讓 checkbox 變綠並顯示勾勾，維持紙面檢查清單感。
+
+#### 遇到的問題
+原本 `syncPermissionButtonState()` 使用 `button.textContent` 更新文字，會清掉新增的 checkbox DOM 結構，因此改為優先更新 `.permission-label`。此外原本 `.ui-button:disabled` 會把停用按鈕 opacity 降到 `0.42`，對 checklist granted 狀態不合適，因此為 `.permission-button:disabled` 覆寫 opacity。
+
+#### 嘗試過的解法
+先調整 `index.html` DOM，再修改 `DomUi.js` 的 label 更新方式。CSS 第一版將 checklist 直向排列，跑 CDP 截圖確認直式與橫式都未擠壓；因 checkbox 框線在截圖中仍可辨識，沒有再加粗，避免變成制式表單感。
+
+#### 最終解法
+Start page 的權限區現在是兩個可點擊 checklist item：左側方形 checkbox、右側文字。idle 顯示「允許相機權限 / 允許陀螺儀權限」，pending 顯示「詢問中...」，granted 顯示「相機已允許 / 陀螺儀已允許」，denied / error 顯示「重新允許相機權限 / 重新允許陀螺儀權限」。點擊整個 item 仍觸發原本 `requestCameraPermission()` / `requestMotionPermission()`。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId permission-checklist-20260520 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-landscape-844x390-start.png`
+- `docs/cdp-runs/permission-checklist-20260520/screenshots/permission-checklist-20260520-default-portrait-390x844-scanning.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。`git diff --check` 通過，僅有 Windows 行尾警告。
+
+#### Codex 審美自評
+`8.3/10`。優點是權限區從 app 按鈕變成調查前 checklist，與封面式 Start page、紙質背景、植物標本語彙更一致；直式兩列排列讓資訊更安靜，橫式右側欄也保持可讀。弱點是 checkbox 框線偏細，在高亮度真機上可能需要再加粗；目前先保留克制的紙面質感。
+
+#### 使用者審美回饋
+使用者要求 checkbox + 文字的呈現，並要求點擊勾選框或文字仍觸發權限視窗；本輪尚未收到使用者對截圖的分數或修正意見。
+
+#### 尚未解決的風險
+CDP 能驗證按鈕點擊流程與 fake permission 狀態，但不能取代 iOS / Android 真機上的系統權限彈窗、DeviceOrientation 手勢限制與高亮度螢幕可讀性。特別是 iOS 陀螺儀權限仍需真機確認。
+
+#### 使用者回饋或修正
+等待使用者檢視新的 checklist 視覺，確認勾選框大小、線條粗細與文字是否符合期待。
+
+#### 建議的下一步
+用真機點擊 checkbox 方框與文字，確認兩者都能觸發權限視窗。如果勾選框太淡，可調 `style.css` 的 `.permission-checkbox border` 或尺寸；如果文字太像一般表單，可調 `.permission-button background` 與 `border-color`，讓它更接近紙面調查清單。
+
+---
+
+### 2026-05-20 — Scanning 指南改為首次置中 modal
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將掃描頁原本固定在上方的靜態指南改成第一次進入 Scanning page 時自動跳出的置中 modal，右上角使用 `×` 關閉，並在關閉後提供 `?` 指南按鈕讓玩家重新打開。
+
+#### 使用者需求
+使用者要求掃描指南視窗改成第一次進入掃描頁面時跳出至畫面中心，並有一個關閉按鈕；掃描頁面也需要新增指南按鈕，讓指南被關閉後玩家仍可透過按鈕重新打開。使用者接著指定關閉按鈕使用右上角 `×`。
+
+#### 實作前理解
+先前的 `.scanning-guide` 是固定在掃描畫面上方的靜態 overlay，`pointer-events: none`，因此不會阻擋快門，但會長時間佔據畫面。新需求需要把指南變成可開關互動元件，並且第一次進入 Scanning 自動顯示；這會影響 CDP 測試，因為測試腳本按快門前必須先關閉 modal。
+
+#### 實作方案
+在 `index.html` 的 `#scanning-page-ui` 中新增 `#scanning-guide-action` 小型 `?` 按鈕，並把指南包成 `#scanning-guide-panel`，內含 `.scanning-guide-backdrop`、`.scanning-guide` 與右上角 `#scanning-guide-close`。在 `Pages/DomUi.js` 新增 `hasSeenScanningGuide` 與 `scanningGuideOpen` 狀態，以及 `openScanningGuide()`、`closeScanningGuide()`、`syncScanningGuideDom()`。`syncDomUiState()` 會偵測從非 Scanning 進入 Scanning，若尚未看過指南就自動開啟；離開掃描頁時會關閉。`style.css` 將指南改為置中 modal，關閉後右上角保留圓形 `?` 指南按鈕。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇自製 DOM modal 而非原生 `<dialog>`，因為目前 DOM page active / aria-hidden / pointer-events 已由 `Pages/DomUi.js` 控制，自製 panel 比較容易與現有架構整合，也避免手機瀏覽器 `<dialog>` 行為差異。`hasSeenScanningGuide` 只在當前頁面生命週期中記錄，因此第一次從 Start 進入 Scanning 會顯示；從 Result 返回 Scanning 不會自動再次彈出，但玩家可以點 `?` 重開。
+
+#### 遇到的問題
+新增 modal 後，原本 CDP 腳本會在掃描頁截圖後直接點快門；如果不更新腳本，快門點擊會被 modal 擋住。為了保留視覺驗證與流程測試，腳本需先截 `scanning` 開啟狀態，再點 `×` 關閉，截 `scanning-closed`，再點 `?` 重開並截 `scanning-reopened`，最後再次關閉才按快門。
+
+#### 嘗試過的解法
+第一輪 `scanning-guide-modal-20260520` 已確認開啟與關閉後流程可進 Result。接著補強 CDP 腳本，加入 `guideButton` rect，點 `?` 後另存 `scanning-reopened`，再跑第二輪 `scanning-guide-modal-20260520-v2` 確認重新開啟也正常。
+
+#### 最終解法
+Scanning page 現在第一次進入會顯示中心指南 modal，背景暗化，右上角 `×` 可關閉。關閉後右上角顯示圓形 `?` 按鈕；玩家點擊後可重新開啟同一個指南，再用 `×` 關閉。指南開啟時 panel 接收 pointer events，避免誤按快門；關閉後快門與掃描 UI 正常操作。
+
+#### 視覺驗證紀錄
+使用 Chrome headless + CDP + fake camera 跑：
+`.\scripts\run-cdp-visual-test.ps1 -RunId scanning-guide-modal-20260520-v2 -CameraFixture default`
+
+三個 viewport 均成功從 `START` 進入 `SCANNING` 與 `RESULT`；portrait 也完成 Share / Save / Back，並下載 `FlutterLens-result.png`。截圖位於：
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-closed.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-portrait-390x844-scanning-reopened.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning.png`
+- `docs/cdp-runs/scanning-guide-modal-20260520-v2/screenshots/scanning-guide-modal-20260520-v2-default-landscape-844x390-scanning-closed.png`
+
+Console 僅有既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機按鈕 log，未見新的 JavaScript exception。
+
+#### Codex 審美自評
+`8.1/10`。優點是指南不再永久壓住掃描頁，第一次進入又能確實被注意；右上角 `×` 清楚，關閉後的 `?` 很小，不干擾快門與色彩 swatch。弱點是 modal 面板目前偏深、偏功能性，與首頁紙質感連結稍弱；但在高飽和 fake camera 背景上可讀性很好，因此先保留。
+
+#### 使用者審美回饋
+使用者指定掃描指南應第一次進入掃描頁時置中跳出，關閉按鈕使用右上角 `×`，並提供指南按鈕以便關閉後重新打開。尚未收到使用者對截圖的分數或修正意見。
+
+#### 尚未解決的風險
+CDP 可驗證 modal 開關、重新開啟與拍攝流程，但不能取代真機 safe area 與觸控測試。右上角 `×` 與 `?` 在瀏海、瀏覽器工具列或不同 Android / iOS viewport 下的可點擊性仍需真機確認。
+
+#### 使用者回饋或修正
+等待使用者檢視 modal 視覺，確認面板是否太暗、`?` 是否太小、`×` 是否夠容易點。
+
+#### 建議的下一步
+用真機檢查第一次進 Scanning 的指南彈出與右上角 `×` hit area。如果 modal 太暗，可調 `style.css` 的 `.scanning-guide-backdrop background` alpha 或 `.scanning-guide background`；如果 `?` 太小，可調 `.scanning-guide-action width/height/font-size`。
