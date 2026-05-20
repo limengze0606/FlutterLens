@@ -16,7 +16,7 @@ html, body {
   padding: 0;
   font-family: "TaipeiSansTCBeta", "PingFang TC", "Microsoft JhengHei", sans-serif;
   overflow: hidden;
-  background: #000;
+  background: #e9deca;
   color: #fff;
   -webkit-text-size-adjust: 100%;
   touch-action: none;
@@ -40,7 +40,7 @@ button {
   background: transparent;
   pointer-events: auto;
   visibility: visible;
-  transition: visibility 0s linear 52000ms;
+  transition: visibility 0s linear 5200ms;
 }
 
 #boot-loader::before {

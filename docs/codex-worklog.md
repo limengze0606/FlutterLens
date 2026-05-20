@@ -4568,3 +4568,130 @@ CDP 可確認流程不壞，但不能替代真機目視淡出中段。`visibilit
 
 #### 建議的下一步
 真機或一般瀏覽器重新整理頁面，專門看 loading：spinner 是否太快消失、米色背景 4 秒淡出是否太慢。可調參數集中於 `style.css`：`.boot-loader-spinner transition` 的 `220ms` 控制動畫元素消失速度；`#boot-loader::before transition` 的 `4000ms` 控制背景淡出速度，`360ms` 控制背景開始淡出的延遲；`#boot-loader transition` 的 `4360ms` 應等於背景 duration + delay；`:root --motion-soft-out` 可調整整體淡出曲線。
+
+---
+
+### 2026-05-20 — 修正 Live Server 首屏白畫面與 loader 提早顯示
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+針對 Live Server 開啟時先出現全白頁面、之後才進入 loader 的問題，調整 HTML 載入順序與 critical loader CSS，讓瀏覽器第一個可見畫面就是米色底 / loader，而不是預設白底。
+
+#### 使用者需求
+使用者回報自己調整 loader 數字後，發現 Live Server 測試時網頁會先卡在全白頁面，然後才進入 loader，而且白畫面時似乎就開始計時；詢問這是否和素材載入有關，並認為 loader 應該是為了避免這種狀況。使用者同意嘗試修正。
+
+#### 實作前理解
+白畫面主要不是 `assets/background/old-paper-texture.jpg` 載入慢造成，而是 `index.html` 的 `<head>` 中有未加 `defer` 的 blocking scripts。瀏覽器解析到 `d3-delaunay`、p5 與 `p5.brush` 時會先載入 / 執行，尚未解析到 `<body>` 裡的 `#boot-loader`，因此畫面只能維持瀏覽器預設白底。loader 的計時也可能在使用者已看到白畫面後才開始，造成「白畫面算進等待感」的體感問題。
+
+#### 實作方案
+在 `index.html` 的 `<head>` 加入最小 critical CSS：`html, body` 米色背景、`#boot-loader` fixed overlay、`#boot-loader::before` 米色背景層、`.boot-loader-spinner` 基礎樣式與 keyframes。將 head 裡三個 library scripts 與 body 尾端所有專案 scripts 都加上 `defer`，保留文件順序但不阻塞 HTML 解析，讓 loader DOM 可以先被解析並繪製。另將 `style.css` 的 `html, body background` 從黑色改成 `#e9deca`，讓即使 loader 尚未建立，也不會露出白底或黑底。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+選擇 `defer` 而不是把 scripts 全部移到 `<body>` 前段或改成 dynamic import，因為目前專案依賴傳統全域 script 順序，`defer` 能保留順序、減少結構改動，也讓 loader DOM 較早可見。保留使用者已自行調整的 loader transition 數字，不在本輪改回先前值；文件改以目前檔案實際值記錄。Critical CSS 只放最小 loader 樣式，完整動畫與 responsive UI 仍以 `style.css` 為主。
+
+#### 遇到的問題
+此類首屏白畫面很難只靠一般 CDP 完整流程判定，因為完整流程通常在頁面已 ready 後截圖。需另外用很短的 `--virtual-time-budget=500` 早期截圖確認 first paint 顏色。Chrome 命令輸出同時出現 `SHOT_MISSING` 與 `bytes written`，但實際檔案有成功產生，可用 `view_image` 檢視。
+
+#### 嘗試過的解法
+先將所有 scripts 加上 `defer` 並加入 inline critical CSS，再跑完整 CDP 測試確認 p5 global mode 沒被破壞。接著用 Chrome headless 早期截圖檢查首屏，確認畫面是米色 loader / spinner，而不是白畫面。
+
+#### 最終解法
+`index.html` 現在有 critical loader CSS，所有 scripts 使用 `defer`；`style.css` 的全域 body 背景改成 `#e9deca`。這讓 loader DOM 和米色底能在 scripts 執行前先建立，Live Server 的首屏等待不應再是白底。
+
+#### 視覺驗證紀錄
+完整 CDP 測試：`.\scripts\run-cdp-visual-test.ps1 -RunId defer-loader-firstpaint-20260520 -ServerPort 8785 -DebugPortBase 9380`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 完成 Share / Save / Back，表示 `defer` 未破壞 p5 初始化或互動流程。早期 first-paint 截圖：`docs/first-paint-loader-2026-05-20.png`，畫面為米色背景與淡淡 spinner，沒有白畫面。Console 仍只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.3/10`。優點是第一個可見畫面終於和 loading / 紙質入口語氣一致，不再有瀏覽器預設白底這種脫戲的空窗；米色 first paint 和後續米色 loader、紙質 start page 之間連續性較好。弱點是 inline critical CSS 會和 `style.css` 有少量重複，未來若改 loader 尺寸 / 顏色，需要注意同步，但這是換取更早 first paint 的合理成本。
+
+#### 使用者審美回饋
+使用者指出 Live Server 會先全白再進 loader，並認為 loader 應避免這種狀況；本輪尚未收到修正後的真機或 Live Server 目視回饋。
+
+#### 尚未解決的風險
+`defer` 已通過 CDP 流程，但仍需使用者在 Live Server 實際觀察是否完全消除白畫面。若 CDN 連線非常慢，米色底與 loader 可先出現，但 p5 初始化仍會等 CDN 回來；若要進一步降低等待，需考慮本地化 p5 或加載入錯誤 fallback。Inline critical CSS 與 `style.css` 的 loader 基礎樣式需維持一致。
+
+#### 使用者回饋或修正
+等待使用者用 Live Server 重新整理測試，確認是否還有白畫面，以及目前使用者調整過的長淡出節奏是否符合預期。
+
+#### 建議的下一步
+用 Live Server 做一次 hard refresh 或無痕頁測試，觀察第一個畫面是否為米色 loader。若仍有白畫面，下一步應檢查 Live Server 是否有外掛注入、瀏覽器快取、或 CDN script 之前是否還有其他阻塞資源；若只是等待 p5 CDN，建議評估把 p5 改回本地 `libraries/p5.min.js`。
+
+---
+
+### 2026-05-20 — Post-paint script bootstrap，讓 loader 先於 p5 compile 顯示
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+根據使用者提供的 Performance trace，確認白畫面延遲主因是 p5 CDN script compile / evaluate 在首次 paint 前佔住 main thread；本輪將重 scripts 從直接 `defer` 改為 post-paint dynamic loader，先讓 loader 畫出來，再載入 p5 與專案 scripts。
+
+#### 使用者需求
+使用者提供 DevTools trace，指出 LCP 的 render delay 約 1187ms，p5 compile / third-party main thread 成本很高；使用者也強調 p5 不要改成本地版本，因為版本不同，並認為 loader 本來就應該避免被 compile / evaluate p5 卡住。本輪使用者同意改成 loader 先 paint、再載入 CDN p5 的方案。
+
+#### 實作前理解
+前一輪 `defer` 能避免 script 阻塞 HTML parsing，但不能保證瀏覽器會先 paint loader；實際 trace 顯示 p5 compile / evaluate 仍可能在首次 paint 前發生，使 loader DOM 雖已存在，但主執行緒沒有機會把它畫到螢幕上。因此真正要修的是執行順序：critical loader CSS 與 DOM 先完成並至少 paint 一次，再開始載入重 scripts。使用者要求保留 CDN p5 版本，因此不可改成 `libraries/p5.min.js`。
+
+#### 實作方案
+移除 `index.html` 中所有直接 `defer` script tags，改用 body 底部的一段小型 bootstrap。Bootstrap 先設定 `bootScripts`，維持原本載入順序與 CDN p5 URL；接著用兩層 `requestAnimationFrame` 等待 first paint，再用 `loadScript()` 逐一 append classic scripts。全部載入後呼叫 `startP5IfNeeded()`：若 `window.p5` 存在且頁面尚無 canvas，才建立 `window.__flutterLensP5Instance = new window.p5()`，避免動態載入時 p5 global mode 因錯過 window load 而不自動啟動。另用 `window.__flutterLensBootStatus` 留下簡單狀態，方便日後除錯。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 修改過的檔案
+- `index.html`
+- `docs/agent-quickstart.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+#### 決策紀錄
+不改 p5 來源，保留 `https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js`。選擇動態 classic script loader 而不是 ES modules，因為專案目前大量依賴全域函式與 shared global lexical scope。選擇兩層 `requestAnimationFrame` 而不是單一 `setTimeout`，目標是讓瀏覽器至少有機會完成一個可見 paint，再開始重 script compile。保留 `style.css` 中使用者已調整的 loader timing：spinner `800ms`、背景 `4000ms` + `1200ms`、visibility `5200ms`。
+
+#### 遇到的問題
+p5 global mode 在動態載入時可能不會自動啟動，因為 p5 script 載入時 `setup()` 尚未定義，或 window load timing 已經過去。因此加入 `startP5IfNeeded()`，在所有 scripts 載完後檢查是否已有 canvas，沒有才手動 `new p5()`。早期 Chrome screenshot 期間出現一筆 Google API deprecated endpoint 訊息，屬 Chrome 背景服務噪音，截圖仍成功產生。
+
+#### 嘗試過的解法
+先用 dynamic script loader 保持原 script 順序，跑 CDP 驗證是否能進入 `START`、`SCANNING`、`RESULT`。確認 p5 能啟動後，再用 `--virtual-time-budget=500` 抓 first-frame screenshot，確認 p5 compile 前可見畫面是米色 loader，而不是白畫面。
+
+#### 最終解法
+`index.html` 現在先顯示 critical loader shell，再由 post-paint bootstrap 依序載入 `d3`、CDN p5、`p5.brush` 與所有專案 scripts。若 p5 沒有自動啟動，bootstrap 會在 scripts 載完後手動建立 p5 instance。這讓 p5 compile / evaluate 的等待發生在 loader 已經可見之後。
+
+#### 視覺驗證紀錄
+完整 CDP 測試：`.\scripts\run-cdp-visual-test.ps1 -RunId postpaint-script-boot-20260520 -ServerPort 8786 -DebugPortBase 9390`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，portrait 完成 Share / Save / Back，表示動態載入沒有破壞 p5、權限流程或結果頁。早期 first-frame 截圖：`docs/postpaint-loader-first-frame-2026-05-20.png`，畫面是米色 loader 與 spinner，沒有白畫面。正式 start screenshot：`docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-portrait-390x844-start.png`。Console 仍只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`8.5/10`。優點是 loader 的概念終於真的成立：p5 compile / evaluate 即使卡住，使用者看到的也應該是米色 loading，而不是瀏覽器預設白畫面；且保留使用者指定的 CDN p5 版本與既有轉場節奏。弱點是 index 內的 bootstrap 變長，未來可考慮抽成獨立 `scripts/boot-app.js`，但目前 inline 可以最早執行並維持首屏穩定。
+
+#### 使用者審美回饋
+使用者提供 trace 並指出 loader 應避免 p5 compile / evaluate 卡住的白畫面；同時明確要求 p5 不要改成本地版本。本輪尚未收到使用者在 Live Server 重新測試後的目視回饋。
+
+#### 尚未解決的風險
+動態載入已通過 CDP，但仍需 Live Server 與真機測試。若 CDN p5 載入失敗，現在只會 `console.error` 並讓 `window.__flutterLensBootStatus = "error"`，尚未有可見錯誤 UI；未來可加 loader error message。Bootstrap 目前 inline 在 `index.html`，可維護性不如外部檔，但最早可執行。若後續新增 scripts，必須同步更新 `bootScripts` 順序。
+
+#### 使用者回饋或修正
+等待使用者用 Live Server hard refresh 檢查白畫面是否消失，並觀察 p5 compile 期間 loader 是否保持可見。
+
+#### 建議的下一步
+使用 DevTools Performance 再錄一次 trace，對比 LCP 前的可見畫面是否已是 loader。若仍白，需檢查是否是 HTML response 前的空白、Live Server / browser extension 行為或外部 CSS blocking；若 loader 可見但等待時間長，下一步可考慮 loader 上顯示更明確的主題動畫或 loading 狀態，而不是繼續壓縮首屏。

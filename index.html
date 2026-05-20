@@ -6,10 +6,47 @@
 
     <title>Sketch</title>
 
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #e9deca;
+      }
+
+      #boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background: transparent;
+      }
+
+      #boot-loader::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: #e9deca;
+      }
+
+      .boot-loader-spinner {
+        position: relative;
+        z-index: 1;
+        width: 34px;
+        height: 34px;
+        border: 2px solid rgba(83, 67, 47, 0.18);
+        border-top-color: rgba(64, 51, 35, 0.72);
+        border-radius: 999px;
+        animation: boot-loader-spin 760ms linear infinite;
+      }
+
+      @keyframes boot-loader-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     <link rel="stylesheet" type="text/css" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js"></script>
-    <script src="libraries/p5.brush.js"></script>
   </head>
 
   <body>
@@ -46,23 +83,69 @@
       </section>
     </div>
 
-    <script src="HandDrawn.js"></script>
-    <script src="Pages/StartPage/StartPage.js"></script>
-    <script src="Pages/pagesSettings.js"></script>
-    <script src="Pages/ScanningPage/ScanningPageSettings.js"></script>
-    <script src="Pages/ScanningPage/ColorProcessor.js"></script>
-    <script src="Pages/ScanningPage/GyroManager.js"></script>
-    <script src="Pages/ScanningPage/ShutterButton.js"></script>
-    <script src="Pages/ScanningPage/ScanningPage.js"></script>
-    <script src="Pages/ResultPage/ResultPageSettings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectWings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughInsectWings.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/RoughInsectBody.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectBody.js"></script>
-    <script src="Pages/ResultPage/InsectGenerator/InsectManager.js"></script>
-    <script src="Pages/ResultPage/ResultPage.js"></script>
-    <script src="Pages/DomUi.js"></script>
-    <script src="sketch.js"></script>
+    <script>
+      (() => {
+        const bootScripts = [
+          "https://cdn.jsdelivr.net/npm/d3-delaunay@6",
+          "https://cdn.jsdelivr.net/npm/p5@2.1.1/lib/p5.min.js",
+          "libraries/p5.brush.js",
+          "HandDrawn.js",
+          "Pages/StartPage/StartPage.js",
+          "Pages/pagesSettings.js",
+          "Pages/ScanningPage/ScanningPageSettings.js",
+          "Pages/ScanningPage/ColorProcessor.js",
+          "Pages/ScanningPage/GyroManager.js",
+          "Pages/ScanningPage/ShutterButton.js",
+          "Pages/ScanningPage/ScanningPage.js",
+          "Pages/ResultPage/ResultPageSettings.js",
+          "Pages/ResultPage/InsectGenerator/InsectWings.js",
+          "Pages/ResultPage/InsectGenerator/RoughWingBrushSettings.js",
+          "Pages/ResultPage/InsectGenerator/RoughInsectWings.js",
+          "Pages/ResultPage/InsectGenerator/RoughInsectBody.js",
+          "Pages/ResultPage/InsectGenerator/InsectBody.js",
+          "Pages/ResultPage/InsectGenerator/InsectManager.js",
+          "Pages/ResultPage/ResultPage.js",
+          "Pages/DomUi.js",
+          "sketch.js"
+        ];
+
+        const waitForFirstPaint = () => new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
+
+        const loadScript = (src) => new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = false;
+          script.onload = () => resolve(src);
+          script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+          document.body.appendChild(script);
+        });
+
+        const startP5IfNeeded = () => {
+          if (typeof window.p5 !== "function" || document.querySelector("canvas")) return;
+          window.__flutterLensP5Instance = new window.p5();
+        };
+
+        const bootApp = async () => {
+          window.__flutterLensBootStatus = "painting-loader";
+          await waitForFirstPaint();
+          window.__flutterLensBootStatus = "loading-scripts";
+
+          for (const src of bootScripts) {
+            await loadScript(src);
+          }
+
+          window.__flutterLensBootStatus = "starting-p5";
+          startP5IfNeeded();
+          window.__flutterLensBootStatus = "ready";
+        };
+
+        bootApp().catch((error) => {
+          window.__flutterLensBootStatus = "error";
+          console.error(error);
+        });
+      })();
+    </script>
   </body>
 </html>

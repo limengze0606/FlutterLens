@@ -2664,3 +2664,95 @@ Codex 自評：`8.1/10`。優點是 loader 的動作語法變清楚：動畫元�
 
 ### 備註 / 風險
 目前用純 CSS 分層，沒有 JS `transitionend` 管理生命週期；這很輕量，但 duration / delay 需要手動同步。若未來 loader 動畫變複雜，可以考慮加一個小型 transition controller，或用 CSS variables 管理 duration 後透過 calc 減少同步錯誤。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+修正 Live Server 首屏白畫面，讓 loader / 米色底更早顯示。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP；另用 Chrome headless `--virtual-time-budget=500` 取得 early first-paint screenshot
+- 裝置：桌機模擬手機視窗
+- Viewport：early screenshot `390x844`；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId defer-loader-firstpaint-20260520 -ServerPort 8785 -DebugPortBase 9380`
+
+### 預期行為
+瀏覽器不應先顯示預設白畫面再進 loader。即使 p5 / CDN / 專案 scripts 尚未執行，第一個可見畫面也應至少是米色底與 loader spinner；完整 app 初始化後仍應進入 Start page，權限流程、Scanning、Result 不應受 `defer` 影響。
+
+### 實際觀察
+早期截圖 `docs/first-paint-loader-2026-05-20.png` 顯示畫面為米色底與淡淡 spinner，沒有白畫面。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 測試完成 Share / Save / Back，結果圖下載成功。這表示 scripts 改成 `defer` 後，p5 global mode、DOM UI 與互動流程仍正常。
+
+### 截圖
+- `docs/first-paint-loader-2026-05-20.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/defer-loader-firstpaint-20260520/screenshots/defer-loader-firstpaint-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.3/10`。優點是首屏從瀏覽器預設白底變成米色 loader，等待感和紙質 Start page 更連續；使用者不會在 loader 出現前先看到一個脫離專案風格的白色空窗。弱點是 critical CSS 與正式 CSS 有少量重複，未來改 loader 顏色或 spinner 尺寸時要同步維護。
+
+### 使用者審美回饋
+使用者回報 Live Server 會先卡白畫面再進 loader，並指出 loader 原本就是為了避免這種狀況；修正後尚未收到使用者目視確認。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] Live Server hard refresh，確認不再先出現全白畫面
+- [ ] 無痕視窗測試，排除快取影響
+- [ ] GitHub Pages 上確認 CDN 載入慢時仍先看到米色 loader
+- [ ] 確認 `defer` 後 iOS / Android 的 p5 setup、相機權限與 DeviceOrientation 權限仍正常
+- [ ] 若仍白屏，檢查 Live Server 外掛注入或其他 head blocking resource
+
+### 備註 / 風險
+白畫面問題主要是 HTML parsing 被 head scripts 阻塞，而不是紙質背景圖本身。若要進一步降低 CDN 等待風險，可評估使用本地 `libraries/p5.min.js` 取代 CDN p5。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Post-paint script bootstrap：先顯示 loader，再載入 / compile CDN p5 與專案 scripts。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP；另用 Chrome headless `--virtual-time-budget=500` 取得 first-frame screenshot
+- 裝置：桌機模擬手機視窗
+- Viewport：first-frame screenshot `390x844`；CDP 測試含 `portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId postpaint-script-boot-20260520 -ServerPort 8786 -DebugPortBase 9390`
+
+### 預期行為
+頁面應先 paint 米色 loader，再開始載入與 compile p5。CDN p5 版本保持不變，不改成本地 p5。動態載入後 p5 global mode 仍應正常啟動，Start / Scanning / Result 流程不應損壞。
+
+### 實際觀察
+First-frame screenshot `docs/postpaint-loader-first-frame-2026-05-20.png` 顯示米色 loader 與 spinner，沒有白畫面。完整 CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Portrait 完成 Share / Save / Back，結果圖下載成功。正式 start screenshot 顯示紙質背景與 UI 正常。
+
+### 截圖
+- `docs/postpaint-loader-first-frame-2026-05-20.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-portrait-390x844-start.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-compact-360x740-start.png`
+- `docs/cdp-runs/postpaint-script-boot-20260520/screenshots/postpaint-script-boot-20260520-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`8.5/10`。優點是 loader 的功能與視覺目標一致了：重 JS 開始工作前，使用者已經看到米色等待畫面，整體等待感不再被瀏覽器預設白底破壞。弱點是目前 loader 仍是簡單 spinner，若 p5 / CDN 等待較長，未來可能需要更有主題性的 loading 動畫來承接等待。
+
+### 使用者審美回饋
+使用者提供 Performance trace，指出 p5 compile / evaluate 會卡住首次 render，並要求保留 CDN p5 版本、不改成本地版本；同意先讓 loader paint 後再載入重 scripts。尚未收到修正後的 Live Server 目視回饋。
+
+### Console 錯誤
+每個 CDP viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。First-frame screenshot 命令出現 Chrome 背景服務的 deprecated endpoint 訊息，但不影響頁面截圖。
+
+### 手機檢查清單
+- [ ] Live Server hard refresh，確認 p5 compile 期間看到的是 loader，不是白畫面
+- [ ] DevTools Performance 重新錄 trace，比對 first paint / LCP 前可見畫面
+- [ ] iOS / Android 真機確認動態載入後 p5 setup、相機權限與 DeviceOrientation 權限正常
+- [ ] CDN p5 載入失敗時目前只有 console error，未來可補可見錯誤提示
+- [ ] 後續新增 JS 檔案時，需同步更新 `index.html` 的 `bootScripts` 順序
+
+### 備註 / 風險
+此方案不降低 p5 compile 成本，而是把 compile 成本移到 loader 已可見之後。若使用者之後要進一步縮短等待，才需要考慮降低 p5 / p5.brush parse cost、拆延後載入的功能、或提供更明確的 loading progress。
