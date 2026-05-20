@@ -2935,3 +2935,91 @@ Codex 自評：`8.1/10`。優點是指南不再永久壓住掃描畫面，第一
 
 ### 備註 / 風險
 本輪新增互動狀態，CDP 已驗證指南開啟、關閉、重新開啟與拍攝流程，但仍需真機確認觸控 hit area、safe area 與相機實景下的可讀性。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+修正 rough moth 在 Result 作品圖中黑色 body 框線與羽狀觸角不明顯或未出現的問題。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId moth-body-outline-target-fix-20260520 -CameraFixture greenPlants -ForcedFinalPitch -60 -ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+
+### 預期行為
+強制生成蛾時，Result 頁面的固定作品圖與 Save 下載 PNG 應都包含同一套黑色 body 結構線與羽狀觸角；黑線不應只出現在可見 canvas 的殘留層，也不應只出現在下載圖或只出現在 Result 頁。
+
+### 實際觀察
+三個 viewport 都成功進入 `RESULT`，`resultFinalPitch` 為 `-60`。Portrait Result screenshot 與 Save PNG 都可見蛾中心 body 的黑色結構與兩側羽狀觸角，且下載 PNG 與頁面作品圖一致。這確認本輪補強後，黑色結構線不是畫到錯誤的 offscreen canvas，而是已進入主 canvas 擷取出的 `resultArtworkImage`。
+
+### 截圖
+- `docs/cdp-runs/moth-body-outline-target-fix-20260520/screenshots/moth-body-outline-target-fix-20260520-greenPlants-portrait-390x844-result.png`
+- `docs/cdp-runs/moth-body-outline-target-fix-20260520/screenshots/moth-body-outline-target-fix-20260520-greenPlants-portrait-390x844-after-share.png`
+- `docs/cdp-runs/moth-body-outline-target-fix-20260520/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8.0/10`。優點是蛾不再只剩翅膀與眼斑，中心 body 和觸角重新成為可讀結構；Result 與下載圖一致，修正方向可靠。弱點是新增的 p5 immediate fallback 線比 p5.brush 線更乾淨、稍微偏硬，手繪顆粒感不如純 brush stroke。這次選擇先停在較清楚的版本，因為使用者回報的是黑框與觸角缺失，可靠出現比細緻質地更優先。
+
+### 使用者審美回饋
+使用者指出蛾的黑色框線及觸角沒有繪製出來，而且和先前下載圖缺線問題不同，這次連結果頁面上都沒被繪製。使用者也追問是否已確認繪製的畫布對象是否正確。此回饋已納入本輪診斷與修正。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機多拍幾次 forced 或自然生成蛾，確認黑色 body 框線與羽狀觸角穩定出現
+- [ ] 比對 Result 頁面手動截圖與 Save PNG，確認兩者仍一致
+- [ ] 在較亮或較深的真實背景下確認黑線不會太硬或太重
+- [ ] 若覺得 fallback 線太硬，可降低 `drawRoughMothImmediateStructureOverlay()` 的 `strokeWeight` 或增加 `drawImmediateOpenOval()` 的 `wobble`
+
+### 備註 / 風險
+本輪確認 JavaScript 層傳入的繪製對象是主 canvas 的 `window`，不是其他 `createGraphics()`。補上的 immediate fallback 是為了避免 p5.brush 最後幾筆在 target / composite / flush 狀態下不穩定；後續若 p5.brush 行為完全穩定，也可以再評估是否降低 fallback 強度。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+將 rough moth 黑色 body 結構層的 brush 與筆刷設定調整為接近蝴蝶 body outline。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId moth-body-brush-match-butterfly-20260520 -CameraFixture greenPlants -ForcedFinalPitch -60 -ForcedSpawnRatioX 0.50 -ForcedSpawnRatioY 0.40`
+
+### 預期行為
+蛾的黑色 body 框線與羽狀觸角應繼續出現在 Result 頁面與 Save PNG 中，但筆刷重量與抖動應更接近蝴蝶 body outline 的 `pencil1` 手繪線條，不應像上一版 immediate fallback 那樣偏硬。
+
+### 實際觀察
+三個 viewport 都成功進入 `RESULT`，`resultFinalPitch` 為 `-60`。Portrait Result screenshot 與 Save PNG 都仍可見黑色 body 結構與羽狀觸角；相比上一輪保險線較硬的版本，這輪中心 body outline 更接近蝴蝶 body 的線重，fallback 線條退到較淡的輔助角色。
+
+### 截圖
+- `docs/cdp-runs/moth-body-brush-match-butterfly-20260520/screenshots/moth-body-brush-match-butterfly-20260520-greenPlants-portrait-390x844-result.png`
+- `docs/cdp-runs/moth-body-brush-match-butterfly-20260520/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+
+### 審美評分與評語
+Codex 自評：`8.2/10`。優點是使用者要求的黑框與觸角仍穩定出現，同時線條重量回到比較像蝴蝶 body outline 的手繪層次；蛾中心不再被硬線搶走，但仍能壓住翅膀眼斑。弱點是羽狀觸角的分枝因為保留辨識度，仍比蝴蝶簡單觸角複雜，這是物種特徵差異，不是完全相同形狀。
+
+### 使用者審美回饋
+使用者確認「有出現了，結果頁面和下載圖片都有」，並要求把使用的 brush 及筆刷設定調整得和蝴蝶一樣。本輪已依此將 moth overlay 的 `strokeWeight` / `wobble` 對齊蝴蝶 body outline 範圍，並降低 fallback 線條強度。
+
+### Console 錯誤
+三個 viewport 各有一筆既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機確認蛾黑線與觸角在不同背景下仍清楚
+- [ ] 確認線條重量是否已接近使用者期待的蝴蝶筆刷感
+- [ ] 若覺得 fallback 還是偏硬，可再降低 `drawRoughMothImmediateStructureOverlay()` 的 alpha 或 `strokeWeight`
+
+### 備註 / 風險
+本輪沒有移除 fallback，因為上一輪已證明它能保證 Result 與 Save 一致；但 fallback 已調淡，主要視覺應由 `pencil1` brush 線條承擔。

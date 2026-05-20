@@ -164,7 +164,10 @@ function drawRoughInsectBody(g, bodyPlan, seedValue, wingColor1 = null, wingColo
   drawRoughBodyColorMasses(g, bodyPlan, colorPlan, u);
   drawRoughBodyTypeDetails(g, bodyPlan, ink, colorPlan, u);
   drawRoughBodySimpleOutline(g, bodyPlan, ink, u);
-  if (bodyPlan.insectType === 2) drawRoughMothBlackStructureOverlay(g, bodyPlan, ink, u);
+  if (bodyPlan.insectType === 2) {
+    if (typeof syncBrushToCanvas === "function") syncBrushToCanvas();
+    drawRoughMothBlackStructureOverlay(g, bodyPlan, ink, u);
+  }
 
   g.pop();
 }
@@ -482,22 +485,102 @@ function drawRoughMothBodyDetails(g, plan, ink, colorPlan, u) {
 function drawRoughMothBlackStructureOverlay(g, plan, ink, u) {
   if (!plan || !plan.anatomy) return;
 
+  resetRoughBodyBrushStroke(ink, 1, 248);
   drawRoughOutlineOval(g, plan.anatomy.abdomen, ink, {
-    strokeWeight: roughRandom(g, 1.9, 2.35),
-    wobble: 0.04 * u,
+    strokeWeight: roughRandom(g, 1.5, 1.8),
+    wobble: 0.055 * u,
     passes: 1
   });
   drawRoughOutlineOval(g, plan.anatomy.thorax, ink, {
-    strokeWeight: roughRandom(g, 2.28, 2.86),
-    wobble: 0.035 * u,
+    strokeWeight: roughRandom(g, 1.82, 2.36),
+    wobble: 0.05 * u,
     passes: 1
   });
   drawRoughOutlineOval(g, plan.anatomy.head, ink, {
-    strokeWeight: roughRandom(g, 1.95, 2.42),
-    wobble: 0.03 * u,
+    strokeWeight: roughRandom(g, 1.7, 2.02),
+    wobble: 0.04 * u,
     passes: 1
   });
   drawRoughMothFeatherAntennae(g, plan.anatomy.head, ink, plan, u);
+  drawRoughMothImmediateStructureOverlay(g, plan, ink, u);
+}
+
+function drawRoughMothImmediateStructureOverlay(g, plan, ink, u) {
+  if (!g || !plan || !plan.anatomy) return;
+
+  g.push();
+  g.noFill();
+  g.stroke(5, 5, 4, 150);
+  g.strokeWeight(Math.max(0.72, 0.031 * u));
+  drawImmediateOpenOval(g, plan.anatomy.abdomen, 18, 0.04 * u);
+  g.strokeWeight(Math.max(0.84, 0.036 * u));
+  drawImmediateOpenOval(g, plan.anatomy.thorax, 18, 0.036 * u);
+  g.strokeWeight(Math.max(0.72, 0.031 * u));
+  drawImmediateOpenOval(g, plan.anatomy.head, 16, 0.03 * u);
+  drawImmediateMothFeatherAntennae(g, plan.anatomy.head, plan, u);
+  g.pop();
+}
+
+function drawImmediateOpenOval(g, oval, pointCount, wobble) {
+  let rotation = oval.rotation || 0;
+  let gap = Math.PI * 0.12;
+
+  for (let arc = 0; arc < 2; arc++) {
+    let startT = arc * Math.PI + gap * 0.35;
+    let endT = (arc + 1) * Math.PI - gap * 0.35;
+    g.beginShape();
+    for (let i = 0; i <= pointCount; i++) {
+      let t = startT + (endT - startT) * (i / pointCount);
+      let localX = Math.cos(t) * (oval.rx + roughRandom(g, -wobble, wobble));
+      let localY = Math.sin(t) * (oval.ry + roughRandom(g, -wobble, wobble));
+      let point = rotateLocalPoint(oval.x, oval.y, localX, localY, rotation);
+      g.vertex(point.x, point.y);
+    }
+    g.endShape();
+  }
+}
+
+function drawImmediateMothFeatherAntennae(g, head, plan, u) {
+  let baseY = head.y - head.ry * 0.95;
+  let baseGap = head.rx * 0.34;
+  let spread = (plan.antennaSpread || 1.6 * u) * 1.55;
+  let len = (plan.antennaLength || 3.4 * u) * 1.35;
+  let branchCount = 8;
+
+  g.strokeWeight(Math.max(0.68, 0.028 * u));
+  for (let side of [-1, 1]) {
+    let points = [
+      [head.x + side * baseGap, baseY],
+      [head.x + side * spread * 0.36, baseY - len * 0.31],
+      [head.x + side * spread * 0.72, baseY - len * 0.68],
+      [head.x + side * spread, baseY - len]
+    ];
+
+    drawImmediateBezierLikeLine(g, points, 14);
+
+    for (let i = 1; i <= branchCount; i++) {
+      let t = i / (branchCount + 1);
+      let px = g.bezierPoint(points[0][0], points[1][0], points[2][0], points[3][0], t);
+      let py = g.bezierPoint(points[0][1], points[1][1], points[2][1], points[3][1], t);
+      let branchLen = spread * (0.18 - t * 0.055);
+      let drop = branchLen * 0.22;
+      g.strokeWeight(Math.max(0.42, 0.018 * u));
+      g.line(px, py, px + side * branchLen, py + drop);
+      g.line(px, py, px - side * branchLen * 0.58, py + drop * 0.78);
+    }
+  }
+}
+
+function drawImmediateBezierLikeLine(g, points, pointCount) {
+  g.beginShape();
+  for (let i = 0; i <= pointCount; i++) {
+    let t = i / pointCount;
+    g.vertex(
+      g.bezierPoint(points[0][0], points[1][0], points[2][0], points[3][0], t),
+      g.bezierPoint(points[0][1], points[1][1], points[2][1], points[3][1], t)
+    );
+  }
+  g.endShape();
 }
 
 function drawRoughMothFeatherAntennae(g, head, ink, plan, u) {
@@ -521,8 +604,9 @@ function drawRoughMothFeatherAntennae(g, head, ink, plan, u) {
     ];
 
     drawRoughAntennaLine(g, points, ink, {
-      strokeWeight: roughRandom(g, 1.12, 1.42),
-      jitter: 0.012 * u
+      strokeWeight: roughRandom(g, 0.82, 1.18),
+      jitter: 0.018 * u,
+      alpha: 238
     });
 
     for (let i = 1; i <= branchCount; i++) {
@@ -544,15 +628,17 @@ function drawRoughMothFeatherAntennae(g, head, ink, plan, u) {
         [px, py],
         [px + side * Math.abs(normalX) * outerLen, py + Math.abs(normalY) * outerLen * 0.25 + featherDrop]
       ], ink, {
-        strokeWeight: roughRandom(g, 0.48, 0.74),
-        jitter: 0.008 * u
+        strokeWeight: roughRandom(g, 0.8, 1.22),
+        jitter: 0.012 * u,
+        alpha: 238
       });
       drawRoughAntennaLine(g, [
         [px, py],
         [px - side * Math.abs(normalX) * innerLen, py + Math.abs(normalY) * innerLen * 0.2 + featherDrop * 0.82]
       ], ink, {
-        strokeWeight: roughRandom(g, 0.38, 0.62),
-        jitter: 0.008 * u
+        strokeWeight: roughRandom(g, 0.8, 1.22),
+        jitter: 0.012 * u,
+        alpha: 238
       });
     }
   }
@@ -666,7 +752,7 @@ function resetRoughBodyBrushStroke(colorValue, strokeWeightValue = 1, alphaValue
   if (typeof brush.noWash === "function") brush.noWash();
   if (typeof brush.noFill === "function") brush.noFill();
   brush.set("pencil1", colorValue, 1);
-  brush.stroke(colorValue);
+  brush.stroke(colorValue, alphaValue);
   brush.strokeWeight(strokeWeightValue);
 }
 

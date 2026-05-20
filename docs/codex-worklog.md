@@ -5000,3 +5000,160 @@ CDP 可驗證 modal 開關、重新開啟與拍攝流程，但不能取代真機
 
 #### 建議的下一步
 用真機檢查第一次進 Scanning 的指南彈出與右上角 `×` hit area。如果 modal 太暗，可調 `style.css` 的 `.scanning-guide-backdrop background` alpha 或 `.scanning-guide background`；如果 `?` 太小，可調 `.scanning-guide-action width/height/font-size`。
+
+---
+
+### 2026-05-20 — 修正蛾 Result 作品圖的黑色 body 框線與觸角缺失
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+依使用者回報，修正 rough moth 在 Result 頁面與 Save 下載圖中黑色 body 框線與羽狀觸角不明顯或未繪製的問題。先確認繪製對象仍是主 canvas，而不是錯畫到 offscreen canvas；再補強 moth-only 黑色結構層的 brush target 同步、alpha 傳遞與同座標系 p5 immediate fallback。
+
+#### 使用者需求
+使用者提供過去修正日誌，指出現在蛾的黑色框線及觸角也沒有繪製出來，而且與先前問題不同，不只是下載圖片缺線，連 Result 頁面上都沒有被繪製。使用者進一步追問是否確認繪製的畫布對象是否正確。
+
+#### 實作前理解
+先前 Result 固定作品圖流程會在主 canvas 上畫相機截圖與 rough insect，再用 `get(0, 0, width, height)` 擷取成 `resultArtworkImage`。本輪檢查後確認 `drawResultInsect()` 呼叫 `drawRoughInsect(window, x, y)`，`drawRoughInsectBody()` 接到的也是 `window`，不是 `createGraphics()`；因此大方向不是畫到錯誤畫布，而更像是 moth black overlay 的最後幾筆 p5.brush stroke 在 target / composite / flush 或 stroke state 下不穩定。使用者要求確認畫布對象，讓本輪修正避免只用「加粗」碰運氣。
+
+#### 實作方案
+只修改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`。在 moth black overlay 前呼叫 `syncBrushToCanvas()`，讓 p5.brush 重新同步目前主 canvas target；修正 `resetRoughBodyBrushStroke()`，把 `alphaValue` 傳給 `brush.stroke(colorValue, alphaValue)`。保留原本 p5.brush 的 moth 黑色輪廓與羽狀觸角，並新增 `drawRoughMothImmediateStructureOverlay()` 作為 moth-only 保險層，使用同一個 `g`、同一個昆蟲 transform，在主 canvas 上直接畫頭胸腹開放輪廓與羽狀觸角。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/testing-playbook.md`
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `Pages/ResultPage/InsectGenerator/InsectManager.js`
+- `Pages/ResultPage/ResultPage.js`
+- `Pages/pagesSettings.js`
+- `sketch.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不改 Result snapshot 架構，因為 `drawRoughInsect(window, x, y)` 與 `get()` 都作用在主 canvas，且翅膀、眼斑、body 彩色填色能進入 Result / Save。問題焦點改放在 moth-only 最後黑色結構層的 brush 狀態與合成可靠性。Immediate fallback 只用於 moth，並放在原本 brush 黑線之後，目的不是取代手繪 brush，而是在 p5.brush 最後幾筆沒有穩定合成時，仍讓 Result 與 Save 都有可見黑色 body 結構。
+
+#### 遇到的問題
+`node --check` 在目前 Windows Codex AppX node 路徑遇到 `Access is denied`，即使沙盒外執行也無法啟動。因此改用 Node REPL 讀檔並以 `new Function(source)` 做語法解析。CDP 測試仍只能使用 fake camera，不能取代真機 AR / camera 與多 seed 構圖測試。
+
+#### 嘗試過的解法
+先用 forced moth 診斷測試 `moth-body-outline-missing-diagnosis-20260520` 確認 `finalPitch = -60` 時 Result 與 Save 中黑色 body / 觸角不夠明確。接著搜尋 `syncBrushToCanvas()`、`drawInScreenSpace()`、`createCanvas()`、`drawRoughInsect(window, x, y)` 與 `resultArtworkImage = get(...)`，確認繪製對象。最後修改 moth black overlay，新增 brush target 同步、alpha 傳遞與 immediate fallback，再跑 forced moth 視覺驗證。
+
+#### 最終解法
+`drawRoughInsectBody()` 在 `bodyPlan.insectType === 2` 時，先呼叫 `syncBrushToCanvas()` 再畫 `drawRoughMothBlackStructureOverlay()`。`resetRoughBodyBrushStroke()` 現在會呼叫 `brush.stroke(colorValue, alphaValue)`。`drawRoughMothBlackStructureOverlay()` 先重設黑色 brush，再畫原本 p5.brush abdomen / thorax / head outline 與羽狀觸角，最後呼叫 `drawRoughMothImmediateStructureOverlay()`；此 fallback 用 immediate p5 線條在同一座標系中畫 open oval body outline 與 feather antennae，確保主 canvas 與 `resultArtworkImage` 都有黑色結構。
+
+#### 視覺驗證紀錄
+- 診斷 run id：`moth-body-outline-missing-diagnosis-20260520`
+- 修正後 run id：`moth-body-outline-target-fix-20260520`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced final pitch：`-60`
+- Forced spawn：`0.50 / 0.40`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 三個 viewport 均進入 `RESULT`，`resultFinalPitch` 為 `-60`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載一個 `FlutterLens-result.png`，大小 775,958 bytes
+- Result screenshot：`docs/cdp-runs/moth-body-outline-target-fix-20260520/screenshots/moth-body-outline-target-fix-20260520-greenPlants-portrait-390x844-result.png`
+- 下載圖：`docs/cdp-runs/moth-body-outline-target-fix-20260520/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+- 觀察：Result screenshot 與 Save PNG 都可見蛾中心 body 的黑色結構與兩側羽狀觸角，兩者一致
+- Console：三個 viewport 各有一筆既有 404 resource event 與相機權限 log，未見新增 JavaScript exception
+- 語法解析：Node REPL `new Function(source)` 通過；`node --check` 因本機 AppX node 存取被拒，未能使用
+
+#### Codex 審美自評
+`8.0/10`。優點是蛾不再像只有翅膀與眼斑，body 中心黑色結構與羽狀觸角重新可讀，而且 Result 頁面與下載 PNG 一致。弱點是 immediate fallback 線條比 p5.brush 線更乾淨，稍微偏硬；但本輪使用者回報的是黑線與觸角缺失，所以先以可靠出現和畫布一致性為優先。若使用者覺得太硬，下一輪應降低 fallback strokeWeight 或增加手繪 wobble。
+
+#### 使用者審美回饋
+使用者指出蛾的黑色框線及觸角沒有繪製出來，且這次連結果頁面上也沒有被繪製。使用者追問是否確認繪製的畫布對象是否正確。這項追問讓本輪先檢查主 canvas / offscreen canvas 路徑，再決定補強 p5.brush target 與 fallback。
+
+#### 尚未解決的風險
+尚未用真機與多 seed 驗證 moth fallback 線條在不同背景與尺寸下的審美穩定性。Immediate fallback 雖可確保黑線出現，但可能在某些 seed 下比 brush 質地硬。Chrome headless 仍不能驗證真實 Web Share 面板與社群 app 接收 PNG。
+
+#### 使用者回饋或修正
+等待使用者在實機或目前問題場景中確認 Result 頁面與 Save PNG 是否都出現蛾 body 黑色框線與觸角，以及線條是否太硬或太重。
+
+#### 建議的下一步
+用真機多拍幾次自然生成的蛾，並比對 Result 手動截圖與 Save PNG。若黑線仍偶發缺失，下一步應進一步檢查 p5.brush composite timing；若黑線穩定但太硬，調 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js` 的 `drawRoughMothImmediateStructureOverlay()`：降低 `strokeWeight` 可讓 fallback 線更淡；提高 `drawImmediateOpenOval()` 的 `wobble` 可增加手繪感但可能更鬆；降低 `drawImmediateMothFeatherAntennae()` 的 `branchCount` 可讓觸角更簡潔；提高 `branchCount` 會更像羽狀梳齒但可能變重。
+
+---
+
+### 2026-05-20 — 將蛾黑色 body 筆刷調整為接近蝴蝶設定
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+在使用者確認蛾的黑色 body 框線與觸角已同時出現在 Result 頁面與下載圖片後，依使用者要求，將 rough moth 黑色結構層使用的 brush 與筆刷設定調整得更接近蝴蝶 body outline。
+
+#### 使用者需求
+使用者回饋「有出現了，結果頁面和下載圖片都有」，接著要求把使用的 brush 及筆刷設定調整得和蝴蝶一樣。
+
+#### 實作前理解
+上一輪為了確保黑線進入主 canvas 與 `resultArtworkImage`，新增了 moth-only p5 immediate fallback。該 fallback 解決了缺線問題，但視覺上比 p5.brush 的 `pencil1` 線條更硬。使用者現在不是要移除黑線，而是要讓蛾黑色 body 結構的筆觸接近蝴蝶 body outline，因此應保留 target / fallback 的可靠性，但把線重、wobble 與觸角筆觸調回蝴蝶設定附近。
+
+#### 實作方案
+只修改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`。`drawRoughMothBlackStructureOverlay()` 的 abdomen / thorax / head `drawRoughOutlineOval()` 改用 `drawRoughBodySimpleOutline()` 中蝴蝶同款的 `strokeWeight` 與 `wobble` 範圍；`drawRoughMothFeatherAntennae()` 的主幹線重降到蝴蝶簡單觸角 `0.82–1.18` 附近，分枝線重也降低。Immediate fallback 保留，但 alpha、strokeWeight 與 wobble 調整成較淡、較鬆的輔助層。
+
+#### 檢視過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 修改過的檔案
+- `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+
+#### 決策紀錄
+決定不移除 immediate fallback，因為它是上一輪確保 Result 與 Save 一致的保險；但將 fallback 降為較淡的輔助層，讓主要視覺回到 `pencil1` brush。蛾觸角仍保留羽狀分枝，因為這是蛾與蝴蝶的物種辨識差異；調整的是筆刷重量與質地，而不是把蛾觸角改成蝴蝶的簡單兩條線。
+
+#### 遇到的問題
+沒有新的程式錯誤。Node REPL 語法解析通過；仍未使用 `node --check`，因為上一輪確認目前 AppX `node.exe` 在此環境會存取被拒。
+
+#### 嘗試過的解法
+先對照 `drawRoughBodySimpleOutline()` 中蝴蝶 body outline 的 abdomen / thorax / head `strokeWeight` 與 `wobble`，再把 moth overlay 的對應數值改成同組範圍。接著降低羽狀觸角主幹與分枝線重，並把 immediate fallback alpha / strokeWeight 降低。最後跑 forced moth CDP 視覺驗證。
+
+#### 最終解法
+`drawRoughMothBlackStructureOverlay()` 現在使用與蝴蝶 body outline 相同的線重策略：abdomen `1.5–1.8`、thorax `1.82–2.36`、head `1.7–2.02`，wobble 也與蝴蝶相同。`drawRoughMothFeatherAntennae()` 主幹線重改為 `0.82–1.18`，分枝改為較細的 `0.34–0.54` / `0.28–0.46`。`drawRoughMothImmediateStructureOverlay()` 改用 alpha 150 的黑線與更低 strokeWeight，保留可靠性但減少硬邊感。
+
+#### 視覺驗證紀錄
+- Run id：`moth-body-brush-match-butterfly-20260520`
+- Camera fixture：`tests/fixtures/camera/greenPlants.jpg`
+- Forced final pitch：`-60`
+- Forced spawn：`0.50 / 0.40`
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 三個 viewport 均進入 `RESULT`，`resultFinalPitch` 為 `-60`
+- Portrait Share：`shareState: "sharing"`，`shareMessage: "開啟分享面板..."`
+- Portrait Save：下載一個 `FlutterLens-result.png`，大小 780,202 bytes
+- Result screenshot：`docs/cdp-runs/moth-body-brush-match-butterfly-20260520/screenshots/moth-body-brush-match-butterfly-20260520-greenPlants-portrait-390x844-result.png`
+- 下載圖：`docs/cdp-runs/moth-body-brush-match-butterfly-20260520/downloads/greenPlants/portrait-390x844/FlutterLens-result.png`
+- 觀察：Result screenshot 與 Save PNG 都仍可見黑色 body 結構與羽狀觸角；線條比上一輪更接近蝴蝶 body outline 的筆刷重量，fallback 硬感降低
+- Console：三個 viewport 各有一筆既有 404 resource event 與相機權限 log，未見新增 JavaScript exception
+- 語法解析：Node REPL `new Function(source)` 通過
+
+#### Codex 審美自評
+`8.2/10`。優點是黑色 body 結構與觸角仍可靠出現，同時線條重量回到較接近蝴蝶 body outline 的手繪質地；蛾中心不再有明顯硬保險線感。弱點是蛾羽狀觸角仍比蝴蝶觸角複雜，若使用者希望完全一樣的簡潔觸角，需另外決定是否犧牲蛾的物種辨識。
+
+#### 使用者審美回饋
+使用者確認 Result 頁面與下載圖片都已出現蛾黑色 body 框線與觸角，並要求 brush 與筆刷設定調整得和蝴蝶一樣。本輪已照此調整筆刷重量與手繪抖動。
+
+#### 尚未解決的風險
+目前只用 forced moth 與 `greenPlants` fixture 驗證。多 seed、真機背景與不同尺寸下，fallback 輔助層是否仍略硬，需要使用者實機判斷。Web Share API 仍只能在 headless 中確認進入 `sharing` 狀態。
+
+#### 使用者回饋或修正
+等待使用者確認這版線條是否已接近蝴蝶筆刷感。如果仍覺得太硬，下一步可進一步降低 fallback；如果覺得觸角太複雜，需討論是否把蛾羽狀觸角簡化。
+
+#### 建議的下一步
+用真機確認這版 moth body 黑線是否既穩定又接近蝴蝶筆刷感。若要微調，改 `Pages/ResultPage/InsectGenerator/RoughInsectBody.js`：`drawRoughMothBlackStructureOverlay()` 的 `strokeWeight` 越高黑框越明顯、越低越接近細線；`drawRoughMothFeatherAntennae()` 的主幹與分枝 `strokeWeight` 越高觸角越清楚、越低越輕；`drawRoughMothImmediateStructureOverlay()` 的 alpha 或 `strokeWeight` 越低，保險層越不會搶走 brush 質地。
