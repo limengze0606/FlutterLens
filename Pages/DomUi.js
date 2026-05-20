@@ -7,6 +7,8 @@ const DomUi = {
   bound: false,
   activeState: null,
 };
+const START_PAGE_FADE_OUT_MS = 420;
+let startPageFadeOutPending = false;
 
 function initDomUi() {
   DomUi.layer = document.getElementById("dom-ui-layer");
@@ -119,6 +121,26 @@ function handleDomStartAction(event) {
   requestStartPermissions();
 }
 
+function beginStartPageFadeOut(onComplete) {
+  if (!DomUi.pages.start || startPageFadeOutPending) return false;
+
+  startPageFadeOutPending = true;
+  DomUi.pages.start.classList.add("is-exiting");
+  DomUi.pages.start.style.pointerEvents = "none";
+  if (DomUi.start.button) {
+    DomUi.start.button.disabled = true;
+  }
+
+  window.setTimeout(() => {
+    startPageFadeOutPending = false;
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+  }, START_PAGE_FADE_OUT_MS);
+
+  return true;
+}
+
 function syncDomUiState() {
   if (!DomUi.layer || typeof currentPagesState === "undefined") return;
   DomUi.activeState = currentPagesState;
@@ -130,6 +152,11 @@ function syncDomUiState() {
 function setDomPageActive(page, isActive) {
   if (!page) return;
   page.classList.toggle("is-active", isActive);
+  const keepStartExitState = page === DomUi.pages.start && startPageFadeOutPending;
+  if (isActive && !keepStartExitState) {
+    page.classList.remove("is-exiting");
+    page.style.pointerEvents = "";
+  }
   page.setAttribute("aria-hidden", isActive ? "false" : "true");
 }
 
@@ -137,32 +164,8 @@ function syncStartPageDom(layout) {
   if (!DomUi.start.button || !layout) return;
 
   DomUi.pages.start.classList.toggle("is-landscape-compact", layout.compact);
-  DomUi.start.title.style.cssText = positionTextStyle(layout.title);
-  DomUi.start.intro.style.cssText = positionTextStyle(layout.intro);
-  DomUi.start.hint.style.cssText = positionTextStyle(layout.hint);
-  DomUi.start.button.style.width = `${StartButton.ButtonWidth}px`;
-  DomUi.start.button.style.height = `${StartButton.ButtonHeight}px`;
-  DomUi.start.button.style.borderRadius = `${StartButton.ButtonBorderRadius}px`;
-  DomUi.start.button.style.left = `${StartButton.ButtonX}px`;
-  DomUi.start.button.style.top = `${StartButton.ButtonY}px`;
-  DomUi.start.button.style.fontSize = `${layout.buttonTextSize}px`;
-  DomUi.start.button.textContent = StartButton.Text;
-
   DomUi.start.intro.textContent = layout.introText;
   DomUi.start.hint.textContent = layout.hintText;
-
-  if (DomUi.start.permissionActions && layout.permissionActions) {
-    const actions = layout.permissionActions;
-    DomUi.start.permissionActions.style.left = `${actions.x}px`;
-    DomUi.start.permissionActions.style.top = `${actions.y}px`;
-    DomUi.start.permissionActions.style.gap = `${actions.gap}px`;
-    positionPermissionButton(DomUi.start.camera, actions);
-    positionPermissionButton(DomUi.start.motion, actions);
-  }
-
-  if (DomUi.start.status && layout.status) {
-    DomUi.start.status.style.cssText = positionTextStyle(layout.status);
-  }
 
   syncStartPermissionDom();
   markBootLayoutReady();
@@ -171,14 +174,6 @@ function syncStartPageDom(layout) {
 function markBootLayoutReady() {
   if (document.body.classList.contains("app-ready")) return;
   document.body.classList.add("app-ready");
-}
-
-function positionPermissionButton(button, layout) {
-  if (!button) return;
-  button.style.width = `${layout.buttonW}px`;
-  button.style.height = `${layout.buttonH}px`;
-  button.style.borderRadius = `${layout.radius}px`;
-  button.style.fontSize = `${layout.labelSize}px`;
 }
 
 function syncStartPermissionDom() {
@@ -191,7 +186,7 @@ function syncStartPermissionDom() {
   syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "相機權限");
   syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "陀螺儀權限");
 
-  DomUi.start.button.disabled = !ready;
+  DomUi.start.button.disabled = !ready || startPageFadeOutPending;
   DomUi.start.button.classList.toggle("is-ready", ready);
   DomUi.start.button.textContent = ready ? "開始探索" : "等待權限";
 
@@ -227,20 +222,6 @@ function getStartPermissionStatusMessage(state) {
   if (state.camera.granted) return "相機已允許，請再允許陀螺儀。";
   if (state.motion.granted) return "陀螺儀已允許，請再允許相機。";
   return "";
-}
-
-function positionTextStyle(item) {
-  const xTransform = item.alignX === "left" ? "0" : "-50%";
-  const yTransform = item.alignY === "center" ? "-50%" : "0";
-  return [
-    `left:${item.x}px`,
-    `top:${item.y}px`,
-    `font-size:${item.size}px`,
-    `line-height:${item.leading}px`,
-    `text-align:${item.alignX}`,
-    `color:${item.color}`,
-    `transform:translate(${xTransform}, ${yTransform})`,
-  ].join(";");
 }
 
 function syncShutterButtonDom() {

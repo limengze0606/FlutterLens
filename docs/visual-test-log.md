@@ -2440,3 +2440,91 @@ Codex 自評：`8/10`。650ms 的最短停留讓 loader 有「準備一下」的
 
 ### 備註 / 風險
 CSS delay 版本的邏輯較簡單，不依賴 JS `setTimeout`；但 headless screenshot 對 transition delay 的取樣不可靠，仍需真機或一般瀏覽器目視確認節奏。若未來 loader 要等更多真實資源，可把 `markBootLayoutReady()` 改成等待多個 ready flag 都完成後才加 `app-ready`。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start page layout ownership 轉移：將 Start page 的位置、尺寸與 responsive 排版由 p5 計算改為 HTML / CSS 控制。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-css-layout-2026-05-20`
+
+### 預期行為
+Start page 的標題、說明文字、權限按鈕、提示文字、狀態文字與開始按鈕都由 CSS 排版，不再依賴 p5 寫入 `left/top/width/height/font-size`。三種 viewport 不應出現左上角堆疊、文字重疊或按鈕互蓋；權限按鈕仍應可被點擊，允許相機與陀螺儀後可進入 Scanning / Result。
+
+### 實際觀察
+CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。`startPermissionState.camera` 與 `startPermissionState.motion` 均為 `granted`。Start page 截圖顯示 portrait 與 compact 版面維持置中、層級清楚；landscape 版面維持左側文案與右側操作區，按鈕沒有互相覆蓋。未觀察到左上角堆疊或明顯 overflow。
+
+### 截圖
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`7.6/10`。優點是版面比 p5 inline layout 更穩定，CSS 負責 responsive 後，portrait / compact 的視覺仍乾淨、安靜，操作區落點清楚。弱點是 Start page 仍偏純文字與標準按鈕，缺少更強烈的 FlutterLens / 昆蟲調查感；但本輪目標是職責轉移，不主動改視覺語彙，因此先停在穩定版本。
+
+### 使用者審美回饋
+本輪使用者同意實作方案，尚未提供新截圖分數或審美修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機 portrait 重新整理，確認 Start page 不重疊且 loader 淡出後版面穩定
+- [ ] 真機橫向或矮 viewport，確認右側操作區不擠壓
+- [ ] 確認相機權限、陀螺儀權限、開始探索三顆按鈕觸控手感正常
+- [ ] GitHub Pages HTTPS 環境確認相機與 DeviceOrientation 權限流程
+
+### 備註 / 風險
+本輪 CDP fake camera 可驗證 DOM layout、按鈕點擊與頁面狀態，但不能取代真實手機相機、DeviceOrientation 權限與觸控體感。若後續要調 Start page 視覺，應優先改 `style.css`，不要把座標計算加回 p5。
+
+---
+
+### 日期
+2026-05-20
+
+### 任務 / 功能
+Start -> Scanning 第一段轉場：按下「開始探索」後，Start page 的文字與按鈕逐漸淡出，再切到 Scanning page。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + CDP
+- 裝置：桌機模擬手機視窗
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-fadeout-2026-05-20`
+
+### 預期行為
+相機與陀螺儀權限都允許後，按下「開始探索」不應立刻硬切畫面，而是先讓 Start page 的標題、說明、提示、權限按鈕與開始按鈕以約 420ms 淡出；淡出完成後才進入 Scanning。流程不應卡在 Start，也不應讓按鈕在淡出時重複觸發。
+
+### 實際觀察
+CDP 測試在三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`。Start page 初始截圖仍維持正常版面；Scanning 截圖顯示淡出後頁面可正常切換到相機掃描 UI。`beginStartPageFadeOut()` 會在淡出期間加上 `.is-exiting`、暫停 Start page pointer events，並讓 `syncStartPermissionDom()` 保持開始按鈕 disabled。既有 CDP 截圖未專門捕捉 420ms 中間幀，因此本輪視覺截圖主要確認起點與終點，轉場中段仍需一般瀏覽器或真機目視確認。
+
+### 截圖
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-portrait-390x844-scanning.png`
+- `docs/cdp-runs/start-fadeout-2026-05-20/screenshots/start-fadeout-2026-05-20-default-landscape-844x390-start.png`
+
+### 審美評分與評語
+Codex 自評：`7.8/10`。優點是轉場很克制，Start page 不再瞬間消失，按下開始後有一個柔和收尾；只淡 opacity 不改位置，也不會和目前黑底 Start page 打架。弱點是目前還沒有 Scanning page 的對應 fadein 或相機畫面節奏，因此轉場後半段仍偏硬切；下一輪可接 Scanning UI / camera overlay 的入場。
+
+### 使用者審美回饋
+使用者要求「按下開始探索按鈕後，開始頁面的文字及按鈕會逐漸淡化 fadeout」，尚未提供截圖分數或後續節奏修正。
+
+### Console 錯誤
+每個 viewport 仍各有一筆既有的 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event，另有相機權限按鈕觸發 `getUserMedia` 的 log。未看到新的 JavaScript exception。
+
+### 手機檢查清單
+- [ ] 真機按下「開始探索」後，確認文字與按鈕真的可見地淡出
+- [ ] 確認 420ms 不會感覺拖太久或太快
+- [ ] 淡出期間連點開始按鈕不應重複觸發或卡住
+- [ ] 淡出後相機掃描畫面應順利出現，權限流程不受影響
+
+### 備註 / 風險
+目前只實作 Start 內容 fadeout，尚未做 Scanning page fadein、相機畫面亮度/遮罩轉場或頁面間 crossfade。若下一輪要接續，建議先處理 Scanning UI 入場，而不是一次加入太多 motion。

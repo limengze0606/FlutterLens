@@ -4236,3 +4236,146 @@ Chrome headless `--screenshot --virtual-time-budget` 對 CSS transition delay �
 
 #### 建議的下一步
 使用者重新整理頁面，觀察 loader 是否有短暫準備感且不拖。可優先微調 `style.css` 的 `#boot-loader transition` 第四個時間值 `650ms`：調大會停留更久，調小會更快淡出。
+
+---
+
+### 2026-05-20 — Start page layout ownership 轉交 HTML / CSS
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+將 Start page UI 的位置、尺寸與 responsive 排版職責從 p5 計算轉交給 HTML / CSS，讓 p5 不再控制 start page 元素座標。
+
+#### 使用者需求
+使用者指出目前 Start page UI 的位置計算都由 p5 控制，希望將這份職責交給 HTML / CSS。使用者先要求先規劃，閱讀現況與提出方案後同意實作。
+
+#### 實作前理解
+專案已經有 DOM app shell 與 hybrid UI 架構，但 Start page 仍由 `Pages/StartPage/StartPage.js` 依 p5 `width` / `height` 計算 title、intro、hint、權限按鈕、status 與 start button 的座標、尺寸、字級，再由 `Pages/DomUi.js` 寫成 inline style。`sketch.js` 的 START 互動也仍依賴 `StartButton.ButtonX` / `ButtonY` / `ButtonWidth` 做 p5 hit-test。這代表 DOM 已經存在，但 layout ownership 還沒有真正交給 CSS。
+
+#### 實作方案
+把 Start page layout 移到 `style.css`：portrait / compact 以 flex 排版，矮 landscape 以 media query + grid 排成左文案、右操作區。`Pages/StartPage/StartPage.js` 改成只同步目前 intro 與 hint 文案，並標記 compact 狀態。`Pages/DomUi.js` 移除 Start page 的 `left/top/width/height/font-size` inline style 寫入，只保留文字與權限狀態同步。`sketch.js` 移除 START 狀態的 p5 button hit-test，讓 Start page 的點擊完全由 DOM button 處理。最後移除已不再使用的 `Pages/StartPage/StartPageSettings.js` 與 `index.html` 中的載入。
+
+#### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `Pages/StartPage/StartPageSettings.js`（移除）
+- `docs/agent-quickstart.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+決定不新增框架，也不改 DOM 層級，只用既有 DOM 元素配合 CSS flex / grid / media query。Start page 的 compact 判斷仍由 `StartPage.js` 提供給文案切換與 class，但具體位置、間距、尺寸與字級都在 CSS。為避免未來誤用，移除 `StartPageSettings.js` 這個舊 p5 layout state 檔。
+
+#### 遇到的問題
+Windows sandbox 對一般 PowerShell 讀取命令回報 `CreateProcessAsUserW failed: 5`，因此依照環境規範改用 escalated shell 讀檔與執行 CDP 視覺測試。視覺測試仍出現每個 viewport 一筆既有 `404 File not found` resource event，但沒有新增 JS exception。
+
+#### 嘗試過的解法
+先用 `rg` 尋找 `StartButton`、`positionTextStyle`、`positionPermissionButton`、`ButtonX`、`ButtonY` 等舊 layout 依賴；移除後再次搜尋，確認除了已刪除檔案外不再有 Start page p5 layout 關鍵字。接著跑既有 CDP 腳本，以 portrait、compact、landscape 三種 viewport 操作完整 Start -> Scanning -> Result 流程。
+
+#### 最終解法
+`style.css` 現在是 Start page layout owner：`.dom-page-start`、`#start-intro`、`.permission-actions`、`.permission-button`、`#start-permission-hint`、`#start-permission-status`、`#start-action` 與 landscape media query 決定所有位置與尺寸。`Pages/StartPage/StartPage.js` 只回傳 `introText`、`hintText` 與 compact flag。`Pages/DomUi.js` 只同步文字、權限按鈕 class、disabled state 與 loader ready。`sketch.js` 不再用 p5 判斷 Start page button hit-test。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-css-layout-2026-05-20`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，相機與陀螺儀權限狀態皆為 `granted`。檢視截圖：
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-portrait-390x844-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-compact-360x740-start.png`
+- `docs/cdp-runs/start-css-layout-2026-05-20/screenshots/start-css-layout-2026-05-20-default-landscape-844x390-start.png`
+
+portrait 與 compact 版面置中穩定，沒有文字或按鈕互蓋；landscape 版面左文案、右操作區可讀，按鈕沒有重疊。CDP console 只有既有 404 resource event 與相機權限 log，未見新的 JS exception。
+
+#### Codex 審美自評
+`7.6/10`。優點是版面責任變乾淨，CSS 排版後 portrait / compact 仍維持安靜、穩定、清楚的 Start page；landscape 的左右分區也比 inline style 更容易維護。弱點是視覺語彙仍偏標準黑底文字與圓角按鈕，尚未把 FlutterLens / 昆蟲調查的個性推得更強；本輪因目標是 ownership 轉移，沒有做額外風格擴張。
+
+#### 使用者審美回饋
+本輪使用者同意實作方案，尚未提供新截圖分數或審美修正。
+
+#### 尚未解決的風險
+CDP fake camera 不能取代真實手機測試。仍需在真機確認 portrait / landscape 觸控、相機權限、DeviceOrientation 權限、GitHub Pages HTTPS 與 loader 淡出體感。若後續調 Start page 視覺，需避免把座標計算加回 p5。
+
+#### 使用者回饋或修正
+等待使用者確認 CSS-controlled Start page 的視覺落點是否符合預期，尤其是 landscape 右側操作區順序與間距。
+
+#### 建議的下一步
+真機測試 Start page：重新整理、允許相機、允許陀螺儀、按開始探索，確認觸控流程與 GitHub Pages HTTPS 權限表現。若要微調版面，優先改 `style.css`；portrait 主要看 `.dom-page-start` 的 `padding`、`#start-intro margin-top`、`.permission-actions margin-top`、`#start-action margin-top`，landscape 主要看 media query 內的 `grid-template-columns`、`column-gap`、`.permission-actions margin-top` 與 `#start-action` 尺寸。
+
+---
+
+### 2026-05-20 — Start page 開始按鈕後 fadeout 轉場
+
+#### 日期
+2026-05-20
+
+#### 任務摘要
+新增 Start -> Scanning 的第一段轉場：使用者按下「開始探索」後，Start page 的文字與按鈕先逐漸淡出，再切換到 Scanning page。
+
+#### 使用者需求
+使用者想開始分段處理轉場效果，第一段先做按下「開始探索」按鈕後，開始頁面的文字與按鈕逐漸淡化 fadeout。
+
+#### 實作前理解
+目前 Start page 按鈕已由 DOM 控制，權限齊全後 `sketch.js` 的 `requestStartPermissions()` 會立刻把 `currentPagesState` 改成 `PagesState.SCANNING`，`syncDomUiState()` 隨即讓 Start page 失去 `.is-active`。如果只加 CSS transition，Start page 會立刻被切掉，看不到 fadeout。因此需要一個短暫的 exiting 狀態，讓 Start page 在仍為 active 時先淡出，timeout 完成後再切換 state。
+
+#### 實作方案
+在 `style.css` 新增 Start page 子元素的 `opacity 420ms ease` transition，並用 `.dom-page-start.is-exiting` 讓標題、intro、hint、status、權限按鈕群與開始按鈕淡到 0。在 `Pages/DomUi.js` 新增 `START_PAGE_FADE_OUT_MS`、`startPageFadeOutPending` 與 `beginStartPageFadeOut(onComplete)`，負責加上 `.is-exiting`、暫停 Start page pointer events、停用開始按鈕，並在 timeout 後執行切頁 callback。在 `sketch.js` 的 `requestStartPermissions()` 中，權限齊全後先呼叫 `beginStartPageFadeOut()`，若 DOM helper 不存在則保留直接切到 Scanning 的 fallback。
+
+#### 檢視過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `sketch.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `Pages/DomUi.js`
+- `style.css`
+- `sketch.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+本輪只做 Start page 內容 fadeout，不加入位移、blur、縮放或 Scanning fadein，避免一次引入太多 motion。選擇 420ms 作為第一版時間：比瞬間切頁有明顯感覺，但不至於讓使用者覺得等待。為了避免 `draw()` 每 frame 的 `syncDomUiState()` 清掉 `.is-exiting`，`setDomPageActive()` 會在 `startPageFadeOutPending` 時保留 Start page exit class；`syncStartPermissionDom()` 也會在 pending 時保持開始按鈕 disabled，避免淡出期間重新啟用。
+
+#### 遇到的問題
+初步接上 `is-exiting` 後發現 `draw()` 會反覆同步 DOM state，若不處理，Start page 仍處於 `PagesState.START` 時會被 `setDomPageActive()` 立刻移除 `is-exiting`。因此補上 `keepStartExitState` 判斷。另外，權限狀態同步也可能在 fadeout 期間把開始按鈕重新啟用，因此 disabled 條件加入 `startPageFadeOutPending`。
+
+#### 嘗試過的解法
+先用 CSS class 控制 opacity，再檢查 `beginStartPageFadeOut`、`goToScanning` 與 pending state 的呼叫位置。接著跑 CDP 視覺測試確認完整流程沒有因 420ms delay 卡住。
+
+#### 最終解法
+`style.css` 中 `.dom-page-start.is-exiting` 控制 Start page 子元素 opacity fadeout。`Pages/DomUi.js` 的 `beginStartPageFadeOut()` 管理 exit class、pointer events、button disabled 與 timeout。`sketch.js` 的 `requestStartPermissions()` 在權限齊全時先淡出，再進入 `PagesState.SCANNING`。
+
+#### 視覺驗證紀錄
+執行 `.\scripts\run-cdp-visual-test.ps1 -RunId start-fadeout-2026-05-20`。三個 viewport 都成功從 `START` 進入 `SCANNING` 與 `RESULT`，相機與陀螺儀權限狀態皆為 `granted`。檢視 `portrait-390x844` 的 Start 與 Scanning 截圖，確認起點版面正常、終點掃描畫面正常。CDP console 只有既有 404 resource event 與相機權限 log，未見新的 JS exception。既有 CDP 截圖未捕捉 420ms 中間幀，因此 fadeout 的實際節奏仍需一般瀏覽器或真機目視確認。
+
+#### Codex 審美自評
+`7.8/10`。優點是動作克制，Start page 不再突然消失，按下開始後有柔和收尾，而且沒有破壞黑底極簡開場。弱點是目前只有 Start 內容淡出，Scanning page 仍是淡出結束後直接出現，後半段節奏還不完整；下一輪適合接 Scanning UI 或相機畫面的入場。
+
+#### 使用者審美回饋
+使用者要求先做「開始頁面的文字及按鈕逐漸淡化 fadeout」，尚未提供新截圖分數或節奏修正。
+
+#### 尚未解決的風險
+真機仍需確認 420ms 的手感、連點行為、相機權限後第一次進入 Scanning 是否順，以及 iOS / Android 上 CSS transition 與 camera startup 是否搭配自然。CDP fake camera 不能替代真機轉場體感。
+
+#### 使用者回饋或修正
+等待使用者試看淡出速度與感覺；若覺得太快，可提高 `START_PAGE_FADE_OUT_MS` 與 CSS transition duration；若覺得拖，可降低。
+
+#### 建議的下一步
+下一段可做 Scanning page 入場：例如 shutter / 角落框 / 掃描 UI 淡入，或在相機畫面出現前加一個很短的黑場 / aperture 感轉場。建議仍一次只做一層 motion。
