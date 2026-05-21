@@ -21,7 +21,12 @@ async function setup() {
   if (typeof drawStartPage === "function") {
     drawStartPage();
   }
-  await preloadScanningPage();
+  await Promise.all([
+    preloadScanningPage(),
+    typeof preloadStartDissolveTransition === "function"
+      ? preloadStartDissolveTransition()
+      : Promise.resolve()
+  ]);
 
   angleMode(DEGREES);
 
@@ -119,19 +124,33 @@ function draw() {
     syncDomUiState();
   }
 
-  drawInScreenSpace(() => {
-    switch (currentPagesState) {
-      case PagesState.START:
-        drawStartPage();
-        break;
-      case PagesState.SCANNING:
-        drawScanningPage();
-        break;
-      case PagesState.RESULT:
-        drawResultPage();
-        break;
+  const startDissolving = typeof isStartDissolveTransitionActive === "function"
+    && isStartDissolveTransitionActive();
+
+  if (startDissolving) {
+    drawInScreenSpace(() => {
+      drawScanningPage();
+    });
+    drawStartDissolveTransition();
+  } else {
+    if (currentPagesState === PagesState.START && typeof drawStartDissolvePaperBase === "function") {
+      drawStartDissolvePaperBase();
     }
-  });
+
+    drawInScreenSpace(() => {
+      switch (currentPagesState) {
+        case PagesState.START:
+          drawStartPage();
+          break;
+        case PagesState.SCANNING:
+          drawScanningPage();
+          break;
+        case PagesState.RESULT:
+          drawResultPage();
+          break;
+      }
+    });
+  }
 
   if (!(currentPagesState === PagesState.RESULT && resultExportPending)) {
     drawScreenTextLayer();

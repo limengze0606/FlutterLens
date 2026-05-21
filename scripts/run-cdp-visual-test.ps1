@@ -517,11 +517,17 @@ try {
 
         if ($permissionResult.startRect -and -not $permissionResult.startDisabled) {
           Invoke-CdpClick -Socket $socket -Events $events -X $permissionResult.startRect.x -Y $permissionResult.startRect.y
+          Start-Sleep -Milliseconds 540
+          Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "start-dissolve-mid")
+          Start-Sleep -Milliseconds 1460
+        } else {
+          Start-Sleep -Seconds 2
         }
-        Start-Sleep -Seconds 2
       } elseif ($initial.start -and $initial.start.visible) {
         Invoke-CdpClick -Socket $socket -Events $events -X $initial.start.x -Y $initial.start.y
-        Start-Sleep -Seconds 4
+        Start-Sleep -Milliseconds 540
+        Save-CdpScreenshot -Socket $socket -Events $events -Path (New-ScreenshotPath -CameraLabel $cameraLabel -ViewportLabel $label -Stage "start-dissolve-mid")
+        Start-Sleep -Milliseconds 3460
       }
 
         $scan = Invoke-CdpEval -Socket $socket -Events $events -Expression @"

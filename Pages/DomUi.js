@@ -130,7 +130,12 @@ function beginStartPageFadeOut(onComplete) {
   if (!DomUi.pages.start || startPageFadeOutPending) return false;
 
   startPageFadeOutPending = true;
+  const dissolveDuration = typeof beginStartDissolveTransition === "function"
+    ? beginStartDissolveTransition()
+    : 0;
+  const transitionDuration = dissolveDuration || START_PAGE_FADE_OUT_MS;
   DomUi.pages.start.classList.add("is-exiting");
+  DomUi.pages.start.classList.toggle("is-dissolving", dissolveDuration > 0);
   DomUi.pages.start.style.pointerEvents = "none";
   if (DomUi.start.button) {
     DomUi.start.button.disabled = true;
@@ -155,7 +160,7 @@ function beginStartPageFadeOut(onComplete) {
     if (typeof onComplete === "function") {
       onComplete();
     }
-  }, START_PAGE_FADE_OUT_MS);
+  }, transitionDuration);
 
   return true;
 }
@@ -183,6 +188,7 @@ function setDomPageActive(page, isActive) {
   const keepStartExitState = page === DomUi.pages.start && startPageFadeOutPending;
   if (isActive && !keepStartExitState) {
     page.classList.remove("is-exiting");
+    page.classList.remove("is-dissolving");
     page.style.pointerEvents = "";
   }
   page.setAttribute("aria-hidden", isActive ? "false" : "true");

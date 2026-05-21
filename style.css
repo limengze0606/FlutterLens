@@ -113,12 +113,26 @@ body.app-ready .boot-loader-spinner {
   min-width: 0;
   padding: max(42px, 9.5svh) 7vw max(58px, 8.5svh);
   text-align: center;
+  background: transparent;
+  color: #271f17;
+  overflow: hidden;
+}
+
+.dom-page-start::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   background-color: #e9deca;
   background-image: url("assets/background/old-paper-texture.jpg");
   background-position: center;
   background-size: cover;
-  color: #271f17;
-  overflow: hidden;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.dom-page-start.is-dissolving::before {
+  opacity: 0;
 }
 
 .dom-page-start h1,

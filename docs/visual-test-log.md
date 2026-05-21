@@ -2935,3 +2935,48 @@ Codex 自評：`8.1/10`。優點是指南不再永久壓住掃描畫面，第一
 
 ### 備註 / 風險
 本輪新增互動狀態，CDP 已驗證指南開啟、關閉、重新開啟與拍攝流程，但仍需真機確認觸控 hit area、safe area 與相機實景下的可讀性。
+
+---
+
+### 日期
+2026-05-21
+
+### 任務 / 功能
+Start page 進入 Scanning page 的 shader 消融轉場原型，並加入背景放大以營造往前進的感覺。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-prototype-20260521 -CameraFixture greenPlants`、`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-midcheck-20260521 -CameraFixture greenPlants`、`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-softedge-20260521 -CameraFixture greenPlants`
+
+### 預期行為
+按下「開始探索」後，Start page 的文字、按鈕與角落裝飾淡出；紙質背景由 p5 shader 接手，產生不規則消融並露出 Scanning 相機畫面。使用者後續要求背景同時放大，讓畫面有往前推進的感覺。
+
+### 實際觀察
+前三輪 CDP 測試皆可完成 `START -> SCANNING -> RESULT`，portrait 也完成 Share / Save / Back。新增 `start-dissolve-mid` 中段截圖後可看到 shader 確實在轉場中露出相機畫面；第一輪中段效果偏像火焰燃燒，亮邊過曝。第二輪降低邊緣亮度後仍有白色殘光，因此改為 premultiplied alpha 輸出，但該輪驗證被使用者中斷，尚未完成截圖確認。使用者接著要求先說明可調參數並再加入背景放大；本次加入 `START_DISSOLVE_ZOOM_AMOUNT` 後尚未重跑完整視覺驗證。
+
+### 截圖
+- `docs/cdp-runs/start-dissolve-midcheck-20260521/screenshots/start-dissolve-midcheck-20260521-greenPlants-portrait-390x844-start-dissolve-mid.png`
+- `docs/cdp-runs/start-dissolve-midcheck-20260521/screenshots/start-dissolve-midcheck-20260521-greenPlants-landscape-844x390-start-dissolve-mid.png`
+- `docs/cdp-runs/start-dissolve-softedge-20260521/screenshots/start-dissolve-softedge-20260521-greenPlants-portrait-390x844-start-dissolve-mid.png`
+
+### 審美評分與評語
+Codex 自評：`6.7/10`。優點是 shader 轉場方向成立，紙背景能被消融並露出相機畫面，流程沒有被破壞；中段截圖很容易判斷參數效果。弱點是早期版本亮邊太像燃燒、過曝，和首頁紙質採集冊氣質不夠一致。已嘗試降低亮邊與改 premultiplied alpha，並依使用者要求加入背景 zoom；但 zoom 後尚未截圖確認整體節奏。
+
+### 使用者審美回饋
+使用者詢問是否能用 shader 做背景消融轉場進入掃描頁，並擔心 p5 shader 接手 CSS 背景時位置或縮放對不上。使用者同意先試作，後續要求列出可手調參數，並追加「背景會放大，營造往前進的感覺」。
+
+### Console 錯誤
+已完成的 CDP 測試中，console 只有既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機權限按鈕 log，未看到 shader compile error 或新的 JavaScript exception。最後加入 zoom 後尚未重跑 console 驗證。
+
+### 手機檢查清單
+- [ ] 真機確認 Start 背景從 DOM 交給 p5 shader 時沒有跳動或 1px 對位落差
+- [ ] 真機確認 `START_DISSOLVE_ZOOM_AMOUNT` 的放大幅度不會讓背景突然漂移
+- [ ] 真機確認長轉場時間下按鈕 disabled 狀態與觸控不會重複觸發
+- [ ] 真機確認 iOS / Android WebGL shader 表現與效能
+- [ ] 若亮邊仍過曝，優先調低 `START_DISSOLVE_EDGE_WIDTH`、`START_DISSOLVE_BURN_TINT`，或繼續調整 fragment shader 的 alpha 混合
+
+### 備註 / 風險
+`START_DISSOLVE_TOTAL_MS` 與 `START_DISSOLVE_HOLD_MS` 目前已被使用者手動調整，後續 agent 不應擅自改回預設。新增 zoom 只改 shader 取樣座標，理論上不影響頁面狀態切換，但仍需重跑 CDP 與真機檢查。

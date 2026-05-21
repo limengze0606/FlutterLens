@@ -5000,3 +5000,86 @@ CDP 可驗證 modal 開關、重新開啟與拍攝流程，但不能取代真機
 
 #### 建議的下一步
 用真機檢查第一次進 Scanning 的指南彈出與右上角 `×` hit area。如果 modal 太暗，可調 `style.css` 的 `.scanning-guide-backdrop background` alpha 或 `.scanning-guide background`；如果 `?` 太小，可調 `.scanning-guide-action width/height/font-size`。
+
+---
+
+### 2026-05-21 — Start 到 Scanning 的 shader 消融轉場原型
+
+#### 日期
+2026-05-21
+
+#### 任務摘要
+試作 Start page 按下「開始探索」後，以 p5 WEBGL shader 讓紙質背景消融並進入 Scanning page；後續依使用者要求，新增背景放大參數，讓轉場有往前推進感。
+
+#### 使用者需求
+使用者詢問能否把目前 Start page UI fade out 後切頁的背景轉場，改成 shader 消融效果進入掃描頁，並詢問是否需要使用 Three.js。使用者擔心 CSS 背景交給 p5 shader 後縮放與位置會對不上，接著同意「試試看」。在看到可調參數說明後，使用者追加要求背景也會放大，營造往前進的感覺。
+
+#### 實作前理解
+專案現有 canvas 已是 `createCanvas(windowWidth, windowHeight, WEBGL)`，因此不需要引入 Three.js。Start page 背景原本由 CSS `.dom-page-start` 直接設定 `background-image`，若要讓 shader 消融露出掃描頁，需要讓 DOM 背景在轉場時退透明，並由 p5 canvas 用同一張 `assets/background/old-paper-texture.jpg` 依 `background-size: cover; background-position: center;` 的規則重新取樣。
+
+#### 實作方案
+新增 `Pages/Transitions/StartDissolveTransition.js`，內含 vertex / fragment shader、紙張 texture 預載、cover/center UV 計算、消融進度與 zoom 參數。`index.html` 將此檔加入 script 載入順序；`sketch.js` 在 setup 時預載轉場資源，draw 時若轉場 active，先畫 Scanning page，再疊上消融中的紙背景。`Pages/DomUi.js` 在 `beginStartPageFadeOut()` 中呼叫 `beginStartDissolveTransition()`，並延後狀態切換到 shader 總時長結束。`style.css` 將 Start 背景移到 `.dom-page-start::before`，轉場時用 `.is-dissolving::before` 讓 DOM 背景退透明。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/pagesSettings.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `Pages/ScanningPage/ScanningPageSettings.js`
+- `Pages/ScanningPage/ShutterButton.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/Transitions/StartDissolveTransition.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇 p5 shader 而非 Three.js，因為現有主畫布已是 p5 WEBGL，引入 Three.js 會增加第二套 renderer / canvas 管理與手機效能風險。背景交接採用 cover/center UV 計算，避免 CSS 與 WebGL 取樣比例不一致。消融期間仍先繪製 Scanning page，讓紙背景透明處直接露出相機畫面。新增 `START_DISSOLVE_ZOOM_AMOUNT` 時保留使用者手動調整過的 `START_DISSOLVE_TOTAL_MS = 10000` 與 `START_DISSOLVE_HOLD_MS = 500`，未擅自改回預設。
+
+#### 遇到的問題
+`node --check` 在目前 WindowsApps / Codex 內建 node 路徑出現「存取被拒」，無法作為語法檢查。CDP 可跑流程與截圖，因此改以瀏覽器 runtime 作主要驗證。第一輪 shader 中段截圖亮邊過曝，視覺像火焰燃燒而非紙纖維消融；第二輪降低亮邊後仍有白色殘光，因此改為 premultiplied alpha，但最後一輪驗證在使用者中斷後未完成。
+
+#### 嘗試過的解法
+先建立 shader 消融，並讓 CDP 腳本新增 `start-dissolve-mid` 截圖以觀察轉場中段。第一輪 `start-dissolve-midcheck-20260521` 顯示消融成立但過亮。第二輪 `start-dissolve-softedge-20260521` 調低 edge width / tint 後仍偏亮。接著改 fragment shader 輸出為 `vec4(litPaper * alpha, alpha)`，並依使用者要求補上 zoom 取樣：`zoomedScreenUv = (screenUv - 0.5) / uZoom + 0.5`。
+
+#### 最終解法
+目前 Start -> Scanning 可透過 `Pages/Transitions/StartDissolveTransition.js` 控制 shader 消融；`START_DISSOLVE_ZOOM_AMOUNT` 會讓紙背景在消融過程中逐步放大，進度使用 smoothstep easing。DOM UI 仍在 `beginStartPageFadeOut()` 中淡出，狀態切換會等待 shader 總時長結束。CDP 腳本已會在點擊開始後約 540ms 補截 `start-dissolve-mid`，方便後續手調參數。
+
+#### 視覺驗證紀錄
+已完成的 CDP 測試：
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-prototype-20260521 -CameraFixture greenPlants`
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-midcheck-20260521 -CameraFixture greenPlants`
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-softedge-20260521 -CameraFixture greenPlants`
+
+三輪已完成測試均可進入 `SCANNING` 與 `RESULT`，portrait 可完成 Share / Save / Back。中段截圖顯示轉場效果確實出現，但早期版本過亮、偏燃燒感。最後加入 premultiplied alpha 與背景 zoom 後，尚未重跑完整 CDP 驗證。
+
+#### Codex 審美自評
+`6.7/10`。概念方向成立：紙背景被消融並露出相機畫面，與「從調查冊進入野外掃描」的語意相符；新增背景放大也能支援往前推進的感覺。弱點是已截圖版本亮邊太強，偏火焰與過曝，尚未達到理想的紙纖維、光氣或標本冊翻入現場的細膩感。因使用者要求改由手動調參，先停在可調參數清楚的狀態。
+
+#### 使用者審美回饋
+使用者擔心 shader 接手背景時縮放或位置對不上；回覆後同意試作。後續使用者要求列出可調參數，表示想手動調整；接著追加「再加上背景會放大，營造往前進的感覺」。尚未收到使用者對新 zoom 版本的分數或截圖評語。
+
+#### 尚未解決的風險
+最後加入 zoom 後尚未完成 CDP 截圖與 console 驗證。長達 `10000ms` 的轉場會讓 Start page 到 Scanning 的等待時間變長，需確認這是使用者刻意調參測試而非最終節奏。真機上仍需確認 WebGL shader 效能、DOM 背景交接是否跳動、以及相機權限後等待轉場期間是否會讓玩家誤以為卡住。
+
+#### 使用者回饋或修正
+依使用者最新需求，已新增背景 zoom 參數，方便後續手動調整；未繼續私自跑長時間驗證或調整更多視覺細節。
+
+#### 建議的下一步
+請使用者先手動調 `Pages/Transitions/StartDissolveTransition.js` 的 `START_DISSOLVE_TOTAL_MS`、`START_DISSOLVE_HOLD_MS`、`START_DISSOLVE_NOISE_SCALE`、`START_DISSOLVE_EDGE_WIDTH`、`START_DISSOLVE_BURN_TINT` 與 `START_DISSOLVE_ZOOM_AMOUNT`。若要快速看中段效果，可重跑 `.\scripts\run-cdp-visual-test.ps1 -RunId <run-id> -CameraFixture greenPlants`，檢查 `screenshots/*start-dissolve-mid.png`。
+
+#### 2026-05-21 補充：轉場動畫曲線
+使用者指出希望動畫效果都要參照曲線。已在 `Pages/Transitions/StartDissolveTransition.js` 新增 `START_DISSOLVE_REVEAL_CURVE` 與 `START_DISSOLVE_ZOOM_CURVE`，並加入 `sampleStartDissolveCurve()` / `cubicBezierValue()`，讓消融進度與背景 zoom 分別透過 cubic-bezier 曲線取樣，不再直接使用線性 `progress`。本次保留使用者手動調整過的 `START_DISSOLVE_TOTAL_MS = 7000`、`START_DISSOLVE_HOLD_MS = 200`、`START_DISSOLVE_ZOOM_AMOUNT = 2.2`，未重跑視覺驗證；後續若調整節奏，應優先修改兩組 curve 常數。
