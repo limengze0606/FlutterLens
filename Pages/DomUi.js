@@ -8,7 +8,10 @@ const DomUi = {
   activeState: null,
 };
 const START_PAGE_FADE_OUT_MS = 420;
+const START_PREPARATION_FADE_MS = 420;
 let startPageFadeOutPending = false;
+let startPreparationRevealed = false;
+let startPreparationTransitionPending = false;
 let hasSeenScanningGuide = false;
 let scanningGuideOpen = false;
 
@@ -20,11 +23,9 @@ function initDomUi() {
 
   DomUi.start.title = document.getElementById("start-title");
   DomUi.start.intro = document.getElementById("start-intro");
-  DomUi.start.hint = document.getElementById("start-permission-hint");
   DomUi.start.permissionActions = document.getElementById("start-permission-actions");
   DomUi.start.camera = document.getElementById("camera-permission-action");
   DomUi.start.motion = document.getElementById("motion-permission-action");
-  DomUi.start.status = document.getElementById("start-permission-status");
   DomUi.start.button = document.getElementById("start-action");
 
   DomUi.scanning.guidePanel = document.getElementById("scanning-guide-panel");
@@ -123,7 +124,30 @@ function stopDomUiEvent(event) {
 
 function handleDomStartAction(event) {
   stopDomUiEvent(event);
+  if (!startPreparationRevealed) {
+    beginStartPreparationReveal();
+    return;
+  }
+
   requestStartPermissions();
+}
+
+function beginStartPreparationReveal() {
+  if (!DomUi.pages.start || startPreparationTransitionPending) return;
+
+  startPreparationTransitionPending = true;
+  DomUi.pages.start.classList.add("is-preparation-leaving");
+  if (DomUi.start.button) {
+    DomUi.start.button.disabled = true;
+  }
+
+  window.setTimeout(() => {
+    startPreparationRevealed = true;
+    startPreparationTransitionPending = false;
+    DomUi.pages.start.classList.remove("is-preparation-leaving");
+    DomUi.pages.start.classList.add("is-preparation-revealed");
+    syncStartPermissionDom();
+  }, START_PREPARATION_FADE_MS);
 }
 
 function beginStartPageFadeOut(onComplete) {
@@ -184,6 +208,10 @@ function setDomPageActive(page, isActive) {
   if (isActive && !keepStartExitState) {
     page.classList.remove("is-exiting");
     page.style.pointerEvents = "";
+    if (page === DomUi.pages.start) {
+      page.classList.toggle("is-preparation-revealed", startPreparationRevealed);
+      page.classList.remove("is-preparation-leaving");
+    }
   }
   page.setAttribute("aria-hidden", isActive ? "false" : "true");
 }
@@ -193,7 +221,7 @@ function syncStartPageDom(layout) {
 
   DomUi.pages.start.classList.toggle("is-landscape-compact", layout.compact);
   DomUi.start.intro.textContent = layout.introText;
-  DomUi.start.hint.textContent = layout.hintText;
+  DomUi.pages.start.classList.toggle("is-preparation-revealed", startPreparationRevealed);
 
   syncStartPermissionDom();
   markBootLayoutReady();
@@ -214,16 +242,16 @@ function syncStartPermissionDom() {
   syncPermissionButtonState(DomUi.start.camera, state ? state.camera : null, "允許相機權限");
   syncPermissionButtonState(DomUi.start.motion, state ? state.motion : null, "允許陀螺儀權限");
 
+  if (!startPreparationRevealed) {
+    DomUi.start.button.disabled = startPreparationTransitionPending || startPageFadeOutPending;
+    DomUi.start.button.classList.remove("is-ready");
+    DomUi.start.button.textContent = "行前準備";
+    return;
+  }
+
   DomUi.start.button.disabled = !ready || startPageFadeOutPending;
   DomUi.start.button.classList.toggle("is-ready", ready);
-  DomUi.start.button.textContent = ready ? "開始探索" : "等待權限";
-
-  if (DomUi.start.status) {
-    DomUi.start.status.textContent = state ? getStartPermissionStatusMessage(state) : "";
-    DomUi.start.status.style.color = state && (state.camera.error || state.motion.error)
-      ? "#8b3a24"
-      : "#4f4436";
-  }
+  DomUi.start.button.textContent = ready ? "開始探險" : "等待權限";
 }
 
 function syncPermissionButtonState(button, permission, defaultLabel) {
@@ -248,15 +276,6 @@ function getPermissionButtonLabel(defaultLabel, status) {
   if (status === "pending") return "詢問中...";
   if (status === "denied" || status === "error") return `重新${defaultLabel}`;
   return defaultLabel;
-}
-
-function getStartPermissionStatusMessage(state) {
-  if (state.camera.error) return `相機：${state.camera.error}`;
-  if (state.motion.error) return `陀螺儀：${state.motion.error}`;
-  if (state.camera.granted && state.motion.granted) return "兩項權限已允許，可以開始探索。";
-  if (state.camera.granted) return "相機已允許，請再允許陀螺儀。";
-  if (state.motion.granted) return "陀螺儀已允許，請再允許相機。";
-  return "";
 }
 
 function openScanningGuide() {

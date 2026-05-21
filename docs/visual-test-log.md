@@ -2935,3 +2935,108 @@ Codex 自評：`8.1/10`。優點是指南不再永久壓住掃描畫面，第一
 
 ### 備註 / 風險
 本輪新增互動狀態，CDP 已驗證指南開啟、關閉、重新開啟與拍攝流程，但仍需真機確認觸控 hit area、safe area 與相機實景下的可讀性。
+
+---
+
+### 日期
+2026-05-21
+
+### 任務 / 功能
+Start page 進入 Scanning page 的 shader 消融轉場原型，並加入背景放大以營造往前進的感覺。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP mobile viewport + Chrome fake camera
+- Viewport：`portrait-390x844`、`compact-360x740`、`landscape-844x390`
+- 測試腳本：`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-prototype-20260521 -CameraFixture greenPlants`、`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-midcheck-20260521 -CameraFixture greenPlants`、`.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-softedge-20260521 -CameraFixture greenPlants`
+
+### 預期行為
+按下「開始探索」後，Start page 的文字、按鈕與角落裝飾淡出；紙質背景由 p5 shader 接手，產生不規則消融並露出 Scanning 相機畫面。使用者後續要求背景同時放大，讓畫面有往前推進的感覺。
+
+### 實際觀察
+前三輪 CDP 測試皆可完成 `START -> SCANNING -> RESULT`，portrait 也完成 Share / Save / Back。新增 `start-dissolve-mid` 中段截圖後可看到 shader 確實在轉場中露出相機畫面；第一輪中段效果偏像火焰燃燒，亮邊過曝。第二輪降低邊緣亮度後仍有白色殘光，因此改為 premultiplied alpha 輸出，但該輪驗證被使用者中斷，尚未完成截圖確認。使用者接著要求先說明可調參數並再加入背景放大；本次加入 `START_DISSOLVE_ZOOM_AMOUNT` 後尚未重跑完整視覺驗證。
+
+### 截圖
+- `docs/cdp-runs/start-dissolve-midcheck-20260521/screenshots/start-dissolve-midcheck-20260521-greenPlants-portrait-390x844-start-dissolve-mid.png`
+- `docs/cdp-runs/start-dissolve-midcheck-20260521/screenshots/start-dissolve-midcheck-20260521-greenPlants-landscape-844x390-start-dissolve-mid.png`
+- `docs/cdp-runs/start-dissolve-softedge-20260521/screenshots/start-dissolve-softedge-20260521-greenPlants-portrait-390x844-start-dissolve-mid.png`
+
+### 審美評分與評語
+Codex 自評：`6.7/10`。優點是 shader 轉場方向成立，紙背景能被消融並露出相機畫面，流程沒有被破壞；中段截圖很容易判斷參數效果。弱點是早期版本亮邊太像燃燒、過曝，和首頁紙質採集冊氣質不夠一致。已嘗試降低亮邊與改 premultiplied alpha，並依使用者要求加入背景 zoom；但 zoom 後尚未截圖確認整體節奏。
+
+### 使用者審美回饋
+使用者詢問是否能用 shader 做背景消融轉場進入掃描頁，並擔心 p5 shader 接手 CSS 背景時位置或縮放對不上。使用者同意先試作，後續要求列出可手調參數，並追加「背景會放大，營造往前進的感覺」。
+
+### Console 錯誤
+已完成的 CDP 測試中，console 只有既有 `Failed to load resource: the server responded with a status of 404 (File not found)` resource event 與相機權限按鈕 log，未看到 shader compile error 或新的 JavaScript exception。最後加入 zoom 後尚未重跑 console 驗證。
+
+### 手機檢查清單
+- [ ] 真機確認 Start 背景從 DOM 交給 p5 shader 時沒有跳動或 1px 對位落差
+- [ ] 真機確認 `START_DISSOLVE_ZOOM_AMOUNT` 的放大幅度不會讓背景突然漂移
+- [ ] 真機確認長轉場時間下按鈕 disabled 狀態與觸控不會重複觸發
+- [ ] 真機確認 iOS / Android WebGL shader 表現與效能
+- [ ] 若亮邊仍過曝，優先調低 `START_DISSOLVE_EDGE_WIDTH`、`START_DISSOLVE_BURN_TINT`，或繼續調整 fragment shader 的 alpha 混合
+
+### 備註 / 風險
+`START_DISSOLVE_TOTAL_MS` 與 `START_DISSOLVE_HOLD_MS` 目前已被使用者手動調整，後續 agent 不應擅自改回預設。新增 zoom 只改 shader 取樣座標，理論上不影響頁面狀態切換，但仍需重跑 CDP 與真機檢查。
+
+---
+
+## 日期
+2026-05-21
+
+### 任務 / 功能
+Start page 兩段式「行前準備」權限流程。
+
+### 測試環境
+- Local / GitHub Pages：Local Python static server
+- 瀏覽器：Google Chrome headless + Chrome DevTools Protocol
+- 裝置：CDP portrait viewport
+- Viewport：`390x844`
+- 測試方式：CDP 檢查 DOM class / computed style / button text，並擷取三張 Start page 截圖。
+
+### 預期行為
+初始 Start page 不顯示兩個權限按鈕，也不顯示權限 hint；只顯示封面文字、intro 與「行前準備」。點擊「行前準備」後，intro 與主按鈕淡出，接著淡入相機 / 陀螺儀權限按鈕、權限 status 與「等待權限」。兩項權限 granted 後主按鈕改成「開始探險」。
+
+### 實際觀察
+初始畫面只看到標題、intro 與「行前準備」，沒有權限 hint 或權限 checklist。CDP 呼叫實際 `handleDomStartAction()` 後，`#start-page-ui` 進入 `.is-preparation-revealed`，權限 checklist 顯示，intro 隱藏，主按鈕為 disabled 的「等待權限」。模擬 `markCameraPermissionGranted()` 與 `markMotionPermissionGranted()` 後，兩個 checkbox 變成綠色已允許狀態，主按鈕改成「開始探險」並可按。
+
+### 截圖
+- `docs/start-prep-initial-dom-2026-05-21.png`
+- `docs/start-prep-after-click-2026-05-21.png`
+- `docs/start-prep-ready-2026-05-21.png`
+
+### 審美評分與評語
+Codex 自評：`7.8/10`。優點是第一屏更乾淨，舊紙與植物標本角落更像封面，權限流程被包成「行前準備」後比較有調查前儀式感。弱點是準備階段 checklist 偏下，畫面中段留白較多；不過這也讓權限表單不壓標題，目前先保留等待使用者回饋。
+
+### 使用者審美回饋
+使用者沒有提供截圖分數；本輪明確要求「權限 hint 可以完全捨棄」，已照做。
+
+### Console 錯誤
+本輪未完整收集 console。第一次單純 Chrome screenshot 停在 loader，未作為成功驗證；後續使用 CDP 直接檢查 DOM 狀態與截圖。
+
+### 手機檢查清單
+- [ ] 真機確認第一次點「行前準備」的 fade out / fade in 節奏自然
+- [ ] 真機確認權限按鈕淡入後，iOS / Android 權限請求仍由各自按鈕的使用者手勢觸發
+- [ ] 真機確認權限 denied / error 時 status 文案位置不會擠壓主按鈕
+- [ ] 更新 CDP 自動流程：先點「行前準備」，再點相機與陀螺儀權限按鈕
+- [ ] 重跑完整 `START -> SCANNING -> RESULT`，確認新版 Start flow 不影響 shader 消融轉場
+
+### 備註 / 風險
+本次驗證重點是 Start page DOM 與視覺狀態，不等同完整 AR / camera 驗證。若後續使用者覺得準備清單位置太低，可從 `style.css` 的 `.permission-actions` `margin-top` 調整；若覺得節奏太拖，可調 `Pages/DomUi.js` 的 `START_PREPARATION_FADE_MS`。
+
+#### 2026-05-21 補充：無狀態文字與開始後淡出
+使用者指出按下「開始探險」後，準備階段的按鈕與狀態沒有跟著淡出，並要求不顯示狀態文字，只保留三個按鈕及各自文字。已移除 `#start-permission-status`，並修正 `.is-preparation-revealed` 的 fade-in animation 覆蓋 `.is-exiting` opacity 的問題。
+
+新增驗證：
+- `docs/start-prep-ready-no-status-visual-2026-05-21.png`：準備完成狀態只顯示相機已允許、陀螺儀已允許、開始探險三個按鈕。
+- `docs/start-prep-exiting-buttons-visual-2026-05-21.png`：按下開始後三個按鈕已淡出，畫面進入 Start -> Scanning 消融階段。
+
+CDP computed style 檢查：
+- `statusExists: false`
+- 按下「開始探險」後 `.permission-actions` opacity 為 `0`
+- 按下「開始探險」後 `#start-action` opacity 為 `0`
+- 兩者 animation 均為 `none`
+
+Codex 審美補充自評：`8/10`。移除狀態文字後準備區更簡潔，視覺重心回到三個操作按鈕；開始後按鈕完整淡出，與紙張消融轉場銜接更乾淨。後續仍需真機確認 denied / error 情境下只靠按鈕文字是否足夠清楚。

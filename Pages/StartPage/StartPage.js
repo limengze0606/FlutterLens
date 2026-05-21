@@ -1,8 +1,7 @@
 function drawStartPage() {
   syncStartPageDomIfReady({
     compact: isStartPageLandscapeCompact(),
-    introText: getStartPageIntroText(),
-    hintText: getStartPageHintText()
+    introText: getStartPageIntroText()
   });
 }
 
@@ -16,12 +15,6 @@ function getStartPageIntroText() {
   }
 
   return "以鏡頭採集環境色彩，尋找隱身其中的未知昆蟲。";
-}
-
-function getStartPageHintText() {
-  return isStartPageLandscapeCompact()
-    ? "先允許兩項權限"
-    : "請先分別允許相機與陀螺儀權限";
 }
 
 function syncStartPageDomIfReady(layout) {

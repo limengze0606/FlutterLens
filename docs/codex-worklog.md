@@ -5000,3 +5000,177 @@ CDP 可驗證 modal 開關、重新開啟與拍攝流程，但不能取代真機
 
 #### 建議的下一步
 用真機檢查第一次進 Scanning 的指南彈出與右上角 `×` hit area。如果 modal 太暗，可調 `style.css` 的 `.scanning-guide-backdrop background` alpha 或 `.scanning-guide background`；如果 `?` 太小，可調 `.scanning-guide-action width/height/font-size`。
+
+---
+
+### 2026-05-21 — Start 到 Scanning 的 shader 消融轉場原型
+
+#### 日期
+2026-05-21
+
+#### 任務摘要
+試作 Start page 按下「開始探索」後，以 p5 WEBGL shader 讓紙質背景消融並進入 Scanning page；後續依使用者要求，新增背景放大參數，讓轉場有往前推進感。
+
+#### 使用者需求
+使用者詢問能否把目前 Start page UI fade out 後切頁的背景轉場，改成 shader 消融效果進入掃描頁，並詢問是否需要使用 Three.js。使用者擔心 CSS 背景交給 p5 shader 後縮放與位置會對不上，接著同意「試試看」。在看到可調參數說明後，使用者追加要求背景也會放大，營造往前進的感覺。
+
+#### 實作前理解
+專案現有 canvas 已是 `createCanvas(windowWidth, windowHeight, WEBGL)`，因此不需要引入 Three.js。Start page 背景原本由 CSS `.dom-page-start` 直接設定 `background-image`，若要讓 shader 消融露出掃描頁，需要讓 DOM 背景在轉場時退透明，並由 p5 canvas 用同一張 `assets/background/old-paper-texture.jpg` 依 `background-size: cover; background-position: center;` 的規則重新取樣。
+
+#### 實作方案
+新增 `Pages/Transitions/StartDissolveTransition.js`，內含 vertex / fragment shader、紙張 texture 預載、cover/center UV 計算、消融進度與 zoom 參數。`index.html` 將此檔加入 script 載入順序；`sketch.js` 在 setup 時預載轉場資源，draw 時若轉場 active，先畫 Scanning page，再疊上消融中的紙背景。`Pages/DomUi.js` 在 `beginStartPageFadeOut()` 中呼叫 `beginStartDissolveTransition()`，並延後狀態切換到 shader 總時長結束。`style.css` 將 Start 背景移到 `.dom-page-start::before`，轉場時用 `.is-dissolving::before` 讓 DOM 背景退透明。
+
+#### 檢視過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/pagesSettings.js`
+- `Pages/ScanningPage/ScanningPage.js`
+- `Pages/ScanningPage/ScanningPageSettings.js`
+- `Pages/ScanningPage/ShutterButton.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/testing-playbook.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 修改過的檔案
+- `index.html`
+- `style.css`
+- `sketch.js`
+- `Pages/DomUi.js`
+- `Pages/Transitions/StartDissolveTransition.js`
+- `scripts/run-cdp-visual-test.ps1`
+- `docs/agent-quickstart.md`
+- `docs/visual-test-log.md`
+- `docs/codex-worklog.md`
+
+#### 決策紀錄
+選擇 p5 shader 而非 Three.js，因為現有主畫布已是 p5 WEBGL，引入 Three.js 會增加第二套 renderer / canvas 管理與手機效能風險。背景交接採用 cover/center UV 計算，避免 CSS 與 WebGL 取樣比例不一致。消融期間仍先繪製 Scanning page，讓紙背景透明處直接露出相機畫面。新增 `START_DISSOLVE_ZOOM_AMOUNT` 時保留使用者手動調整過的 `START_DISSOLVE_TOTAL_MS = 10000` 與 `START_DISSOLVE_HOLD_MS = 500`，未擅自改回預設。
+
+#### 遇到的問題
+`node --check` 在目前 WindowsApps / Codex 內建 node 路徑出現「存取被拒」，無法作為語法檢查。CDP 可跑流程與截圖，因此改以瀏覽器 runtime 作主要驗證。第一輪 shader 中段截圖亮邊過曝，視覺像火焰燃燒而非紙纖維消融；第二輪降低亮邊後仍有白色殘光，因此改為 premultiplied alpha，但最後一輪驗證在使用者中斷後未完成。
+
+#### 嘗試過的解法
+先建立 shader 消融，並讓 CDP 腳本新增 `start-dissolve-mid` 截圖以觀察轉場中段。第一輪 `start-dissolve-midcheck-20260521` 顯示消融成立但過亮。第二輪 `start-dissolve-softedge-20260521` 調低 edge width / tint 後仍偏亮。接著改 fragment shader 輸出為 `vec4(litPaper * alpha, alpha)`，並依使用者要求補上 zoom 取樣：`zoomedScreenUv = (screenUv - 0.5) / uZoom + 0.5`。
+
+#### 最終解法
+目前 Start -> Scanning 可透過 `Pages/Transitions/StartDissolveTransition.js` 控制 shader 消融；`START_DISSOLVE_ZOOM_AMOUNT` 會讓紙背景在消融過程中逐步放大，進度使用 smoothstep easing。DOM UI 仍在 `beginStartPageFadeOut()` 中淡出，狀態切換會等待 shader 總時長結束。CDP 腳本已會在點擊開始後約 540ms 補截 `start-dissolve-mid`，方便後續手調參數。
+
+#### 視覺驗證紀錄
+已完成的 CDP 測試：
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-prototype-20260521 -CameraFixture greenPlants`
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-midcheck-20260521 -CameraFixture greenPlants`
+- `.\scripts\run-cdp-visual-test.ps1 -RunId start-dissolve-softedge-20260521 -CameraFixture greenPlants`
+
+三輪已完成測試均可進入 `SCANNING` 與 `RESULT`，portrait 可完成 Share / Save / Back。中段截圖顯示轉場效果確實出現，但早期版本過亮、偏燃燒感。最後加入 premultiplied alpha 與背景 zoom 後，尚未重跑完整 CDP 驗證。
+
+#### Codex 審美自評
+`6.7/10`。概念方向成立：紙背景被消融並露出相機畫面，與「從調查冊進入野外掃描」的語意相符；新增背景放大也能支援往前推進的感覺。弱點是已截圖版本亮邊太強，偏火焰與過曝，尚未達到理想的紙纖維、光氣或標本冊翻入現場的細膩感。因使用者要求改由手動調參，先停在可調參數清楚的狀態。
+
+#### 使用者審美回饋
+使用者擔心 shader 接手背景時縮放或位置對不上；回覆後同意試作。後續使用者要求列出可調參數，表示想手動調整；接著追加「再加上背景會放大，營造往前進的感覺」。尚未收到使用者對新 zoom 版本的分數或截圖評語。
+
+#### 尚未解決的風險
+最後加入 zoom 後尚未完成 CDP 截圖與 console 驗證。長達 `10000ms` 的轉場會讓 Start page 到 Scanning 的等待時間變長，需確認這是使用者刻意調參測試而非最終節奏。真機上仍需確認 WebGL shader 效能、DOM 背景交接是否跳動、以及相機權限後等待轉場期間是否會讓玩家誤以為卡住。
+
+#### 使用者回饋或修正
+依使用者最新需求，已新增背景 zoom 參數，方便後續手動調整；未繼續私自跑長時間驗證或調整更多視覺細節。
+
+#### 建議的下一步
+請使用者先手動調 `Pages/Transitions/StartDissolveTransition.js` 的 `START_DISSOLVE_TOTAL_MS`、`START_DISSOLVE_HOLD_MS`、`START_DISSOLVE_NOISE_SCALE`、`START_DISSOLVE_EDGE_WIDTH`、`START_DISSOLVE_BURN_TINT` 與 `START_DISSOLVE_ZOOM_AMOUNT`。若要快速看中段效果，可重跑 `.\scripts\run-cdp-visual-test.ps1 -RunId <run-id> -CameraFixture greenPlants`，檢查 `screenshots/*start-dissolve-mid.png`。
+
+#### 2026-05-21 補充：轉場動畫曲線
+使用者指出希望動畫效果都要參照曲線。已在 `Pages/Transitions/StartDissolveTransition.js` 新增 `START_DISSOLVE_REVEAL_CURVE` 與 `START_DISSOLVE_ZOOM_CURVE`，並加入 `sampleStartDissolveCurve()` / `cubicBezierValue()`，讓消融進度與背景 zoom 分別透過 cubic-bezier 曲線取樣，不再直接使用線性 `progress`。本次保留使用者手動調整過的 `START_DISSOLVE_TOTAL_MS = 7000`、`START_DISSOLVE_HOLD_MS = 200`、`START_DISSOLVE_ZOOM_AMOUNT = 2.2`，未重跑視覺驗證；後續若調整節奏，應優先修改兩組 curve 常數。
+
+---
+
+## 2026-05-21 Start page 行前準備兩段式權限流程
+
+### 日期
+2026-05-21
+
+### 任務摘要
+將 Start page 從「一開始就顯示權限 checklist」改為「先顯示封面與行前準備，點擊後再淡入權限 checklist」。
+
+### 使用者需求
+使用者希望 Start page 一開始不要顯示兩個權限按鈕，並把「開始探險」前的初始主按鈕改成「行前準備」。按下「行前準備」後，原本說明文字和按鈕要先 fade out，接著才 fade in 權限按鈕與「開始探險」。使用者後續補充：權限 hint 可以完全捨棄。
+
+### 實作前理解
+Start page 目前由 DOM 負責，主要檔案是 `index.html`、`style.css`、`Pages/DomUi.js` 與 `Pages/StartPage/StartPage.js`。p5 不再處理 Start page hit-test 或座標，因此本次應避免回到 p5 layout。原本主按鈕會直接呼叫 `requestStartPermissions()`；權限按鈕則分別呼叫相機與陀螺儀權限請求。
+
+### 實作方案
+在 `Pages/DomUi.js` 新增 `startPreparationRevealed` 與 `startPreparationTransitionPending`，讓主按鈕第一次點擊只啟動準備階段轉場，不直接進入權限檢查。準備階段轉場先加上 `.is-preparation-leaving`，等待 `START_PREPARATION_FADE_MS` 後改成 `.is-preparation-revealed`，再同步權限 DOM。CSS 預設隱藏 `.permission-actions` 與 `#start-permission-status`，揭露後才顯示並淡入。`index.html` 移除 `#start-permission-hint`；`Pages/StartPage/StartPage.js` 不再產生 hint 文案。
+
+### 檢視過的檔案
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/testing-playbook.md`
+- `docs/current-risks-and-next-steps.md`
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `sketch.js`
+
+### 修改過的檔案
+- `index.html`
+- `style.css`
+- `Pages/DomUi.js`
+- `Pages/StartPage/StartPage.js`
+- `docs/agent-quickstart.md`
+- `docs/visual-style-guide.md`
+- `docs/current-risks-and-next-steps.md`
+- `docs/codex-worklog.md`
+- `docs/visual-test-log.md`
+
+### 決策紀錄
+- 權限 hint 完全移除，不保留隱藏文案或替代小字。
+- 初始主按鈕固定為「行前準備」。
+- 權限階段未完成時主按鈕顯示「等待權限」，兩項權限 granted 後顯示「開始探險」。
+- 保留相機與陀螺儀分別點擊的使用者手勢流程，避免把權限請求合併回單一按鈕。
+- 只調 DOM / CSS 流程，不改 p5 shader 消融或 Scanning / Result 邏輯。
+
+### 遇到的問題
+一般 PowerShell sandbox 啟動時遇到 Windows `CreateProcessAsUserW failed: 5`，因此改用 Node REPL 讀檔與語法檢查。第一張單純 Chrome `--screenshot` 停在 loader，推測是 headless 載入 CDN / 初始化時間不穩，因此未把該圖當作成功驗證。
+
+### 嘗試過的解法
+先用 `new Function()` 對 `Pages/DomUi.js` 與 `Pages/StartPage/StartPage.js` 做語法檢查，並確認所有檔案已無 `start-permission-hint`。接著啟動本機 Python server 與 Chrome headless remote debugging，用 CDP 檢查 DOM class、按鈕文字、權限區 display 狀態，並擷取 Start page 三個階段截圖。
+
+### 最終解法
+`handleDomStartAction()` 現在會先判斷 `startPreparationRevealed`。尚未揭露時呼叫 `beginStartPreparationReveal()`，讓 intro 與「行前準備」淡出；揭露後才呼叫原本的 `requestStartPermissions()`。`syncStartPermissionDom()` 在準備階段前不顯示權限狀態，也不把主按鈕改成「等待權限」。CSS 透過 `.is-preparation-revealed` 顯示權限 checklist 與 status，並讓新階段淡入。
+
+### 視覺驗證紀錄
+已用 Chrome headless + CDP 於 `390x844` portrait 驗證：
+- 初始畫面截圖：`docs/start-prep-initial-dom-2026-05-21.png`
+- 點擊「行前準備」後：`docs/start-prep-after-click-2026-05-21.png`
+- 模擬兩項權限 granted 後：`docs/start-prep-ready-2026-05-21.png`
+
+CDP 狀態確認：第一次點擊後 `#start-page-ui` 變成 `.is-preparation-revealed`，`.permission-actions` 為 `display:flex`，`#start-intro` 為 `display:none`，主按鈕文字為「等待權限」。模擬 granted 後主按鈕為「開始探險」且可按。
+
+### Codex 審美自評
+`7.8/10`。初始畫面比原本更像封面入口，舊紙與植物角落有更多呼吸空間，「行前準備」語氣也比直接權限 checklist 更符合調查前儀式感。準備階段的 checklist 位置偏下，像一張行前表單從頁面下半部浮現，功能清楚但仍略有空白偏多的感覺；目前先不再調整，因為使用者這輪重點是流程與 hint 移除。
+
+### 使用者審美回饋
+本輪使用者尚未對截圖給分或審美評語。已記錄使用者明確偏好：權限 hint 可以完全捨棄。
+
+### 尚未解決的風險
+本次只在 headless CDP 中驗證 Start page DOM 狀態與截圖，尚未完整重跑新版流程的 `START -> SCANNING -> RESULT`。真機仍需確認相機權限、DeviceOrientation 權限、觸控節奏與淡出 / 淡入時間是否自然。測試腳本若仍假設一進頁就能點權限按鈕，後續需更新成先點「行前準備」。
+
+### 使用者回饋或修正
+使用者要求捨棄權限 hint，已照做並從 HTML / CSS / JS 移除相關 id 與同步邏輯。
+
+### 建議的下一步
+請使用者在手機上確認「行前準備」到權限 checklist 的節奏是否太慢或太快。若要調整，優先改 `Pages/DomUi.js` 的 `START_PREPARATION_FADE_MS`；數值越大，第一段淡出與第二段揭露等待越慢，數值越小則轉場更直接。若覺得 checklist 太低，調 `style.css` 的 `.permission-actions` `margin-top`；數值變小會讓權限按鈕更靠近標題，數值變大會更靠近下方。
+
+#### 2026-05-21 補充：移除狀態文字並修正開始後淡出
+使用者指出按下「開始探險」後，權限按鈕、相機 / 陀螺儀權限按鈕與狀態沒有跟著淡出；並補充不需要狀態文字，只要三個按鈕及按鈕各自的文字。本次移除 `index.html` 的 `#start-permission-status`，並清掉 `Pages/DomUi.js` 的 `DomUi.start.status` 與 `getStartPermissionStatusMessage()`。`style.css` 也移除 `.permission-status` 與 status 相關 grid 排版。
+
+問題主因是 `.dom-page-start.is-preparation-revealed .permission-actions` 與 `#start-action` 的 `start-preparation-fade-in` animation 會在 `.is-exiting` 時繼續把 opacity 固定為 1。已新增 `.dom-page-start.is-exiting.is-preparation-revealed .permission-actions` 與 `.dom-page-start.is-exiting.is-preparation-revealed #start-action`，強制 `animation: none` 並 `opacity: 0`。CDP 驗證結果顯示：準備完成畫面中 `statusExists: false`、主按鈕為「開始探險」；按下開始後 `.permission-actions` 與 `#start-action` 的 computed opacity 皆為 `0`，animation 皆為 `none`。
+
+新增視覺驗證截圖：
+- `docs/start-prep-ready-no-status-visual-2026-05-21.png`
+- `docs/start-prep-exiting-buttons-visual-2026-05-21.png`
+
+Codex 審美補充自評：`8/10`。移除狀態文字後，準備階段更像三個明確的行前操作，而不是權限說明區；資訊量更乾淨，按「開始探險」後也能順利把所有操作 UI 交給 Start -> Scanning 的消融轉場。仍需真機確認沒有狀態文字後，denied / error 情境是否足夠讓使用者理解要重按權限按鈕。
